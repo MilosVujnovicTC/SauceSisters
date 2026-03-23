@@ -577,7 +577,7 @@
 
 ## Phase 8: Bonus Content
 
-### Stage 8-1: Pepe's obstacle dash interlude `[ ]`
+### Stage 8-1: Pepe's obstacle dash interlude `[x] 2026-03-23`
 - Endless runner: Pepe runs forward, dodge obstacles
 - Random trigger (~40% chance between zone transitions)
 - 30 seconds max duration

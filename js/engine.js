@@ -369,7 +369,7 @@ const game = {
     itemFlash: 0,        // seconds remaining for item pickup flash
     itemFlashName: '',   // name of item for flash display
     time: 0,             // total elapsed time in seconds (for animations)
-    mode: 'overworld',   // 'overworld', 'bmx', 'drum', 'cooking', 'finale' — controls update/render routing
+    mode: 'overworld',   // 'overworld', 'bmx', 'drum', 'cooking', 'finale', 'pepe_dash' — controls update/render routing
     showScrollOverlay: false,  // true when scroll pattern overlay is visible
     scrollOverlayTimer: 0,     // auto-dismiss countdown (first show only)
 };
@@ -401,6 +401,10 @@ function update(dt) {
     }
     if (game.mode === 'finale') {
         updateFinale(dt);
+        return;
+    }
+    if (game.mode === 'pepe_dash') {
+        updatePepeDash(dt);
         return;
     }
 
@@ -560,6 +564,10 @@ function render(ctx) {
     }
     if (game.mode === 'finale') {
         renderFinale(ctx);
+        return;
+    }
+    if (game.mode === 'pepe_dash') {
+        renderPepeDash(ctx);
         return;
     }
 

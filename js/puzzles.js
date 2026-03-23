@@ -3524,3 +3524,532 @@ function endFinale() {
     setFlag('game_complete', true);
     loadZone('la_cucina');
 }
+
+// ============================================================
+// Pepe's Obstacle Dash — Endless runner interlude
+// ============================================================
+
+/** Pepe dash config. */
+var PEPE_CONFIG = {
+    DURATION: 30,           // max seconds
+    LANE_COUNT: 3,          // top, middle, bottom
+    LANE_HEIGHT: 60,        // pixels per lane
+    PEPE_X: 80,             // fixed X position
+    OBSTACLE_SPEED_BASE: 200,
+    OBSTACLE_SPEED_RAMP: 4, // speed increase per second
+    SPAWN_INTERVAL_BASE: 1.0,
+    SPAWN_INTERVAL_MIN: 0.35,
+    INTRO_TIME: 2.0,
+    RESULT_TIME: 3.0,
+    TRIGGER_CHANCE: 0.4,    // 40% chance between zones
+};
+
+/** Pepe dash state. */
+var pepeDash = {
+    active: false,
+    phase: 'intro',         // 'intro', 'running', 'result'
+    introTimer: 0,
+    resultTimer: 0,
+    timer: 0,               // elapsed game time
+    lane: 1,                // 0=top, 1=mid, 2=bottom (start middle)
+    targetLane: 1,
+    pepeY: 0,               // actual Y (lerps toward lane)
+    obstacles: [],
+    spawnTimer: 0,
+    score: 0,
+    hits: 0,
+    maxHits: 3,
+    grade: '',
+    reward: null,
+    animTimer: 0,
+    invulnTimer: 0,
+    // Decorations
+    groundScroll: 0,
+    bushes: [],
+};
+
+/** Returns the Y position for a given lane. */
+function pepeLaneY(lane) {
+    var baseY = (CONFIG.CANVAS_H - PEPE_CONFIG.LANE_COUNT * PEPE_CONFIG.LANE_HEIGHT) / 2;
+    return baseY + lane * PEPE_CONFIG.LANE_HEIGHT + PEPE_CONFIG.LANE_HEIGHT / 2 - 12;
+}
+
+/** Starts the Pepe obstacle dash interlude. */
+function startPepeDash() {
+    if (pepeDash.active) return;
+    pepeDash.active = true;
+    game.mode = 'pepe_dash';
+    pepeDash.phase = 'intro';
+    pepeDash.introTimer = PEPE_CONFIG.INTRO_TIME;
+    pepeDash.resultTimer = 0;
+    pepeDash.timer = 0;
+    pepeDash.lane = 1;
+    pepeDash.targetLane = 1;
+    pepeDash.pepeY = pepeLaneY(1);
+    pepeDash.obstacles = [];
+    pepeDash.spawnTimer = 0.5;
+    pepeDash.score = 0;
+    pepeDash.hits = 0;
+    pepeDash.grade = '';
+    pepeDash.reward = null;
+    pepeDash.animTimer = 0;
+    pepeDash.invulnTimer = 0;
+    pepeDash.groundScroll = 0;
+    // Generate random bushes for scenery
+    pepeDash.bushes = [];
+    for (var i = 0; i < 12; i++) {
+        pepeDash.bushes.push({
+            x: Math.random() * CONFIG.CANVAS_W * 1.5,
+            y: Math.random() * CONFIG.CANVAS_H,
+            size: 8 + Math.random() * 12,
+            shade: Math.random() * 0.3,
+        });
+    }
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+/** Updates the Pepe dash each frame. */
+function updatePepeDash(dt) {
+    if (!pepeDash.active) return;
+    pepeDash.animTimer += dt;
+
+    // Intro countdown
+    if (pepeDash.phase === 'intro') {
+        pepeDash.introTimer -= dt;
+        if (pepeDash.introTimer <= 0) {
+            pepeDash.phase = 'running';
+            pepeDash.timer = 0;
+        }
+        // Allow skip
+        if (actionJustPressed('interact') && pepeDash.introTimer < 1.0) {
+            pepeDash.phase = 'running';
+            pepeDash.timer = 0;
+        }
+        return;
+    }
+
+    // Result screen
+    if (pepeDash.phase === 'result') {
+        pepeDash.resultTimer -= dt;
+        if (pepeDash.resultTimer <= 0 && actionJustPressed('interact')) {
+            endPepeDash();
+        }
+        if (pepeDash.resultTimer < -3) endPepeDash(); // auto-end
+        return;
+    }
+
+    // Skip / quit with Escape
+    if (isJustPressed('Escape')) {
+        pepeDash.grade = 'C';
+        pepeDash.reward = null;
+        pepeDash.phase = 'result';
+        pepeDash.resultTimer = PEPE_CONFIG.RESULT_TIME;
+        return;
+    }
+
+    pepeDash.timer += dt;
+    pepeDash.groundScroll += (PEPE_CONFIG.OBSTACLE_SPEED_BASE + pepeDash.timer * PEPE_CONFIG.OBSTACLE_SPEED_RAMP) * dt;
+    if (pepeDash.invulnTimer > 0) pepeDash.invulnTimer -= dt;
+
+    // Lane switching input
+    if (isJustPressed('ArrowUp') || isJustPressed('KeyW')) {
+        if (pepeDash.targetLane > 0) pepeDash.targetLane--;
+    }
+    if (isJustPressed('ArrowDown') || isJustPressed('KeyS')) {
+        if (pepeDash.targetLane < PEPE_CONFIG.LANE_COUNT - 1) pepeDash.targetLane++;
+    }
+
+    // Lerp Pepe toward target lane
+    var targetY = pepeLaneY(pepeDash.targetLane);
+    pepeDash.pepeY += (targetY - pepeDash.pepeY) * 0.15;
+    pepeDash.lane = pepeDash.targetLane;
+
+    // Spawn obstacles
+    var speed = PEPE_CONFIG.OBSTACLE_SPEED_BASE + pepeDash.timer * PEPE_CONFIG.OBSTACLE_SPEED_RAMP;
+    var interval = Math.max(PEPE_CONFIG.SPAWN_INTERVAL_MIN,
+        PEPE_CONFIG.SPAWN_INTERVAL_BASE - pepeDash.timer * 0.02);
+    pepeDash.spawnTimer -= dt;
+    if (pepeDash.spawnTimer <= 0) {
+        spawnPepeObstacle();
+        pepeDash.spawnTimer = interval + Math.random() * 0.3;
+    }
+
+    // Update obstacles
+    for (var i = pepeDash.obstacles.length - 1; i >= 0; i--) {
+        var obs = pepeDash.obstacles[i];
+        obs.x -= speed * dt;
+        // Remove if off screen
+        if (obs.x < -40) {
+            if (!obs.hit) pepeDash.score += 10; // survived this obstacle
+            pepeDash.obstacles.splice(i, 1);
+            continue;
+        }
+        // Collision with Pepe
+        if (!obs.hit && pepeDash.invulnTimer <= 0) {
+            var pepeX = PEPE_CONFIG.PEPE_X;
+            var pepeW = 24, pepeH = 20;
+            if (rectsOverlap(pepeX, pepeDash.pepeY, pepeW, pepeH,
+                obs.x, obs.y - obs.h / 2, obs.w, obs.h)) {
+                obs.hit = true;
+                pepeDash.hits++;
+                pepeDash.invulnTimer = 0.8;
+                playEnemyHit();
+            }
+        }
+    }
+
+    // Score ticks up with time
+    pepeDash.score += dt * 5;
+
+    // End conditions: time up or too many hits
+    if (pepeDash.timer >= PEPE_CONFIG.DURATION || pepeDash.hits >= pepeDash.maxHits) {
+        finalizePepeDash();
+    }
+}
+
+/** Spawns a random obstacle. */
+function spawnPepeObstacle() {
+    var lane = Math.floor(Math.random() * PEPE_CONFIG.LANE_COUNT);
+    var types = ['barrel', 'crate', 'rock', 'puddle'];
+    var type = types[Math.floor(Math.random() * types.length)];
+    var w = type === 'puddle' ? 36 : 24;
+    var h = type === 'puddle' ? 12 : 24;
+    pepeDash.obstacles.push({
+        x: CONFIG.CANVAS_W + 20,
+        y: pepeLaneY(lane) + 10,
+        w: w, h: h,
+        lane: lane,
+        type: type,
+        hit: false,
+    });
+    // Occasionally spawn double (two lanes at once)
+    if (pepeDash.timer > 10 && Math.random() < 0.3) {
+        var lane2 = (lane + 1 + Math.floor(Math.random() * (PEPE_CONFIG.LANE_COUNT - 1))) % PEPE_CONFIG.LANE_COUNT;
+        pepeDash.obstacles.push({
+            x: CONFIG.CANVAS_W + 20,
+            y: pepeLaneY(lane2) + 10,
+            w: w, h: h,
+            lane: lane2,
+            type: types[Math.floor(Math.random() * types.length)],
+            hit: false,
+        });
+    }
+}
+
+/** Calculates final grade and reward. */
+function finalizePepeDash() {
+    var survivalPct = pepeDash.timer / PEPE_CONFIG.DURATION;
+    var hitPenalty = pepeDash.hits * 0.15;
+    var finalScore = Math.max(0, survivalPct - hitPenalty);
+
+    if (finalScore >= 0.9) {
+        pepeDash.grade = 'S';
+        pepeDash.reward = { type: 'powerup', id: 'brownie', name: 'Brodo Boost' };
+    } else if (finalScore >= 0.7) {
+        pepeDash.grade = 'A';
+        pepeDash.reward = { type: 'powerup', id: 'chocolate_milk', name: 'Sugar Rush' };
+    } else if (finalScore >= 0.4) {
+        pepeDash.grade = 'B';
+        pepeDash.reward = { type: 'item', id: 'tomato', name: 'Tomato' };
+    } else {
+        pepeDash.grade = 'C';
+        pepeDash.reward = null;
+    }
+
+    pepeDash.phase = 'result';
+    pepeDash.resultTimer = PEPE_CONFIG.RESULT_TIME;
+}
+
+/** Ends the Pepe dash — grant reward and return to zone transition. */
+function endPepeDash() {
+    if (pepeDash.reward) {
+        if (pepeDash.reward.type === 'powerup') {
+            activatePowerup(pepeDash.reward.id);
+        } else if (pepeDash.reward.type === 'item') {
+            addToInventory(pepeDash.reward.id);
+        }
+        game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+        game.itemFlashName = pepeDash.reward.name;
+    }
+
+    pepeDash.active = false;
+    game.mode = 'overworld';
+
+    // Return to the destination zone
+    if (game.pepeReturnZone) {
+        loadZone(game.pepeReturnZone, game.pepeReturnSpawnX, game.pepeReturnSpawnY);
+        game.pepeReturnZone = null;
+    }
+}
+
+/** Renders the Pepe obstacle dash. */
+function renderPepeDash(ctx) {
+    if (!pepeDash.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = pepeDash.animTimer;
+
+    // Sky gradient
+    var skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0, '#87ceeb');
+    skyGrad.addColorStop(0.6, '#b0e0e6');
+    skyGrad.addColorStop(1, '#90ee90');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Scrolling ground
+    var gScroll = pepeDash.groundScroll % 64;
+    ctx.fillStyle = '#6b8e23';
+    ctx.fillRect(0, H * 0.75, W, H * 0.25);
+    // Ground stripes
+    ctx.fillStyle = '#5a7a1a';
+    for (var gs = -1; gs < W / 64 + 2; gs++) {
+        ctx.fillRect(gs * 64 - gScroll, H * 0.75, 32, H * 0.25);
+    }
+
+    // Bushes (parallax background)
+    for (var bi = 0; bi < pepeDash.bushes.length; bi++) {
+        var bush = pepeDash.bushes[bi];
+        var bx = ((bush.x - pepeDash.groundScroll * 0.3) % (W * 1.5));
+        if (bx < -30) bx += W * 1.5;
+        ctx.fillStyle = 'rgba(34, 120, 40, ' + (0.4 + bush.shade) + ')';
+        ctx.beginPath();
+        ctx.arc(bx, bush.y * 0.3 + H * 0.15, bush.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Lane areas
+    var baseY = (H - PEPE_CONFIG.LANE_COUNT * PEPE_CONFIG.LANE_HEIGHT) / 2;
+    for (var ln = 0; ln < PEPE_CONFIG.LANE_COUNT; ln++) {
+        var ly = baseY + ln * PEPE_CONFIG.LANE_HEIGHT;
+        ctx.fillStyle = ln % 2 === 0 ? 'rgba(139, 119, 101, 0.3)' : 'rgba(160, 140, 120, 0.25)';
+        ctx.fillRect(0, ly, W, PEPE_CONFIG.LANE_HEIGHT);
+        // Lane divider
+        if (ln > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(0, ly);
+            ctx.lineTo(W, ly);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+
+    // Obstacles
+    for (var oi = 0; oi < pepeDash.obstacles.length; oi++) {
+        var obs = pepeDash.obstacles[oi];
+        var ox = obs.x;
+        var oy = obs.y;
+        if (obs.hit) {
+            ctx.globalAlpha = 0.3;
+        }
+        switch (obs.type) {
+            case 'barrel':
+                ctx.fillStyle = '#8b5e3c';
+                ctx.fillRect(ox, oy - 12, 20, 24);
+                ctx.fillStyle = '#6b3e1c';
+                ctx.fillRect(ox + 2, oy - 8, 16, 2);
+                ctx.fillRect(ox + 2, oy + 6, 16, 2);
+                break;
+            case 'crate':
+                ctx.fillStyle = '#b5651d';
+                ctx.fillRect(ox, oy - 12, 22, 22);
+                ctx.strokeStyle = '#8b4513';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(ox + 1, oy - 11, 20, 20);
+                ctx.beginPath();
+                ctx.moveTo(ox + 1, oy - 11);
+                ctx.lineTo(ox + 21, oy + 9);
+                ctx.stroke();
+                break;
+            case 'rock':
+                ctx.fillStyle = '#888888';
+                ctx.beginPath();
+                ctx.ellipse(ox + 10, oy, 12, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#666666';
+                ctx.beginPath();
+                ctx.ellipse(ox + 12, oy - 2, 6, 5, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'puddle':
+                ctx.fillStyle = 'rgba(60, 120, 200, 0.5)';
+                ctx.beginPath();
+                ctx.ellipse(ox + 18, oy, 18, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(100, 160, 240, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(ox + 20, oy - 2, 10, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Pepe (chihuahua)
+    var pepeX = PEPE_CONFIG.PEPE_X;
+    var pepeY = pepeDash.pepeY;
+    // Invulnerability blink
+    if (pepeDash.invulnTimer > 0 && Math.floor(t * 10) % 2 === 0) {
+        // skip drawing = blink
+    } else {
+        drawPepeRunner(ctx, pepeX, pepeY, t);
+    }
+
+    // HUD
+    // Timer bar
+    var timerPct = Math.min(pepeDash.timer / PEPE_CONFIG.DURATION, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(20, 16, W - 40, 12);
+    ctx.fillStyle = timerPct > 0.8 ? '#ff4444' : '#44cc44';
+    ctx.fillRect(20, 16, (W - 40) * timerPct, 12);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 16, W - 40, 12);
+
+    // Score + hits
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Score: ' + Math.floor(pepeDash.score), 20, 48);
+    ctx.textAlign = 'right';
+    // Hearts for hits remaining
+    var livesLeft = pepeDash.maxHits - pepeDash.hits;
+    var heartStr = '';
+    for (var hi = 0; hi < pepeDash.maxHits; hi++) {
+        heartStr += hi < livesLeft ? '\u2764 ' : '\u2661 ';
+    }
+    ctx.fillText(heartStr, W - 20, 48);
+
+    // Time remaining
+    var timeLeft = Math.max(0, PEPE_CONFIG.DURATION - pepeDash.timer);
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.ceil(timeLeft) + 's', W / 2, 48);
+
+    // Intro overlay
+    if (pepeDash.phase === 'intro') {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 24px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText("PEPE'S OBSTACLE DASH!", W / 2, H / 2 - 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText('Dodge the obstacles! Use Up/Down to switch lanes.', W / 2, H / 2);
+        ctx.fillText('Survive 30 seconds for the best score!', W / 2, H / 2 + 24);
+        var countdown = Math.ceil(pepeDash.introTimer);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 36px monospace';
+        ctx.fillText(countdown > 0 ? '' + countdown : 'GO!', W / 2, H / 2 + 80);
+        ctx.fillStyle = '#888888';
+        ctx.font = '10px monospace';
+        ctx.fillText('Esc to skip', W / 2, H - 20);
+    }
+
+    // Result overlay
+    if (pepeDash.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('DASH COMPLETE!', W / 2, H / 2 - 60);
+
+        // Grade
+        var gradeColors = { S: '#ffd700', A: '#44cc44', B: '#4488ff', C: '#aaaaaa' };
+        ctx.fillStyle = gradeColors[pepeDash.grade] || '#ffffff';
+        ctx.font = 'bold 48px monospace';
+        ctx.fillText(pepeDash.grade, W / 2, H / 2);
+
+        // Stats
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText('Score: ' + Math.floor(pepeDash.score), W / 2, H / 2 + 30);
+        ctx.fillText('Time: ' + pepeDash.timer.toFixed(1) + 's  |  Hits: ' + pepeDash.hits, W / 2, H / 2 + 50);
+
+        // Reward
+        if (pepeDash.reward) {
+            ctx.fillStyle = '#ffcc44';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText('Reward: ' + pepeDash.reward.name, W / 2, H / 2 + 80);
+        } else {
+            ctx.fillStyle = '#888888';
+            ctx.font = '12px monospace';
+            ctx.fillText('No reward this time.', W / 2, H / 2 + 80);
+        }
+
+        if (pepeDash.resultTimer <= 0 && Math.sin(t * 3) > 0) {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '12px monospace';
+            ctx.fillText('Press Space to continue', W / 2, H / 2 + 120);
+        }
+    }
+}
+
+/** Draws Pepe the chihuahua running. */
+function drawPepeRunner(ctx, x, y, t) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(x + 12, y + 20, 10, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body — small tan chihuahua
+    ctx.fillStyle = '#d4a060';
+    ctx.fillRect(x + 2, y + 6, 18, 10);
+
+    // Head
+    ctx.fillStyle = '#d4a060';
+    ctx.beginPath();
+    ctx.arc(x + 22, y + 6, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Big ears (triangle-ish)
+    ctx.fillStyle = '#c08840';
+    ctx.beginPath();
+    ctx.moveTo(x + 18, y + 2);
+    ctx.lineTo(x + 16, y - 6);
+    ctx.lineTo(x + 22, y);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 24, y + 1);
+    ctx.lineTo(x + 26, y - 5);
+    ctx.lineTo(x + 28, y + 2);
+    ctx.fill();
+
+    // Eyes — big, eager
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(x + 24, y + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x + 24, y + 4, 1, 1);
+
+    // Nose
+    ctx.fillStyle = '#333333';
+    ctx.beginPath();
+    ctx.arc(x + 28, y + 7, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs — animated running cycle
+    var legPhase = Math.sin(t * 16) * 4;
+    ctx.fillStyle = '#c08840';
+    // Front legs
+    ctx.fillRect(x + 16, y + 14, 3, 6 + legPhase);
+    ctx.fillRect(x + 12, y + 14, 3, 6 - legPhase);
+    // Back legs
+    ctx.fillRect(x + 4, y + 14, 3, 6 - legPhase);
+    ctx.fillRect(x + 8, y + 14, 3, 6 + legPhase);
+
+    // Tail — wagging
+    var tailWag = Math.sin(t * 12) * 8;
+    ctx.strokeStyle = '#c08840';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, y + 8);
+    ctx.quadraticCurveTo(x - 4, y + tailWag, x - 6, y + 2 + tailWag * 0.5);
+    ctx.stroke();
+}

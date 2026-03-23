@@ -1463,6 +1463,18 @@ function checkTransitions() {
                 return;
             }
 
+            // Random Pepe obstacle dash (~40% chance between zones)
+            if (!getFlag('pepe_dash_cooldown') && Math.random() < PEPE_CONFIG.TRIGGER_CHANCE) {
+                game.pepeReturnZone = t.target;
+                game.pepeReturnSpawnX = t.spawnX;
+                game.pepeReturnSpawnY = t.spawnY;
+                setFlag('pepe_dash_cooldown', true); // prevent immediate re-trigger
+                startPepeDash();
+                return;
+            }
+            // Clear cooldown on normal transition (so it can trigger next time)
+            setFlag('pepe_dash_cooldown', false);
+
             loadZone(t.target, t.spawnX, t.spawnY);
             return;
         }
