@@ -261,6 +261,9 @@ function checkMeleeHits(weapon) {
 
     // Check Enzo boss
     checkBossHit(hb.x, hb.y, hb.w, hb.h, weapon);
+
+    // Check Wedding Planner boss
+    checkWeddingBossHit(hb.x, hb.y, hb.w, hb.h, weapon);
 }
 
 /** Returns true if two rectangles overlap. */
@@ -369,6 +372,12 @@ function updateProjectiles(dt) {
 
         // Boss hit check
         if (checkBossHit(p.x, p.y, p.w, p.h, WEAPONS[p.weaponId] || { damage: 1 })) {
+            p.splat = true;
+            p.splatTimer = 0.3;
+            continue;
+        }
+        // Wedding boss hit check
+        if (checkWeddingBossHit(p.x, p.y, p.w, p.h, WEAPONS[p.weaponId] || { damage: 1 })) {
             p.splat = true;
             p.splatTimer = 0.3;
             continue;
@@ -491,6 +500,12 @@ function updateTraps(dt) {
             trap.triggered = true;
             trap.triggerTimer = 0.5;
         }
+        // Check Wedding Planner boss
+        if (!trap.triggered && checkWeddingBossHit(trap.x, trap.y, ts, ts,
+            WEAPONS[trap.weaponId] || { damage: 0, effect: trap.effect, effectDuration: trap.effectDuration || 0 })) {
+            trap.triggered = true;
+            trap.triggerTimer = 0.5;
+        }
     }
 }
 
@@ -578,6 +593,15 @@ function startAreaAttack(weapon) {
         var bdy = (enzoBoss.y + enzoBoss.h / 2) - pcy;
         if (bdx * bdx + bdy * bdy <= radius * radius) {
             hitBoss(weapon);
+        }
+    }
+
+    // Hit Wedding Planner boss in radius
+    if (weddingBoss.active && weddingBoss.state !== 'defeated') {
+        var wdx = (weddingBoss.x + weddingBoss.w / 2) - pcx;
+        var wdy = (weddingBoss.y + weddingBoss.h / 2) - pcy;
+        if (wdx * wdx + wdy * wdy <= radius * radius) {
+            hitWeddingBoss(weapon);
         }
     }
 

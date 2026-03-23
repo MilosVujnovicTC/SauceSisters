@@ -1157,6 +1157,7 @@ const NPC_BLIP_PROFILES = {
     mama_rosa:       { type: 'fmsine',   baseNote: 'G3',  pitchRange: 5, harmonicity: 2 },
     shop_cat_lady:   { type: 'triangle', baseNote: 'A4',  pitchRange: 4, harmonicity: 1 },
     shop_assistant:  { type: 'sine',     baseNote: 'C5',  pitchRange: 6, harmonicity: 1 },
+    wedding_planner: { type: 'fmsine',   baseNote: 'B4',  pitchRange: 7, harmonicity: 3 },
 };
 
 /** Creates SFX synths (for sounds that stay procedural). Called once after audio unlock. */

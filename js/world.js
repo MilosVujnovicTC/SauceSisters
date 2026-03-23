@@ -1245,6 +1245,30 @@ const ZONES = {
                     });
                 },
             },
+            {
+                id: 'wedding_planner_trigger',
+                name: 'Wedding Planner Bridget',
+                col: 6, row: 3,
+                color: '#7b2d8e',
+                onInteract: function() {
+                    if (getFlag('wedding_boss_defeated')) {
+                        startDialogue({
+                            id: 'wedding_planner_post', name: 'Bridget',
+                            getLines: function() {
+                                var lines = [
+                                    ["*snoring on a pile of fabric*", "Zzz... the... the flowers go... by the... zzz..."],
+                                    ["I've decided to retire from wedding planning.", "I'm going to open a STRESS BALL factory instead."],
+                                    ["You know what? That sauce smells AMAZING.", "Maybe this wedding will be okay after all."],
+                                ];
+                                return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                            },
+                        });
+                        return;
+                    }
+                    // Start the boss fight!
+                    startWeddingBoss();
+                },
+            },
         ],
         powerups: [
             { id: 'sewing_milk', type: 'milk', col: 20, row: 14 },
@@ -1313,7 +1337,10 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     traps = [];       // clear traps on zone change
     areaEffects = []; // clear area effects on zone change
     bossProjectiles = []; // clear boss projectiles on zone change
+    wpProjectiles = [];   // clear wedding boss projectiles
+    stressClouds = [];    // clear stress clouds
     if (enzoBoss.active) enzoBoss.active = false; // deactivate boss on zone change
+    if (weddingBoss.active) weddingBoss.active = false;
 
     // Reset pushable positions for unsolved puzzles (prevents softlocks)
     if (zoneId === 'market' && !getFlag('recipe_1_found') && zone.pushables) {
@@ -1410,6 +1437,7 @@ function checkTransitions() {
     if (!zone || !zone.transitions) return;
     // Block transitions during boss fight
     if (enzoBoss.active) return;
+    if (weddingBoss.active) return;
     // Cooldown: skip check for a few frames after a zone load
     if (game.transitionCooldown > 0) {
         game.transitionCooldown--;
@@ -2010,6 +2038,7 @@ function findNearbyObject() {
         if (obj.id === 'kitchen_flour' && hasItem('flour')) continue;
         if (obj.id === 'market_tomato' && hasItem('tomato')) continue;
         if (obj.id === 'market_banana' && hasItem('banana')) continue;
+        if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) continue;
         var ocx = obj.col * ts + ts / 2;
         var ocy = obj.row * ts + ts / 2;
         var dx = pcx - ocx;
@@ -2036,6 +2065,7 @@ function renderObjects(ctx, cameraX, cameraY) {
         if (obj.id === 'kitchen_flour' && hasItem('flour')) continue;
         if (obj.id === 'market_tomato' && hasItem('tomato')) continue;
         if (obj.id === 'market_banana' && hasItem('banana')) continue;
+        if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) continue;
 
         var screenX = obj.col * ts - cameraX;
         var screenY = obj.row * ts - cameraY;

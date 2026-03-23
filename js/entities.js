@@ -197,6 +197,10 @@ function restartZone() {
         // Reset boss fight and respawn at pizzeria entrance
         resetEnzoBoss();
         loadZone('pizzeria');
+    } else if (weddingBoss.active) {
+        // Reset wedding boss and respawn at sewing shop entrance
+        resetWeddingBoss();
+        loadZone('sewing_shop');
     } else {
         // Back to La Cucina — start from scratch
         loadZone('la_cucina');
@@ -2113,6 +2117,764 @@ function resetEnzoBoss() {
     bossProjectiles = [];
     enemies = [];
     restoreNPCAfterBoss('enzo');
+}
+
+// ============================================================
+// Wedding Planner Boss Fight (Sewing Shop — Stage 7-9)
+// ============================================================
+
+/** Wedding Planner boss state. Active during the boss fight in Mama's Sewing Shop. */
+var weddingBoss = {
+    active: false,
+    x: 0, y: 0, w: 32, h: 32,
+    facing: 'down',
+    hp: 14,
+    maxHp: 14,
+    speed: 65,
+    damage: 1,
+    phase: 1,
+    // AI state: 'idle' | 'throwing' | 'stress_cloud' | 'dash' | 'stunned' | 'defeated' | 'wander'
+    state: 'idle',
+    stateTimer: 0,
+    throwCooldown: 0,
+    cloudCooldown: 0,
+    dashCooldown: 0,
+    dashDir: { x: 0, y: 0 },
+    dashTimer: 0,
+    dashWindupTimer: 0,
+    stunTimer: 0,
+    wanderTarget: { x: 0, y: 0 },
+    wanderTimer: 0,
+    flashTimer: 0,
+    animTimer: 0,
+    // Arena: main sewing room (cols 1-12, rows 1-16)
+    arenaLeft: 1 * 32,
+    arenaRight: 12 * 32,
+    arenaTop: 1 * 32,
+    arenaBottom: 16 * 32,
+    introDone: false,
+    defeatTimer: 0,
+    summonCount: 0,
+    maxSummons: 2,
+};
+
+/** Boss projectiles for wedding planner (clipboards). */
+var wpProjectiles = [];
+
+/** Stress cloud hazards spawned by wedding planner. */
+var stressClouds = [];
+
+/** Phase text overlay for wedding planner boss. */
+var wpPhaseText = { text: '', timer: 0 };
+
+/** Initializes the Wedding Planner boss fight. */
+function startWeddingBoss() {
+    var ts = CONFIG.TILE_SIZE;
+    weddingBoss.active = true;
+    weddingBoss.hp = 14;
+    weddingBoss.maxHp = 14;
+    weddingBoss.phase = 1;
+    weddingBoss.state = 'idle';
+    weddingBoss.stateTimer = 1.5;
+    weddingBoss.throwCooldown = 1.0;
+    weddingBoss.cloudCooldown = 3.0;
+    weddingBoss.dashCooldown = 5.0;
+    weddingBoss.stunTimer = 0;
+    weddingBoss.flashTimer = 0;
+    weddingBoss.animTimer = 0;
+    weddingBoss.defeatTimer = 0;
+    weddingBoss.introDone = false;
+    weddingBoss.summonCount = 0;
+    weddingBoss.x = 6 * ts;
+    weddingBoss.y = 4 * ts;
+    weddingBoss.facing = 'down';
+    wpProjectiles = [];
+    stressClouds = [];
+    enemies = [];
+
+    hideNPCDuringBoss('mama_rosa');
+
+    startDialogue({
+        id: 'wedding_planner_intro', name: 'Wedding Planner Bridget',
+        getLines: function() {
+            return {
+                lines: [
+                    "STOP RIGHT THERE!",
+                    "I am Bridget, the WEDDING PLANNER! This wedding is MY production!",
+                    "You think you can just waltz in and save the day with some SAUCE?!",
+                    "The schedule is RUINED! The flowers are WRONG! And now I have to deal with CHILDREN?!",
+                    "I'll show you what STRESS looks like!",
+                ],
+                onComplete: function() { weddingBoss.introDone = true; },
+            };
+        },
+    });
+}
+
+/** Updates the Wedding Planner boss each frame. */
+function updateWeddingBoss(dt) {
+    if (!weddingBoss.active) return;
+
+    // Defeat sequence
+    if (weddingBoss.state === 'defeated') {
+        updateWeddingBossDefeat(dt);
+        return;
+    }
+
+    // Wait for intro dialogue
+    if (!weddingBoss.introDone) return;
+
+    weddingBoss.animTimer += dt;
+    if (weddingBoss.flashTimer > 0) weddingBoss.flashTimer -= dt;
+    if (wpPhaseText.timer > 0) wpPhaseText.timer -= dt;
+
+    // Update projectiles + stress clouds
+    updateWPProjectiles(dt);
+    updateStressClouds(dt);
+
+    // Cooldowns
+    if (weddingBoss.throwCooldown > 0) weddingBoss.throwCooldown -= dt;
+    if (weddingBoss.cloudCooldown > 0) weddingBoss.cloudCooldown -= dt;
+    if (weddingBoss.dashCooldown > 0) weddingBoss.dashCooldown -= dt;
+
+    // Phase transitions
+    var hpPct = weddingBoss.hp / weddingBoss.maxHp;
+    if (weddingBoss.phase === 1 && hpPct <= 0.6) {
+        weddingBoss.phase = 2;
+        wpPhaseText.text = 'BRIDGET IS PANICKING!';
+        wpPhaseText.timer = 2.0;
+    }
+    if (weddingBoss.phase === 2 && hpPct <= 0.3) {
+        weddingBoss.phase = 3;
+        wpPhaseText.text = 'BRIDGET HAS LOST IT!';
+        wpPhaseText.timer = 2.0;
+    }
+
+    // Contact damage
+    if (weddingBoss.state !== 'stunned') {
+        if (rectsOverlap(player.x, player.y, player.w, player.h,
+            weddingBoss.x, weddingBoss.y, weddingBoss.w, weddingBoss.h)) {
+            damagePlayer(1);
+        }
+    }
+
+    // State machine
+    switch (weddingBoss.state) {
+        case 'idle': updateWBIdle(dt); break;
+        case 'wander': updateWBWander(dt); break;
+        case 'throwing': updateWBThrowing(dt); break;
+        case 'stress_cloud': updateWBStressCloud(dt); break;
+        case 'dash': updateWBDash(dt); break;
+        case 'stunned': updateWBStunned(dt); break;
+    }
+
+    // Face player (except during dash)
+    if (weddingBoss.state !== 'dash') {
+        var dx = player.x - weddingBoss.x;
+        var dy = player.y - weddingBoss.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            weddingBoss.facing = dx > 0 ? 'right' : 'left';
+        } else {
+            weddingBoss.facing = dy > 0 ? 'down' : 'up';
+        }
+    }
+}
+
+/** Idle state — pick next attack. */
+function updateWBIdle(dt) {
+    weddingBoss.stateTimer -= dt;
+    if (weddingBoss.stateTimer > 0) return;
+
+    var actions = [];
+    if (weddingBoss.throwCooldown <= 0) actions.push('throw');
+    if (weddingBoss.cloudCooldown <= 0 && weddingBoss.phase >= 2) actions.push('cloud');
+    if (weddingBoss.dashCooldown <= 0 && weddingBoss.phase >= 3) actions.push('dash');
+
+    if (actions.length === 0) {
+        weddingBoss.state = 'wander';
+        weddingBoss.wanderTimer = 1.5;
+        pickWBWanderTarget();
+        return;
+    }
+
+    var pick = actions[Math.floor(Math.random() * actions.length)];
+    switch (pick) {
+        case 'throw':
+            weddingBoss.state = 'throwing';
+            weddingBoss.stateTimer = 0.4;
+            break;
+        case 'cloud':
+            weddingBoss.state = 'stress_cloud';
+            weddingBoss.stateTimer = 0.6;
+            break;
+        case 'dash':
+            weddingBoss.state = 'dash';
+            weddingBoss.dashWindupTimer = 0.6;
+            weddingBoss.dashTimer = 0;
+            // Lock direction toward player
+            var ddx = (player.x + player.w / 2) - (weddingBoss.x + weddingBoss.w / 2);
+            var ddy = (player.y + player.h / 2) - (weddingBoss.y + weddingBoss.h / 2);
+            var ddist = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+            weddingBoss.dashDir = { x: ddx / ddist, y: ddy / ddist };
+            break;
+    }
+}
+
+/** Wander toward a point near the player. */
+function updateWBWander(dt) {
+    weddingBoss.wanderTimer -= dt;
+    var dx = weddingBoss.wanderTarget.x - weddingBoss.x;
+    var dy = weddingBoss.wanderTarget.y - weddingBoss.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 4 || weddingBoss.wanderTimer <= 0) {
+        weddingBoss.state = 'idle';
+        weddingBoss.stateTimer = 0.4;
+        return;
+    }
+    var nx = dx / dist;
+    var ny = dy / dist;
+    moveWBWithCollision(nx * weddingBoss.speed * dt, ny * weddingBoss.speed * dt);
+}
+
+/** Pick a wander target near the player. */
+function pickWBWanderTarget() {
+    var tx = player.x + (Math.random() - 0.5) * 128;
+    var ty = player.y + (Math.random() - 0.5) * 128;
+    tx = Math.max(weddingBoss.arenaLeft + 16, Math.min(tx, weddingBoss.arenaRight - 16));
+    ty = Math.max(weddingBoss.arenaTop + 16, Math.min(ty, weddingBoss.arenaBottom - 16));
+    weddingBoss.wanderTarget = { x: tx, y: ty };
+}
+
+/** Throwing state — fire clipboards at player. */
+function updateWBThrowing(dt) {
+    weddingBoss.stateTimer -= dt;
+    if (weddingBoss.stateTimer <= 0) {
+        fireWPProjectile(0);
+        if (weddingBoss.phase >= 2) {
+            fireWPProjectile(0.3);
+            fireWPProjectile(-0.3);
+        }
+        weddingBoss.throwCooldown = weddingBoss.phase >= 3 ? 1.5 : 2.2;
+        weddingBoss.state = 'idle';
+        weddingBoss.stateTimer = 0.6;
+    }
+}
+
+/** Stress cloud state — spawn hazard cloud at player position. */
+function updateWBStressCloud(dt) {
+    weddingBoss.stateTimer -= dt;
+    if (weddingBoss.stateTimer <= 0) {
+        // Spawn stress cloud at player's current position
+        stressClouds.push({
+            x: player.x + player.w / 2,
+            y: player.y + player.h / 2,
+            radius: 48,
+            lifetime: 4.0,
+            timer: 4.0,
+            damageInterval: 0.8,
+            damageCooldown: 0,
+        });
+        if (weddingBoss.phase >= 3) {
+            // Spawn extra cloud offset
+            stressClouds.push({
+                x: player.x + player.w / 2 + (Math.random() - 0.5) * 80,
+                y: player.y + player.h / 2 + (Math.random() - 0.5) * 80,
+                radius: 40,
+                lifetime: 3.0,
+                timer: 3.0,
+                damageInterval: 0.8,
+                damageCooldown: 0,
+            });
+        }
+        weddingBoss.cloudCooldown = weddingBoss.phase >= 3 ? 4.0 : 6.0;
+        weddingBoss.state = 'idle';
+        weddingBoss.stateTimer = 0.8;
+    }
+}
+
+/** Dash attack (phase 3) — windup then rush. */
+function updateWBDash(dt) {
+    if (weddingBoss.dashWindupTimer > 0) {
+        weddingBoss.dashWindupTimer -= dt;
+        return;
+    }
+    weddingBoss.dashTimer += dt;
+    if (weddingBoss.dashTimer >= 0.5) {
+        weddingBoss.state = 'idle';
+        weddingBoss.stateTimer = 0.8;
+        weddingBoss.dashCooldown = 5.0;
+        return;
+    }
+    // Move fast in locked direction
+    var spd = 200 * dt;
+    var mx = weddingBoss.dashDir.x * spd;
+    var my = weddingBoss.dashDir.y * spd;
+    var hitWall = moveWBWithCollision(mx, my);
+    // Wall crash = stun
+    if (hitWall) {
+        weddingBoss.state = 'stunned';
+        weddingBoss.stunTimer = 1.5;
+        weddingBoss.dashCooldown = 5.0;
+    }
+    // Contact damage during dash
+    if (rectsOverlap(player.x, player.y, player.w, player.h,
+        weddingBoss.x, weddingBoss.y, weddingBoss.w, weddingBoss.h)) {
+        damagePlayer(2);
+    }
+}
+
+/** Stunned state — vulnerable, takes double damage. */
+function updateWBStunned(dt) {
+    weddingBoss.stunTimer -= dt;
+    if (weddingBoss.stunTimer <= 0) {
+        weddingBoss.state = 'idle';
+        weddingBoss.stateTimer = 0.5;
+    }
+}
+
+/** Moves the wedding boss with collision checking. Returns true if blocked by a wall. */
+function moveWBWithCollision(mx, my) {
+    var blocked = false;
+    if (mx !== 0) {
+        var nx = weddingBoss.x + mx;
+        if (!collidesWithMap(game.currentMap, nx, weddingBoss.y, weddingBoss.w, weddingBoss.h)) {
+            weddingBoss.x = nx;
+        } else {
+            blocked = true;
+        }
+    }
+    if (my !== 0) {
+        var ny = weddingBoss.y + my;
+        if (!collidesWithMap(game.currentMap, weddingBoss.x, ny, weddingBoss.w, weddingBoss.h)) {
+            weddingBoss.y = ny;
+        } else {
+            blocked = true;
+        }
+    }
+    // Clamp to arena
+    var preClampX = weddingBoss.x, preClampY = weddingBoss.y;
+    weddingBoss.x = Math.max(weddingBoss.arenaLeft, Math.min(weddingBoss.x, weddingBoss.arenaRight - weddingBoss.w));
+    weddingBoss.y = Math.max(weddingBoss.arenaTop, Math.min(weddingBoss.y, weddingBoss.arenaBottom - weddingBoss.h));
+    if (weddingBoss.x !== preClampX || weddingBoss.y !== preClampY) blocked = true;
+    return blocked;
+}
+
+/** Fire a clipboard projectile at the player. */
+function fireWPProjectile(angleOffset) {
+    var bx = weddingBoss.x + weddingBoss.w / 2;
+    var by = weddingBoss.y + weddingBoss.h / 2;
+    var px = player.x + player.w / 2;
+    var py = player.y + player.h / 2;
+    var angle = Math.atan2(py - by, px - bx) + (angleOffset || 0);
+    var spd = 160;
+    wpProjectiles.push({
+        x: bx - 6, y: by - 6, w: 12, h: 12,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        traveled: 0, maxDist: 280,
+        splat: false, splatTimer: 0,
+    });
+    playTomatoSplat();
+}
+
+/** Update clipboard projectiles. */
+function updateWPProjectiles(dt) {
+    for (var i = wpProjectiles.length - 1; i >= 0; i--) {
+        var p = wpProjectiles[i];
+        if (p.splat) {
+            p.splatTimer -= dt;
+            if (p.splatTimer <= 0) wpProjectiles.splice(i, 1);
+            continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        var spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        p.traveled += spd * dt;
+        // Wall collision
+        var tc = Math.floor((p.x + p.w / 2) / CONFIG.TILE_SIZE);
+        var tr = Math.floor((p.y + p.h / 2) / CONFIG.TILE_SIZE);
+        var tile = getTile(game.currentMap, tc, tr);
+        if (tile.solid) { p.splat = true; p.splatTimer = 0.3; continue; }
+        if (p.traveled >= p.maxDist) { p.splat = true; p.splatTimer = 0.3; continue; }
+        // Player hit
+        if (rectsOverlap(p.x, p.y, p.w, p.h, player.x, player.y, player.w, player.h)) {
+            damagePlayer(1);
+            p.splat = true; p.splatTimer = 0.3;
+        }
+    }
+}
+
+/** Update stress clouds — damage player standing in them. */
+function updateStressClouds(dt) {
+    for (var i = stressClouds.length - 1; i >= 0; i--) {
+        var c = stressClouds[i];
+        c.timer -= dt;
+        if (c.timer <= 0) { stressClouds.splice(i, 1); continue; }
+        c.damageCooldown -= dt;
+        // Check player overlap
+        var dx = (player.x + player.w / 2) - c.x;
+        var dy = (player.y + player.h / 2) - c.y;
+        if (dx * dx + dy * dy <= c.radius * c.radius && c.damageCooldown <= 0) {
+            damagePlayer(1);
+            c.damageCooldown = c.damageInterval;
+        }
+    }
+}
+
+/** Deals damage to the wedding planner boss. */
+function hitWeddingBoss(weapon) {
+    if (!weddingBoss.active || weddingBoss.state === 'defeated') return;
+    var dmg = weapon.damage || 1;
+    if (weddingBoss.state === 'stunned') dmg *= 2;
+    weddingBoss.hp -= dmg;
+    weddingBoss.flashTimer = 0.2;
+    playEnemyHit();
+    // Knockback
+    var dx = weddingBoss.x - player.x;
+    var dy = weddingBoss.y - player.y;
+    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    moveWBWithCollision((dx / dist) * 20, (dy / dist) * 20);
+    if (weddingBoss.hp <= 0) {
+        weddingBoss.hp = 0;
+        weddingBoss.state = 'defeated';
+        weddingBoss.defeatTimer = 2.0;
+        wpProjectiles = [];
+        stressClouds = [];
+        for (var i = 0; i < enemies.length; i++) enemies[i].state = 'dead';
+    }
+}
+
+/** Checks if a weapon hitbox overlaps the wedding planner boss. */
+function checkWeddingBossHit(hbx, hby, hbw, hbh, weapon) {
+    if (!weddingBoss.active || weddingBoss.state === 'defeated') return false;
+    if (rectsOverlap(hbx, hby, hbw, hbh, weddingBoss.x, weddingBoss.y, weddingBoss.w, weddingBoss.h)) {
+        hitWeddingBoss(weapon);
+        return true;
+    }
+    return false;
+}
+
+/** Defeat sequence — fade, then spawn finale. */
+function updateWeddingBossDefeat(dt) {
+    weddingBoss.defeatTimer -= dt;
+    if (weddingBoss.defeatTimer <= 0 && weddingBoss.active) {
+        setFlag('wedding_boss_defeated', true);
+        weddingBoss.active = false;
+        restoreNPCAfterBoss('mama_rosa');
+
+        startDialogue({
+            id: 'wedding_planner_defeated', name: 'Bridget',
+            getLines: function() {
+                return {
+                    lines: [
+                        "*collapses onto a mannequin*",
+                        "I... I just wanted everything to be PERFECT...",
+                        "Maybe... maybe I was the stress all along.",
+                        "Go. Make your sauce. Save the wedding. I need a NAP.",
+                    ],
+                    onComplete: function() {
+                        // Check if all 5 recipe fragments collected → trigger finale
+                        checkAllRecipesAndStartFinale();
+                    },
+                };
+            },
+        });
+    }
+}
+
+/** Resets wedding boss for retry. */
+function resetWeddingBoss() {
+    weddingBoss.active = false;
+    wpProjectiles = [];
+    stressClouds = [];
+    enemies = [];
+    restoreNPCAfterBoss('mama_rosa');
+}
+
+/** Checks if all 5 recipe fragments are found. If so, starts the finale. */
+function checkAllRecipesAndStartFinale() {
+    if (getFlag('recipe_1_found') && getFlag('recipe_2_found') &&
+        getFlag('recipe_3_found') && getFlag('recipe_4_found') &&
+        getFlag('recipe_5_found')) {
+        // All recipes collected — start the finale!
+        setTimeout(function() { startFinale(); }, 1000);
+    } else {
+        // Not all found — hint to player
+        setTimeout(function() {
+            startDialogue({
+                id: 'mama_post_boss', name: 'Mama Rosa',
+                getLines: function() {
+                    return { lines: [
+                        "Well done! But we still need all five recipe fragments.",
+                        "Keep searching, ragazza. The wedding is counting on you!",
+                    ]};
+                },
+            });
+        }, 500);
+    }
+}
+
+/** Renders the Wedding Planner boss. */
+function renderWeddingBoss(ctx, cameraX, cameraY) {
+    if (!weddingBoss.active) return;
+
+    var sx = weddingBoss.x - cameraX;
+    var sy = weddingBoss.y - cameraY;
+    var t = weddingBoss.animTimer;
+
+    // Defeated — shrink + fade + circling stars
+    if (weddingBoss.state === 'defeated') {
+        var progress = 1 - (weddingBoss.defeatTimer / 2.0);
+        var scale = Math.max(0.01, 1 - progress);
+        var alpha = Math.max(0, 1 - progress);
+        ctx.globalAlpha = alpha;
+        var cx = sx + weddingBoss.w / 2;
+        var cy = sy + weddingBoss.h / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+        drawWeddingBossSprite(ctx, -16, -16, t);
+        ctx.restore();
+        // Circling stars
+        for (var s = 0; s < 4; s++) {
+            var a = t * 3 + s * Math.PI / 2;
+            var str = 20 * scale;
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(cx + Math.cos(a) * str, cy - 12 + Math.sin(a) * str * 0.5, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        return;
+    }
+
+    // Flash on hit
+    if (weddingBoss.flashTimer > 0 && Math.floor(t * 20) % 2 === 0) {
+        ctx.globalAlpha = 0.4;
+    }
+
+    // Dash windup glow
+    if (weddingBoss.state === 'dash' && weddingBoss.dashWindupTimer > 0) {
+        var pulse = 0.3 + Math.sin(t * 15) * 0.2;
+        ctx.fillStyle = 'rgba(200, 50, 200, ' + pulse + ')';
+        ctx.beginPath();
+        ctx.arc(sx + 16, sy + 16, 24, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Stunned — shake
+    if (weddingBoss.state === 'stunned') {
+        sx += Math.sin(t * 30) * 2;
+    }
+
+    drawWeddingBossSprite(ctx, sx, sy, t);
+    ctx.globalAlpha = 1;
+
+    // Stunned stars
+    if (weddingBoss.state === 'stunned') {
+        for (var s = 0; s < 3; s++) {
+            var a = t * 4 + s * Math.PI * 2 / 3;
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(sx + 16 + Math.cos(a) * 14, sy - 6 + Math.sin(a) * 5, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Throwing indicator
+    if (weddingBoss.state === 'throwing' && weddingBoss.stateTimer > 0.2) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', sx + 16, sy - 8);
+    }
+
+    // Stress cloud cast indicator
+    if (weddingBoss.state === 'stress_cloud') {
+        var cPulse = 0.5 + Math.sin(t * 8) * 0.3;
+        ctx.fillStyle = 'rgba(180, 80, 200, ' + cPulse + ')';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('STRESS!', sx + 16, sy - 10);
+    }
+}
+
+/** Draws the wedding planner boss sprite procedurally. */
+function drawWeddingBossSprite(ctx, sx, sy, t) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(sx + 16, sy + 30, 12, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body — sharp purple blazer
+    ctx.fillStyle = '#7b2d8e';
+    ctx.fillRect(sx + 6, sy + 14, 20, 14);
+
+    // Clipboard in hand
+    ctx.fillStyle = '#d4a373';
+    ctx.fillRect(sx + 24, sy + 16, 6, 8);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx + 25, sy + 17, 4, 6);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(sx + 25, sy + 18, 3, 1);
+    ctx.fillRect(sx + 25, sy + 20, 3, 1);
+
+    // Head
+    var faceColor = weddingBoss.state === 'stunned' ? '#ccbb99' : '#f0c8a0';
+    ctx.fillStyle = faceColor;
+    ctx.beginPath();
+    ctx.ellipse(sx + 16, sy + 10, 9, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair — tight pulled-back red/auburn bun
+    ctx.fillStyle = '#8b2500';
+    ctx.fillRect(sx + 7, sy + 1, 18, 8);
+    ctx.beginPath();
+    ctx.arc(sx + 16, sy + 2, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // Bun on top
+    ctx.fillStyle = '#a03000';
+    ctx.beginPath();
+    ctx.arc(sx + 16, sy, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes — wide, stressed
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx + 10, sy + 8, 5, 4);
+    ctx.fillRect(sx + 17, sy + 8, 5, 4);
+    ctx.fillStyle = weddingBoss.state === 'dash' ? '#ff0000' : '#2a4080';
+    ctx.fillRect(sx + 12, sy + 9, 2, 2);
+    ctx.fillRect(sx + 19, sy + 9, 2, 2);
+    // Angry eyebrows (stressed, upward inward)
+    ctx.fillStyle = '#4a2010';
+    ctx.fillRect(sx + 10, sy + 6, 5, 2);
+    ctx.fillRect(sx + 17, sy + 6, 5, 2);
+
+    // Grimace
+    ctx.strokeStyle = '#c06050';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx + 12, sy + 16);
+    ctx.lineTo(sx + 14, sy + 15);
+    ctx.lineTo(sx + 18, sy + 15);
+    ctx.lineTo(sx + 20, sy + 16);
+    ctx.stroke();
+
+    // Legs — walking animation
+    var legPhase = Math.sin(t * 8) * 3;
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(sx + 9, sy + 28, 4, 4 + legPhase);
+    ctx.fillRect(sx + 19, sy + 28, 4, 4 - legPhase);
+
+    // Heels
+    ctx.fillStyle = '#cc3366';
+    ctx.fillRect(sx + 9, sy + 31 + Math.max(0, legPhase), 4, 2);
+    ctx.fillRect(sx + 19, sy + 31 + Math.max(0, -legPhase), 4, 2);
+}
+
+/** Renders clipboard projectiles. */
+function renderWPProjectiles(ctx, cameraX, cameraY) {
+    for (var i = 0; i < wpProjectiles.length; i++) {
+        var p = wpProjectiles[i];
+        var sx = p.x - cameraX;
+        var sy = p.y - cameraY;
+        if (p.splat) {
+            var progress = 1 - (p.splatTimer / 0.3);
+            var radius = 6 + progress * 8;
+            ctx.fillStyle = 'rgba(200, 180, 150, ' + (0.5 * (1 - progress)) + ')';
+            ctx.beginPath();
+            ctx.arc(sx + 6, sy + 6, radius, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Spinning clipboard
+            ctx.save();
+            ctx.translate(sx + 6, sy + 6);
+            ctx.rotate(game.time * 6);
+            ctx.fillStyle = '#d4a373';
+            ctx.fillRect(-5, -6, 10, 12);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-4, -5, 8, 10);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-3, -3, 5, 1);
+            ctx.fillRect(-3, 0, 5, 1);
+            ctx.restore();
+        }
+    }
+}
+
+/** Renders stress clouds. */
+function renderStressClouds(ctx, cameraX, cameraY) {
+    for (var i = 0; i < stressClouds.length; i++) {
+        var c = stressClouds[i];
+        var sx = c.x - cameraX;
+        var sy = c.y - cameraY;
+        var alphaMult = Math.min(c.timer / 0.5, 1); // fade out in last 0.5s
+        var pulse = 0.2 + Math.sin(game.time * 4 + i) * 0.1;
+        // Purple-ish stress cloud
+        ctx.fillStyle = 'rgba(160, 60, 180, ' + (pulse * alphaMult) + ')';
+        ctx.beginPath();
+        ctx.arc(sx, sy, c.radius, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner swirls
+        for (var s = 0; s < 3; s++) {
+            var a = game.time * 2 + s * Math.PI * 2 / 3;
+            var sr = c.radius * 0.6;
+            ctx.fillStyle = 'rgba(200, 100, 220, ' + (0.3 * alphaMult) + ')';
+            ctx.beginPath();
+            ctx.arc(sx + Math.cos(a) * sr * 0.4, sy + Math.sin(a) * sr * 0.4, sr * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // "STRESS" text label
+        if (alphaMult > 0.5) {
+            ctx.fillStyle = 'rgba(255, 200, 255, ' + (0.4 * alphaMult) + ')';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('~stress~', sx, sy - c.radius - 4);
+        }
+    }
+}
+
+/** Renders the wedding boss HP bar at the top of the screen. */
+function renderWeddingBossHPBar(ctx) {
+    if (!weddingBoss.active) return;
+
+    var barW = 300;
+    var barH = 16;
+    var barX = (CONFIG.CANVAS_W - barW) / 2;
+    var barY = 40;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(barX - 4, barY - 20, barW + 8, barH + 28);
+    ctx.strokeStyle = '#9c27b0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX - 4, barY - 20, barW + 8, barH + 28);
+
+    ctx.fillStyle = '#cc44cc';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BRIDGET — Phase ' + weddingBoss.phase + '/3', CONFIG.CANVAS_W / 2, barY - 6);
+
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    var hpPct = weddingBoss.hp / weddingBoss.maxHp;
+    var barColor = hpPct > 0.6 ? '#44cc44' : (hpPct > 0.3 ? '#cccc44' : '#cc4444');
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(weddingBoss.hp + ' / ' + weddingBoss.maxHp, CONFIG.CANVAS_W / 2, barY + 12);
+
+    if (wpPhaseText.timer > 0) {
+        var alpha = Math.min(wpPhaseText.timer / 0.5, 1);
+        ctx.fillStyle = 'rgba(200, 50, 200, ' + alpha + ')';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(wpPhaseText.text, CONFIG.CANVAS_W / 2, barY + 44);
+    }
 }
 
 // ============================================================

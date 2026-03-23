@@ -3224,3 +3224,303 @@ function renderPrinter(ctx) {
         ctx.fillText('Arrow keys to move  |  Esc to exit', W / 2, frameY + frameH + 20 + shakeY);
     }
 }
+
+// ============================================================
+// Finale sequence — Final cooking + Wedding montage + Credits
+// ============================================================
+
+/** Finale state: final_cook → wedding → credits → done */
+var finale = {
+    active: false,
+    phase: 'final_cook',  // 'final_cook', 'wedding', 'credits', 'done'
+    timer: 0,
+    scrollY: 0,
+    animTimer: 0,
+    // Final cook sub-phase
+    cookStep: 0,
+    cookTimer: 0,
+    // Wedding montage
+    weddingSlide: 0,
+    weddingSlideTimer: 0,
+};
+
+/** Characters for credits display. */
+var CREDITS_LINES = [
+    { type: 'title', text: 'THE SAUCE SISTERS' },
+    { type: 'spacer' },
+    { type: 'header', text: 'Cast' },
+    { type: 'entry', text: 'Giulia ............ Player 1' },
+    { type: 'entry', text: 'Coco .............. Player 2' },
+    { type: 'entry', text: 'Brodo ............. Faithful Basset Hound' },
+    { type: 'entry', text: 'Pepe .............. Energetic Chihuahua' },
+    { type: 'entry', text: 'Papa Marco ........ World\'s Best Dad' },
+    { type: 'entry', text: 'Mama Rosa ......... Keeper of Secrets' },
+    { type: 'entry', text: 'Signora Betta ..... Market Maven' },
+    { type: 'entry', text: 'Enzo .............. Rival Chef' },
+    { type: 'entry', text: 'Bridget ........... Wedding Planner' },
+    { type: 'spacer' },
+    { type: 'header', text: 'Flavor NPCs' },
+    { type: 'entry', text: 'Sous Chef Luigi  \u2022  Nonna Pina' },
+    { type: 'entry', text: 'Old Sal  \u2022  Zia Carmela' },
+    { type: 'entry', text: 'Signora Lucia  \u2022  Professor Gatto' },
+    { type: 'entry', text: 'Coach Fabio  \u2022  Juice Bar Jenny' },
+    { type: 'entry', text: 'Big Tony  \u2022  Vendor Gianluca' },
+    { type: 'entry', text: 'Nonna Viola  \u2022  Accordion Carlo' },
+    { type: 'entry', text: 'Waiter Marco Jr.  \u2022  Waitress Sofia' },
+    { type: 'entry', text: 'Signora Threads  \u2022  Little Tom\u00e1s' },
+    { type: 'spacer' },
+    { type: 'header', text: 'Music & Sound' },
+    { type: 'entry', text: 'Procedural Music ........ Tone.js' },
+    { type: 'entry', text: 'Sound Effects ........... Howler.js + Kenney.nl' },
+    { type: 'spacer' },
+    { type: 'header', text: 'Technology' },
+    { type: 'entry', text: 'HTML5 Canvas  \u2022  Vanilla JavaScript' },
+    { type: 'entry', text: 'No frameworks. No build tools.' },
+    { type: 'entry', text: 'Just tomatoes and determination.' },
+    { type: 'spacer' },
+    { type: 'header', text: 'Special Thanks' },
+    { type: 'entry', text: 'To every tomato that gave its life for this sauce.' },
+    { type: 'entry', text: 'To Papa\'s gym playlist for keeping morale high.' },
+    { type: 'entry', text: 'To Brodo, for always sniffing in the right direction.' },
+    { type: 'spacer' },
+    { type: 'spacer' },
+    { type: 'title', text: 'THE WEDDING WAS SAVED!' },
+    { type: 'entry', text: 'Mama\'s secret sauce brought everyone together.' },
+    { type: 'spacer' },
+    { type: 'header', text: 'THE END' },
+    { type: 'spacer' },
+    { type: 'spacer' },
+    { type: 'entry', text: 'Thanks for playing!' },
+    { type: 'spacer' },
+    { type: 'spacer' },
+    { type: 'spacer' },
+];
+
+/** Wedding montage slides — text descriptions of scenes. */
+var WEDDING_SLIDES = [
+    { title: 'The Kitchen', text: 'Giulia and Coco assembled all five recipe fragments\nand began cooking Mama\'s legendary sauce...', color: '#ffcc66' },
+    { title: 'The Sauce', text: 'The kitchen filled with the most incredible aroma.\nTomatoes, herbs, love... and a pinch of adventure.', color: '#ff6644' },
+    { title: 'The Wedding', text: 'The guests arrived. The tables were set.\nEverything was perfect.', color: '#88ccff' },
+    { title: 'The Feast', text: 'When the sauce was served, there was silence.\nThen applause. Then seconds. Then thirds.', color: '#ffdd44' },
+    { title: 'The Family', text: 'Papa Marco cried. Mama Rosa smiled.\nEven Enzo admitted it was good.\n(Under his breath. Very quietly.)', color: '#ff88aa' },
+    { title: 'The Promise', text: 'The sisters promised to protect the recipe.\nBut they added one new ingredient:\ntheir own adventure.', color: '#aaddff' },
+];
+
+/** Starts the finale sequence. Called after wedding boss is defeated and all recipes found. */
+function startFinale() {
+    finale.active = true;
+    finale.phase = 'wedding';
+    finale.timer = 0;
+    finale.animTimer = 0;
+    finale.scrollY = 0;
+    finale.weddingSlide = 0;
+    finale.weddingSlideTimer = 0;
+    game.mode = 'finale';
+    setFlag('finale_started', true);
+    // Stop zone music
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+/** Updates the finale sequence. */
+function updateFinale(dt) {
+    if (!finale.active) return;
+    finale.timer += dt;
+    finale.animTimer += dt;
+
+    if (finale.phase === 'wedding') {
+        finale.weddingSlideTimer += dt;
+        if (finale.weddingSlideTimer >= 4.0 || actionJustPressed('interact')) {
+            finale.weddingSlide++;
+            finale.weddingSlideTimer = 0;
+            if (finale.weddingSlide >= WEDDING_SLIDES.length) {
+                finale.phase = 'credits';
+                finale.scrollY = CONFIG.CANVAS_H;
+            }
+        }
+    } else if (finale.phase === 'credits') {
+        finale.scrollY -= 40 * dt; // scroll speed
+        // Check if all credits have scrolled past
+        var totalHeight = CREDITS_LINES.length * 30 + 100;
+        if (finale.scrollY < -totalHeight) {
+            finale.phase = 'done';
+            finale.timer = 0;
+        }
+        // Skip with interact
+        if (actionJustPressed('interact')) {
+            finale.scrollY -= 200;
+        }
+    } else if (finale.phase === 'done') {
+        // Wait for input to return to start
+        if (finale.timer > 1.0 && actionJustPressed('interact')) {
+            endFinale();
+        }
+    }
+}
+
+/** Renders the finale sequence. */
+function renderFinale(ctx) {
+    if (!finale.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = finale.animTimer;
+
+    // Background
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, W, H);
+
+    if (finale.phase === 'wedding') {
+        renderWeddingMontage(ctx, W, H, t);
+    } else if (finale.phase === 'credits') {
+        renderCredits(ctx, W, H, t);
+    } else if (finale.phase === 'done') {
+        // "Thanks for playing" screen
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Starfield
+        for (var s = 0; s < 30; s++) {
+            var sx = ((s * 137 + t * 10) % W);
+            var sy = ((s * 89 + t * 5) % H);
+            ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.sin(t * 2 + s) * 0.2) + ')';
+            ctx.fillRect(sx, sy, 2, 2);
+        }
+
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('THE SAUCE SISTERS', W / 2, H / 2 - 30);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px monospace';
+        ctx.fillText('Thanks for playing!', W / 2, H / 2 + 20);
+
+        if (finale.timer > 1.0 && Math.sin(t * 3) > 0) {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '12px monospace';
+            ctx.fillText('Press Space to return', W / 2, H / 2 + 60);
+        }
+    }
+}
+
+/** Renders the wedding montage slideshow. */
+function renderWeddingMontage(ctx, W, H, t) {
+    var slide = WEDDING_SLIDES[finale.weddingSlide];
+    if (!slide) return;
+
+    // Fade in/out
+    var slideT = finale.weddingSlideTimer;
+    var alpha = 1;
+    if (slideT < 0.5) alpha = slideT / 0.5;
+    if (slideT > 3.5) alpha = (4.0 - slideT) / 0.5;
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    // Background with slide color tint
+    var grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.6);
+    grad.addColorStop(0, slide.color + '44');
+    grad.addColorStop(1, '#0a0a1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalAlpha = alpha;
+
+    // Decorative frame
+    ctx.strokeStyle = slide.color;
+    ctx.lineWidth = 3;
+    var fx = W * 0.15, fy = H * 0.2, fw = W * 0.7, fh = H * 0.6;
+    ctx.strokeRect(fx, fy, fw, fh);
+    ctx.strokeStyle = slide.color + '44';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fx - 6, fy - 6, fw + 12, fh + 12);
+
+    // Title
+    ctx.fillStyle = slide.color;
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(slide.title, W / 2, fy + 40);
+
+    // Divider
+    ctx.fillStyle = slide.color + '88';
+    ctx.fillRect(W / 2 - 60, fy + 50, 120, 2);
+
+    // Text (multi-line)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px monospace';
+    var lines = slide.text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], W / 2, fy + 80 + i * 24);
+    }
+
+    // Slide indicator
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px monospace';
+    ctx.fillText((finale.weddingSlide + 1) + ' / ' + WEDDING_SLIDES.length, W / 2, fy + fh - 20);
+
+    ctx.globalAlpha = 1;
+
+    // "Press Z" hint
+    if (slideT > 1.0 && Math.sin(t * 3) > 0) {
+        ctx.fillStyle = '#888888';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Press Z / Space to continue', W / 2, H - 30);
+    }
+}
+
+/** Renders scrolling credits. */
+function renderCredits(ctx, W, H, t) {
+    // Starfield background
+    for (var s = 0; s < 50; s++) {
+        var sx = ((s * 137 + t * 8) % W);
+        var sy = ((s * 89 + s * 23) % H);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.2 + Math.sin(t + s) * 0.15) + ')';
+        ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    var y = finale.scrollY;
+    for (var i = 0; i < CREDITS_LINES.length; i++) {
+        var line = CREDITS_LINES[i];
+        var lineY = y + i * 30;
+
+        // Skip if off screen
+        if (lineY < -40 || lineY > H + 40) continue;
+
+        // Fade near edges
+        var edgeAlpha = 1;
+        if (lineY < 40) edgeAlpha = lineY / 40;
+        if (lineY > H - 40) edgeAlpha = (H - lineY) / 40;
+        edgeAlpha = Math.max(0, Math.min(1, edgeAlpha));
+
+        ctx.globalAlpha = edgeAlpha;
+        ctx.textAlign = 'center';
+
+        if (line.type === 'title') {
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 24px monospace';
+            ctx.fillText(line.text, W / 2, lineY);
+        } else if (line.type === 'header') {
+            ctx.fillStyle = '#ff8866';
+            ctx.font = 'bold 16px monospace';
+            ctx.fillText(line.text, W / 2, lineY);
+        } else if (line.type === 'entry') {
+            ctx.fillStyle = '#cccccc';
+            ctx.font = '13px monospace';
+            ctx.fillText(line.text, W / 2, lineY);
+        }
+        // spacer = just skip
+    }
+    ctx.globalAlpha = 1;
+
+    // Skip hint
+    ctx.fillStyle = '#555555';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press Z / Space to skip', W / 2, H - 12);
+}
+
+/** Ends the finale — resets back to La Cucina (game complete state). */
+function endFinale() {
+    finale.active = false;
+    game.mode = 'overworld';
+    setFlag('game_complete', true);
+    loadZone('la_cucina');
+}

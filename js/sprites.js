@@ -2724,6 +2724,54 @@ function generatePortraits() {
         cx.beginPath(); cx.arc(32, 44, 5, 0.1, Math.PI - 0.1); cx.stroke();
     });
 
+    // Wedding Planner Bridget — stressed, tight bun, sharp blazer, clipboard
+    PORTRAITS['wedding_planner'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f0c8a0', '#7b2d8e');
+        // Hair — tight auburn pulled-back bun
+        cx.fillStyle = '#8b2500';
+        cx.fillRect(14, 4, 36, 10);
+        cx.fillStyle = '#a03000';
+        cx.beginPath(); cx.arc(32, 4, 8, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#8b2500';
+        cx.beginPath(); cx.arc(32, 2, 6, 0, Math.PI * 2); cx.fill();
+        // Wide stressed eyes
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(19, 28, 10, 7);
+        cx.fillRect(35, 28, 10, 7);
+        cx.fillStyle = '#2a4080';
+        cx.fillRect(23, 30, 4, 4);
+        cx.fillRect(39, 30, 4, 4);
+        cx.fillStyle = '#000';
+        cx.fillRect(24, 31, 2, 2);
+        cx.fillRect(40, 31, 2, 2);
+        // Angry stressed eyebrows
+        cx.fillStyle = '#4a2010';
+        cx.fillRect(19, 25, 10, 2);
+        cx.fillRect(35, 25, 10, 2);
+        // Grimace / stressed mouth
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 2;
+        cx.beginPath();
+        cx.moveTo(26, 46);
+        cx.lineTo(29, 44);
+        cx.lineTo(35, 44);
+        cx.lineTo(38, 46);
+        cx.stroke();
+        // Clipboard in corner
+        cx.fillStyle = '#d4a373';
+        cx.fillRect(48, 48, 12, 14);
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(49, 50, 10, 10);
+        cx.fillStyle = '#333';
+        cx.fillRect(50, 52, 7, 1);
+        cx.fillRect(50, 55, 7, 1);
+        cx.fillRect(50, 58, 5, 1);
+        // Vein on forehead (stress!)
+        cx.strokeStyle = 'rgba(200,80,80,0.4)';
+        cx.lineWidth = 1;
+        cx.beginPath(); cx.moveTo(28, 18); cx.lineTo(30, 22); cx.lineTo(27, 24); cx.stroke();
+    });
+
     // Little Tomás — young boy, big eyes, messy hair, eager grin
     PORTRAITS['shop_assistant'] = createSprite(64, 64, function(cx) {
         drawPortraitBase(cx, '#e8c8a0', '#88cc88');

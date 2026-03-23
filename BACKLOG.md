@@ -559,7 +559,7 @@
   - [ ] Completing maze awards recipe #5
   - [ ] Puzzle state saved
 
-### Stage 7-9: Wedding planner boss + finale `[ ]`
+### Stage 7-9: Wedding planner boss + finale `[x] 2026-03-23`
 - Wedding planner boss in Mama's shop (blocking the apron)
 - Boss pattern: throws clipboards, summons stress clouds
 - Defeating boss → Mama's apron interaction → recipe #5 confirmed

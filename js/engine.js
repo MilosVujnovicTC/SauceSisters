@@ -369,7 +369,7 @@ const game = {
     itemFlash: 0,        // seconds remaining for item pickup flash
     itemFlashName: '',   // name of item for flash display
     time: 0,             // total elapsed time in seconds (for animations)
-    mode: 'overworld',   // 'overworld', 'bmx', or 'drum' — controls update/render routing
+    mode: 'overworld',   // 'overworld', 'bmx', 'drum', 'cooking', 'finale' — controls update/render routing
     showScrollOverlay: false,  // true when scroll pattern overlay is visible
     scrollOverlayTimer: 0,     // auto-dismiss countdown (first show only)
 };
@@ -397,6 +397,10 @@ function update(dt) {
     }
     if (game.mode === 'cooking') {
         updateCooking(dt);
+        return;
+    }
+    if (game.mode === 'finale') {
+        updateFinale(dt);
         return;
     }
 
@@ -510,6 +514,9 @@ function update(dt) {
     // Enzo boss fight
     updateEnzoBoss(dt);
 
+    // Wedding Planner boss fight
+    updateWeddingBoss(dt);
+
     // Generic enemies
     updateEnemies(dt);
 
@@ -549,6 +556,10 @@ function render(ctx) {
     }
     if (game.mode === 'cooking') {
         renderCooking(ctx);
+        return;
+    }
+    if (game.mode === 'finale') {
+        renderFinale(ctx);
         return;
     }
 
@@ -592,6 +603,11 @@ function render(ctx) {
     // Render Enzo boss
     renderEnzoBoss(ctx, game.cameraX, game.cameraY);
     renderBossProjectiles(ctx, game.cameraX, game.cameraY);
+
+    // Render Wedding Planner boss
+    renderWeddingBoss(ctx, game.cameraX, game.cameraY);
+    renderWPProjectiles(ctx, game.cameraX, game.cameraY);
+    renderStressClouds(ctx, game.cameraX, game.cameraY);
 
     // Render Brodo (dog companion)
     renderBrodo(ctx, game.cameraX, game.cameraY);
@@ -642,6 +658,7 @@ function render(ctx) {
 
     // Boss HP bar (on top of other HUD)
     renderBossHPBar(ctx);
+    renderWeddingBossHPBar(ctx);
 
     // Damage flash overlay
     renderDamageFlash(ctx);
