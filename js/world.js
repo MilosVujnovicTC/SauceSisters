@@ -305,6 +305,48 @@ const ZONES = {
                 },
             },
             {
+                id: 'market_rotary_phone',
+                name: 'Red Rotary Phone',
+                col: 3, row: 24,
+                color: '#8b1a1a',
+                onInteract: function() {
+                    if (getFlag('rotary1_solved')) {
+                        startDialogue({ id: 'market_rotary_phone', name: 'Red Rotary Phone',
+                            getLines: function() { return { lines: ["The phone line is dead now. But the storeroom door stays open!"] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'market_rotary_intro', name: 'Red Rotary Phone',
+                        getLines: function() { return { lines: [
+                            "An old red rotary phone! There's a number scratched into the wall:",
+                            "392-4477",
+                            "Maybe you should try dialing it...",
+                        ], onComplete: function() { startRotaryPhone1(); } }; },
+                    });
+                },
+            },
+            {
+                id: 'market_pager',
+                name: 'Pager',
+                col: 28, row: 24,
+                color: '#2a2a2a',
+                onInteract: function() {
+                    if (getFlag('pager_solved')) {
+                        startDialogue({ id: 'market_pager', name: 'Pager',
+                            getLines: function() { return { lines: ["The pager's screen still reads: hELLO. Classic."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'market_pager_intro', name: 'Pager',
+                        getLines: function() { return { lines: [
+                            "An old pager! The screen is blank.",
+                            "There's a sticker on the back: 'Type a greeting!'",
+                            "Hmm... how do you spell words on a calculator?",
+                        ], onComplete: function() { startPagerPuzzle(); } }; },
+                    });
+                },
+            },
+            {
                 id: 'betta_accordion',
                 name: "Betta's Accordion",
                 col: 8, row: 18,
@@ -648,6 +690,48 @@ const ZONES = {
                 },
             },
             {
+                id: 'library_vhs',
+                name: 'VHS Tape',
+                col: 20, row: 5,
+                color: '#1a1a3a',
+                onInteract: function() {
+                    if (getFlag('vhs_solved')) {
+                        startDialogue({ id: 'library_vhs', name: 'VHS Tape',
+                            getLines: function() { return { lines: ["The tape is fully rewound. Mama's cooking secret plays on loop."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'library_vhs_intro', name: 'VHS Tape',
+                        getLines: function() { return { lines: [
+                            "A dusty VHS tape labeled 'Mama Rosa's Cooking Secrets Vol. 3'!",
+                            "It needs to be rewound before you can watch it...",
+                            "Be careful — old tapes snap if you rewind too fast!",
+                        ], onComplete: function() { startVHSPuzzle(); } }; },
+                    });
+                },
+            },
+            {
+                id: 'library_cdrom',
+                name: 'CD-ROM',
+                col: 17, row: 13,
+                color: '#667799',
+                onInteract: function() {
+                    if (getFlag('cdrom_solved')) {
+                        startDialogue({ id: 'library_cdrom', name: 'CD-ROM',
+                            getLines: function() { return { lines: ["The clean disc gleams. You can see your reflection... and a map!"] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'library_cdrom_intro', name: 'CD-ROM',
+                        getLines: function() { return { lines: [
+                            "A scratched-up CD-ROM! The label is unreadable.",
+                            "If you clean the scratches, you might be able to read it...",
+                            "Time for some careful disc maintenance!",
+                        ], onComplete: function() { startCDROMPuzzle(); } }; },
+                    });
+                },
+            },
+            {
                 id: 'bookshelf_mystery',
                 name: 'Old Bookshelf',
                 col: 7, row: 13,
@@ -837,8 +921,8 @@ const ZONES = {
                             "An old Tamagotchi! The screen flickers to life...",
                             "A tiny creature stares at you with big pixel eyes.",
                             "It looks hungry. And sad. And slightly pixelated.",
-                            "(The feeding puzzle will be available in a future update!)",
-                        ] }; },
+                            "You need to feed it the right foods in order!",
+                        ], onComplete: function() { startTamagotchiPuzzle(); } }; },
                     });
                 },
             },
@@ -988,6 +1072,29 @@ const ZONES = {
                     ];
                     var pick = Math.floor(Math.random() * lines.length);
                     return { lines: lines[pick] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'piazza_payphone',
+                name: 'Payphone',
+                col: 2, row: 4,
+                color: '#3a4a5a',
+                onInteract: function() {
+                    if (getFlag('morse_solved')) {
+                        startDialogue({ id: 'piazza_payphone', name: 'Payphone',
+                            getLines: function() { return { lines: ["The payphone is silent. But the tunnel it revealed stays open!"] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'piazza_payphone_intro', name: 'Payphone',
+                        getLines: function() { return { lines: [
+                            "An old payphone! It's clicking and beeping by itself.",
+                            "Wait — that's Morse code! It's sending a pattern...",
+                            "Decode the pattern and dial the right number!",
+                        ], onComplete: function() { startMorsePuzzle(); } }; },
+                    });
                 },
             },
         ],

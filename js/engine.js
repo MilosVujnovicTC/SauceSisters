@@ -442,6 +442,42 @@ function update(dt) {
         return;
     }
 
+    // Rotary phone #1 puzzle
+    if (rotary1.active) {
+        updateRotary1(dt);
+        return;
+    }
+
+    // Pager puzzle
+    if (pager.active) {
+        updatePager(dt);
+        return;
+    }
+
+    // VHS rewind puzzle
+    if (vhs.active) {
+        updateVHS(dt);
+        return;
+    }
+
+    // CD-ROM cleaning puzzle
+    if (cdrom.active) {
+        updateCDROM(dt);
+        return;
+    }
+
+    // Morse code puzzle
+    if (morse.active) {
+        updateMorse(dt);
+        return;
+    }
+
+    // Tamagotchi puzzle
+    if (tama.active) {
+        updateTamagotchi(dt);
+        return;
+    }
+
     // Remap overlay intercepts all input when open
     if (remapUI.open) {
         updateRemapUI();
@@ -724,6 +760,36 @@ function render(ctx) {
     // Printer puzzle overlay
     if (printer.active) {
         renderPrinter(ctx);
+    }
+
+    // Rotary phone #1 overlay
+    if (rotary1.active) {
+        renderRotary1(ctx);
+    }
+
+    // Pager overlay
+    if (pager.active) {
+        renderPager(ctx);
+    }
+
+    // VHS rewind overlay
+    if (vhs.active) {
+        renderVHS(ctx);
+    }
+
+    // CD-ROM cleaning overlay
+    if (cdrom.active) {
+        renderCDROM(ctx);
+    }
+
+    // Morse code overlay
+    if (morse.active) {
+        renderMorse(ctx);
+    }
+
+    // Tamagotchi overlay
+    if (tama.active) {
+        renderTamagotchi(ctx);
     }
 
     // Remap overlay (drawn on top of everything)

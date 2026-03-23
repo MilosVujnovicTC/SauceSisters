@@ -72,6 +72,20 @@ const WEAPONS = {
         consumable: true,
         ammo: 2,
     },
+    cdrom_disc: {
+        id: 'cdrom_disc',
+        name: 'CD-ROM Disc',
+        type: 'ranged',
+        damage: 2,
+        range: 160,
+        speed: 300,
+        cooldown: 0.5,
+        effect: 'stun',
+        effectDuration: 2,
+        color: '#6688aa',
+        consumable: true,
+        ammo: 1,
+    },
 };
 
 // ============================================================

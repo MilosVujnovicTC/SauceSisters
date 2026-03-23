@@ -5256,3 +5256,1542 @@ function renderSewingRhythm(ctx) {
         if (sewing.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
     }
 }
+
+// ============================================================
+// Red Rotary Phone #1 — Market storeroom (Z1)
+// Dial combination 392-4477 to open storeroom shortcut
+// ============================================================
+
+var ROTARY_TARGET_1 = '3924477';
+
+/** Rotary phone #1 state. */
+var rotary1 = {
+    active: false,
+    dialedDigits: '',
+    dialAngle: 0,          // current dial rotation
+    dialTarget: 0,          // target rotation
+    dialAnimating: false,
+    currentDigit: -1,       // digit being dialed (-1 = none)
+    result: '',             // '' | 'success' | 'fail'
+    resultTimer: 0,
+    solved: false,
+    shakeTimer: 0,
+};
+
+/** Starts the rotary phone #1 puzzle. */
+function startRotaryPhone1() {
+    if (rotary1.active) return;
+    if (getFlag('rotary1_solved')) return;
+    rotary1.active = true;
+    rotary1.dialedDigits = '';
+    rotary1.dialAngle = 0;
+    rotary1.dialTarget = 0;
+    rotary1.dialAnimating = false;
+    rotary1.currentDigit = -1;
+    rotary1.result = '';
+    rotary1.resultTimer = 0;
+    rotary1.solved = false;
+    rotary1.shakeTimer = 0;
+}
+
+/** Updates the rotary phone #1 puzzle each frame. */
+function updateRotary1(dt) {
+    if (!rotary1.active) return;
+
+    // Result display
+    if (rotary1.result !== '') {
+        rotary1.resultTimer -= dt;
+        if (rotary1.resultTimer <= 0) {
+            if (rotary1.result === 'success') {
+                completeRotary1();
+            }
+            rotary1.result = '';
+            if (!rotary1.solved) {
+                rotary1.dialedDigits = '';
+            }
+        }
+        if (rotary1.shakeTimer > 0) rotary1.shakeTimer -= dt;
+        return;
+    }
+
+    // Dial animation
+    if (rotary1.dialAnimating) {
+        var diff = rotary1.dialTarget - rotary1.dialAngle;
+        if (Math.abs(diff) < 0.05) {
+            rotary1.dialAngle = 0;
+            rotary1.dialAnimating = false;
+            // Append digit
+            var dStr = '' + rotary1.currentDigit;
+            rotary1.dialedDigits += dStr;
+            rotary1.currentDigit = -1;
+            // Check if complete
+            if (rotary1.dialedDigits.length >= ROTARY_TARGET_1.length) {
+                if (rotary1.dialedDigits === ROTARY_TARGET_1) {
+                    rotary1.result = 'success';
+                    rotary1.resultTimer = 2.0;
+                    rotary1.solved = true;
+                    playItemPickup();
+                } else {
+                    rotary1.result = 'fail';
+                    rotary1.resultTimer = 1.5;
+                    rotary1.shakeTimer = 0.4;
+                }
+            }
+        } else {
+            // Animate forward then back
+            if (rotary1.dialAngle < rotary1.dialTarget) {
+                rotary1.dialAngle += dt * 8;
+                if (rotary1.dialAngle > rotary1.dialTarget) rotary1.dialAngle = rotary1.dialTarget;
+            } else {
+                rotary1.dialAngle -= dt * 6;
+                if (rotary1.dialAngle < 0) rotary1.dialAngle = 0;
+            }
+        }
+        return;
+    }
+
+    // Digit input (1-9, 0)
+    for (var d = 0; d <= 9; d++) {
+        var keyName = 'Digit' + d;
+        if (isJustPressed(keyName)) {
+            rotary1.currentDigit = d;
+            // Rotation amount proportional to digit (0=10)
+            var rotAmount = (d === 0 ? 10 : d) * 0.28;
+            rotary1.dialTarget = rotAmount;
+            rotary1.dialAngle = 0;
+            rotary1.dialAnimating = true;
+            break;
+        }
+    }
+
+    // Backspace to clear
+    if (isJustPressed('Backspace')) {
+        rotary1.dialedDigits = '';
+    }
+
+    // Escape to close
+    if (isJustPressed('Escape')) {
+        rotary1.active = false;
+    }
+}
+
+/** Completes rotary phone #1 puzzle. */
+function completeRotary1() {
+    rotary1.active = false;
+    setFlag('rotary1_solved', true);
+    startDialogue({
+        id: 'rotary1_complete', name: 'Red Rotary Phone',
+        getLines: function() { return { lines: [
+            "*CLICK* The phone makes a satisfying mechanical sound.",
+            "You hear a door unlatch somewhere in the back of the market!",
+            "A shortcut through the storeroom has opened!",
+        ] }; },
+    });
+}
+
+/** Renders the rotary phone #1 puzzle overlay. */
+function renderRotary1(ctx) {
+    if (!rotary1.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+    var t = performance.now() / 1000;
+
+    // Darken background
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Shake offset
+    var sx = 0, sy = 0;
+    if (rotary1.shakeTimer > 0) {
+        sx = (Math.random() - 0.5) * 8;
+        sy = (Math.random() - 0.5) * 8;
+    }
+
+    // Phone body
+    var px = W / 2 + sx, py = H / 2 + sy;
+    ctx.save();
+    ctx.translate(px, py);
+
+    // Red phone body
+    ctx.fillStyle = '#8b1a1a';
+    ctx.beginPath();
+    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5a0f0f';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Inner circle
+    ctx.fillStyle = '#3a0808';
+    ctx.beginPath();
+    ctx.arc(0, 0, 35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dial holes (1-9, 0)
+    var digits = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
+    for (var i = 0; i < digits.length; i++) {
+        var angle = -Math.PI / 2 + (i * Math.PI * 2 / 10) + rotary1.dialAngle * (rotary1.currentDigit === digits[i] ? 1 : 0);
+        var hx = Math.cos(angle) * 68;
+        var hy = Math.sin(angle) * 68;
+        ctx.fillStyle = '#1a0404';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ddcccc';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('' + digits[i], hx, hy);
+    }
+
+    // Finger stop
+    ctx.fillStyle = '#5a0f0f';
+    ctx.fillRect(80, -5, 15, 10);
+
+    ctx.restore();
+
+    // Dialed digits display
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(rotary1.dialedDigits + (rotary1.dialAnimating ? '' + rotary1.currentDigit : '_'), W / 2, py - 130);
+
+    // Hint
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '12px monospace';
+    ctx.fillText('Dial: 392-4477  |  Backspace to clear  |  Esc to close', W / 2, py + 140);
+
+    // Title
+    ctx.fillStyle = '#ff6644';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('RED ROTARY PHONE', W / 2, py - 155);
+
+    // Result overlays
+    if (rotary1.result === 'success') {
+        ctx.fillStyle = '#44ff44';
+        ctx.font = 'bold 32px monospace';
+        ctx.fillText('CONNECTED!', W / 2, H / 2);
+    } else if (rotary1.result === 'fail') {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText('WRONG NUMBER!', W / 2, H / 2);
+    }
+}
+
+// ============================================================
+// Pager/Beeper — Market (Z1)
+// Calculator word puzzle: type 07734 upside down = HELLO
+// ============================================================
+
+var PAGER_TARGET = '07734';
+
+/** Pager state. */
+var pager = {
+    active: false,
+    enteredDigits: '',
+    result: '',
+    resultTimer: 0,
+    solved: false,
+    shakeTimer: 0,
+};
+
+/** Starts the pager puzzle. */
+function startPagerPuzzle() {
+    if (pager.active) return;
+    if (getFlag('pager_solved')) return;
+    pager.active = true;
+    pager.enteredDigits = '';
+    pager.result = '';
+    pager.resultTimer = 0;
+    pager.solved = false;
+    pager.shakeTimer = 0;
+}
+
+/** Updates the pager puzzle. */
+function updatePager(dt) {
+    if (!pager.active) return;
+
+    // Result display
+    if (pager.result !== '') {
+        pager.resultTimer -= dt;
+        if (pager.resultTimer <= 0) {
+            if (pager.result === 'success') {
+                completePagerPuzzle();
+            }
+            pager.result = '';
+            if (!pager.solved) {
+                pager.enteredDigits = '';
+            }
+        }
+        if (pager.shakeTimer > 0) pager.shakeTimer -= dt;
+        return;
+    }
+
+    // Digit input
+    for (var d = 0; d <= 9; d++) {
+        if (isJustPressed('Digit' + d)) {
+            if (pager.enteredDigits.length < 8) {
+                pager.enteredDigits += '' + d;
+            }
+            // Auto-check at target length
+            if (pager.enteredDigits.length >= PAGER_TARGET.length) {
+                checkPagerAnswer();
+            }
+            break;
+        }
+    }
+
+    // Backspace
+    if (isJustPressed('Backspace')) {
+        if (pager.enteredDigits.length > 0) {
+            pager.enteredDigits = pager.enteredDigits.slice(0, -1);
+        }
+    }
+
+    // Enter to submit
+    if (isJustPressed('Enter') && pager.result === '') {
+        if (pager.enteredDigits.length > 0) {
+            checkPagerAnswer();
+        }
+    }
+
+    // Escape
+    if (isJustPressed('Escape')) {
+        pager.active = false;
+    }
+}
+
+/** Checks if pager answer is correct. */
+function checkPagerAnswer() {
+    if (pager.enteredDigits === PAGER_TARGET) {
+        pager.result = 'success';
+        pager.resultTimer = 2.0;
+        pager.solved = true;
+        playItemPickup();
+    } else {
+        pager.result = 'fail';
+        pager.resultTimer = 1.5;
+        pager.shakeTimer = 0.4;
+        pager.enteredDigits = '';
+    }
+}
+
+/** Completes the pager puzzle. */
+function completePagerPuzzle() {
+    pager.active = false;
+    setFlag('pager_solved', true);
+    startDialogue({
+        id: 'pager_complete', name: 'Pager',
+        getLines: function() { return { lines: [
+            "The pager screen flashes: hELLO",
+            "That's the calculator word trick! Turn 07734 upside down!",
+            "A hidden compartment clicks open — there's a shortcut key inside!",
+            "Got: Shortcut Key — opens locked doors in the Market!",
+        ] }; },
+    });
+}
+
+/** Renders the pager puzzle overlay. */
+function renderPager(ctx) {
+    if (!pager.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+
+    var sx = 0, sy = 0;
+    if (pager.shakeTimer > 0) {
+        sx = (Math.random() - 0.5) * 6;
+        sy = (Math.random() - 0.5) * 6;
+    }
+
+    var px = W / 2 + sx, py = H / 2 + sy;
+
+    // Pager body (dark gray rectangle with rounded feel)
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(px - 70, py - 90, 140, 180);
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(px - 70, py - 90, 140, 180);
+
+    // Screen (green LCD)
+    ctx.fillStyle = '#1a3a1a';
+    ctx.fillRect(px - 55, py - 75, 110, 45);
+    ctx.strokeStyle = '#2a5a2a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px - 55, py - 75, 110, 45);
+
+    // Digits on screen
+    ctx.fillStyle = '#44ff44';
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(pager.enteredDigits || '_', px, py - 48);
+
+    // "Upside down" hint area — show the entered digits rotated
+    if (pager.enteredDigits.length > 0) {
+        ctx.save();
+        ctx.translate(px, py - 60);
+        ctx.rotate(Math.PI);
+        ctx.fillStyle = '#226622';
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        // Map digits to upside-down "letters"
+        var upsideMap = { '0': 'O', '1': 'I', '2': 'Z', '3': 'E', '4': 'h', '5': 'S', '6': '9', '7': 'L', '8': 'B', '9': '6' };
+        var flipped = '';
+        for (var i = pager.enteredDigits.length - 1; i >= 0; i--) {
+            flipped += upsideMap[pager.enteredDigits[i]] || pager.enteredDigits[i];
+        }
+        ctx.fillText(flipped, 0, 0);
+        ctx.restore();
+    }
+
+    // Number buttons (3x4 grid: 1-9, *, 0, #)
+    var btnLabels = ['1','2','3','4','5','6','7','8','9','*','0','#'];
+    for (var i = 0; i < 12; i++) {
+        var bx = px - 42 + (i % 3) * 35;
+        var by = py - 15 + Math.floor(i / 3) * 30;
+        ctx.fillStyle = '#444';
+        ctx.fillRect(bx, by, 28, 22);
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx, by, 28, 22);
+        ctx.fillStyle = '#cccccc';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(btnLabels[i], bx + 14, by + 16);
+    }
+
+    // Title
+    ctx.fillStyle = '#44ff44';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAGER / BEEPER', px, py - 110);
+
+    // Hint
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
+    ctx.fillText('Type a number that spells a word upside down!', px, py + 115);
+    ctx.fillText('Backspace to delete  |  Enter to check  |  Esc to close', px, py + 130);
+
+    // Result
+    if (pager.result === 'success') {
+        ctx.fillStyle = '#44ff44';
+        ctx.font = 'bold 28px monospace';
+        ctx.fillText('hELLO!', W / 2, H / 2);
+    } else if (pager.result === 'fail') {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 22px monospace';
+        ctx.fillText('Not quite...', W / 2, H / 2);
+    }
+}
+
+// ============================================================
+// VHS Tape — Library (Z3)
+// Rewind tension meter — hold Space to rewind, don't let tension break
+// ============================================================
+
+/** VHS tape state. */
+var vhs = {
+    active: false,
+    progress: 0,       // 0-1, rewind progress
+    tension: 0,        // 0-1, tension level (1 = snap!)
+    rewinding: false,
+    snapped: false,
+    snapTimer: 0,
+    done: false,
+    doneTimer: 0,
+    reelAngle: 0,
+    tensionZones: [],   // random danger zones where tension rises faster
+};
+
+/** Starts the VHS rewind puzzle. */
+function startVHSPuzzle() {
+    if (vhs.active) return;
+    if (getFlag('vhs_solved')) return;
+    vhs.active = true;
+    vhs.progress = 0;
+    vhs.tension = 0;
+    vhs.rewinding = false;
+    vhs.snapped = false;
+    vhs.snapTimer = 0;
+    vhs.done = false;
+    vhs.doneTimer = 0;
+    vhs.reelAngle = 0;
+    // Generate random tension zones (areas where tension rises faster)
+    vhs.tensionZones = [];
+    for (var i = 0; i < 4; i++) {
+        var start = 0.1 + Math.random() * 0.7;
+        vhs.tensionZones.push({ start: start, end: start + 0.08 + Math.random() * 0.07 });
+    }
+}
+
+/** Updates the VHS rewind puzzle. */
+function updateVHS(dt) {
+    if (!vhs.active) return;
+
+    if (vhs.done) {
+        vhs.doneTimer -= dt;
+        if (vhs.doneTimer <= 0) {
+            completeVHSPuzzle();
+        }
+        return;
+    }
+
+    if (vhs.snapped) {
+        vhs.snapTimer -= dt;
+        if (vhs.snapTimer <= 0) {
+            // Reset for retry
+            vhs.progress = Math.max(0, vhs.progress - 0.3);
+            vhs.tension = 0;
+            vhs.snapped = false;
+        }
+        return;
+    }
+
+    // Hold Space to rewind
+    vhs.rewinding = isHeld('Space');
+
+    if (vhs.rewinding) {
+        // Check if in a tension zone
+        var inZone = false;
+        for (var i = 0; i < vhs.tensionZones.length; i++) {
+            var z = vhs.tensionZones[i];
+            if (vhs.progress >= z.start && vhs.progress <= z.end) {
+                inZone = true;
+                break;
+            }
+        }
+
+        var rewindSpeed = 0.12;
+        var tensionRate = inZone ? 0.6 : 0.25;
+
+        vhs.progress += rewindSpeed * dt;
+        vhs.tension += tensionRate * dt;
+        vhs.reelAngle += dt * 12;
+
+        // Snap!
+        if (vhs.tension >= 1.0) {
+            vhs.snapped = true;
+            vhs.snapTimer = 1.5;
+            vhs.tension = 0;
+        }
+
+        // Done!
+        if (vhs.progress >= 1.0) {
+            vhs.progress = 1.0;
+            vhs.done = true;
+            vhs.doneTimer = 2.0;
+            playItemPickup();
+        }
+    } else {
+        // Release to lower tension
+        vhs.tension = Math.max(0, vhs.tension - 0.5 * dt);
+        vhs.reelAngle += dt * 2;
+    }
+
+    // Escape
+    if (isJustPressed('Escape')) {
+        vhs.active = false;
+    }
+}
+
+/** Completes the VHS puzzle. */
+function completeVHSPuzzle() {
+    vhs.active = false;
+    setFlag('vhs_solved', true);
+    startDialogue({
+        id: 'vhs_complete', name: 'VHS Tape',
+        getLines: function() { return { lines: [
+            "The tape is fully rewound! You pop it into the library's old VCR...",
+            "A grainy video plays: Mama Rosa demonstrating a secret technique!",
+            "She whispers: 'The sauce must rest for exactly 7 minutes...'",
+            "This cooking tip could come in handy!",
+        ] }; },
+    });
+}
+
+/** Renders the VHS rewind puzzle. */
+function renderVHS(ctx) {
+    if (!vhs.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+    var t = performance.now() / 1000;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    var cx = W / 2, cy = H / 2;
+
+    // VHS tape body
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(cx - 120, cy - 60, 240, 120);
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - 120, cy - 60, 240, 120);
+
+    // Label sticker
+    ctx.fillStyle = '#e8e0c8';
+    ctx.fillRect(cx - 100, cy - 50, 200, 40);
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText("MAMA ROSA'S COOKING SECRETS", cx, cy - 35);
+    ctx.font = '10px monospace';
+    ctx.fillText('Vol. 3 — The Sauce', cx, cy - 22);
+
+    // Reels
+    var reelY = cy + 20;
+    for (var r = 0; r < 2; r++) {
+        var rx = cx + (r === 0 ? -50 : 50);
+        ctx.save();
+        ctx.translate(rx, reelY);
+        ctx.rotate(vhs.reelAngle * (r === 0 ? 1 : -1));
+        ctx.fillStyle = '#2a2a2a';
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Spokes
+        for (var s = 0; s < 4; s++) {
+            var sa = s * Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(sa) * 18, Math.sin(sa) * 18);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // Tape between reels (visual)
+    ctx.strokeStyle = '#3a2a1a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - 28, reelY);
+    ctx.lineTo(cx + 28, reelY);
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = '#8888ff';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('VHS REWIND', cx, cy - 85);
+
+    // Progress bar
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx - 100, cy + 70, 200, 16);
+    ctx.fillStyle = '#4488ff';
+    ctx.fillRect(cx - 100, cy + 70, 200 * vhs.progress, 16);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - 100, cy + 70, 200, 16);
+
+    // Tension zones on progress bar
+    ctx.fillStyle = 'rgba(255,80,80,0.3)';
+    for (var i = 0; i < vhs.tensionZones.length; i++) {
+        var z = vhs.tensionZones[i];
+        ctx.fillRect(cx - 100 + z.start * 200, cy + 70, (z.end - z.start) * 200, 16);
+    }
+
+    ctx.fillStyle = '#ccc';
+    ctx.font = '10px monospace';
+    ctx.fillText('REWIND: ' + Math.floor(vhs.progress * 100) + '%', cx, cy + 81);
+
+    // Tension meter
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx - 100, cy + 95, 200, 12);
+    var tensionColor = vhs.tension < 0.5 ? '#44cc44' : vhs.tension < 0.8 ? '#ffcc00' : '#ff4444';
+    ctx.fillStyle = tensionColor;
+    ctx.fillRect(cx - 100, cy + 95, 200 * vhs.tension, 12);
+    ctx.strokeStyle = '#666';
+    ctx.strokeRect(cx - 100, cy + 95, 200, 12);
+    ctx.fillStyle = '#ccc';
+    ctx.font = '10px monospace';
+    ctx.fillText('TENSION', cx, cy + 105);
+
+    // Snap warning
+    if (vhs.snapped) {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText('SNAP! Tape broke!', cx, cy - 5);
+        ctx.font = '12px monospace';
+        ctx.fillText('Rewinding back a bit...', cx, cy + 15);
+    }
+
+    // Done!
+    if (vhs.done) {
+        ctx.fillStyle = '#44ff44';
+        ctx.font = 'bold 28px monospace';
+        ctx.fillText('FULLY REWOUND!', cx, cy - 5);
+    }
+
+    // Instructions
+    ctx.fillStyle = vhs.rewinding ? '#ffcc44' : '#888';
+    ctx.font = '12px monospace';
+    ctx.fillText(vhs.rewinding ? 'REWINDING... release to lower tension!' : 'Hold SPACE to rewind  |  Release to relax tension', cx, cy + 125);
+    ctx.fillStyle = '#666';
+    ctx.font = '10px monospace';
+    ctx.fillText('Esc to close', cx, cy + 140);
+}
+
+// ============================================================
+// CD-ROM — Library (Z3)
+// Scratch cleaning pattern — trace a circular pattern to clean the disc
+// ============================================================
+
+/** CD-ROM state. */
+var cdrom = {
+    active: false,
+    scratchProgress: 0,   // 0-1 overall cleaning progress
+    currentAngle: 0,       // angle player needs to match
+    targetAngle: 0,        // next target angle
+    cleaned: [],           // which sectors are cleaned (12 sectors)
+    phase: 'intro',        // 'intro' | 'cleaning' | 'result'
+    resultTimer: 0,
+    solved: false,
+    sparkles: [],
+    spinAngle: 0,
+};
+
+/** Starts the CD-ROM cleaning puzzle. */
+function startCDROMPuzzle() {
+    if (cdrom.active) return;
+    if (getFlag('cdrom_solved')) return;
+    cdrom.active = true;
+    cdrom.scratchProgress = 0;
+    cdrom.currentAngle = 0;
+    cdrom.targetAngle = 0;
+    cdrom.cleaned = [];
+    for (var i = 0; i < 12; i++) cdrom.cleaned.push(false);
+    cdrom.phase = 'cleaning';
+    cdrom.resultTimer = 0;
+    cdrom.solved = false;
+    cdrom.sparkles = [];
+    cdrom.spinAngle = 0;
+}
+
+/** Updates the CD-ROM puzzle. */
+function updateCDROM(dt) {
+    if (!cdrom.active) return;
+
+    cdrom.spinAngle += dt * 0.5;
+
+    // Update sparkles
+    for (var i = cdrom.sparkles.length - 1; i >= 0; i--) {
+        cdrom.sparkles[i].life -= dt;
+        cdrom.sparkles[i].y -= dt * 30;
+        if (cdrom.sparkles[i].life <= 0) cdrom.sparkles.splice(i, 1);
+    }
+
+    if (cdrom.phase === 'result') {
+        cdrom.resultTimer -= dt;
+        if (cdrom.resultTimer <= 0) {
+            completeCDROMPuzzle();
+        }
+        return;
+    }
+
+    // Arrow keys rotate the cleaning direction
+    if (isJustPressed('ArrowRight') || isJustPressed('KeyD')) {
+        cdrom.currentAngle = (cdrom.currentAngle + 1) % 12;
+        checkCDROMClean();
+    }
+    if (isJustPressed('ArrowLeft') || isJustPressed('KeyA')) {
+        cdrom.currentAngle = (cdrom.currentAngle + 11) % 12;
+        checkCDROMClean();
+    }
+    if (isJustPressed('ArrowUp') || isJustPressed('KeyW')) {
+        cdrom.currentAngle = (cdrom.currentAngle + 3) % 12;
+        checkCDROMClean();
+    }
+    if (isJustPressed('ArrowDown') || isJustPressed('KeyS')) {
+        cdrom.currentAngle = (cdrom.currentAngle + 9) % 12;
+        checkCDROMClean();
+    }
+
+    // Space to scrub current sector
+    if (isJustPressed('Space')) {
+        if (!cdrom.cleaned[cdrom.currentAngle]) {
+            cdrom.cleaned[cdrom.currentAngle] = true;
+            cdrom.scratchProgress = 0;
+            for (var i = 0; i < 12; i++) {
+                if (cdrom.cleaned[i]) cdrom.scratchProgress += 1 / 12;
+            }
+            // Sparkle effect
+            var angle = cdrom.currentAngle * Math.PI * 2 / 12 - Math.PI / 2;
+            cdrom.sparkles.push({
+                x: CONFIG.CANVAS_W / 2 + Math.cos(angle) * 55,
+                y: CONFIG.CANVAS_H / 2 + Math.sin(angle) * 55,
+                life: 0.8,
+            });
+
+            // Check completion
+            if (cdrom.scratchProgress >= 0.99) {
+                cdrom.phase = 'result';
+                cdrom.resultTimer = 2.0;
+                cdrom.solved = true;
+                playItemPickup();
+            }
+        }
+    }
+
+    if (isJustPressed('Escape')) {
+        cdrom.active = false;
+    }
+}
+
+/** Checks if current sector should be cleaned (helper). */
+function checkCDROMClean() {
+    // Just moves the selector — cleaning happens on Space
+}
+
+/** Completes CD-ROM puzzle. */
+function completeCDROMPuzzle() {
+    cdrom.active = false;
+    setFlag('cdrom_solved', true);
+    // Grant CD-ROM weapon
+    addToInventory('cdrom_disc');
+    game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+    game.itemFlashName = 'CD-ROM Disc';
+    startDialogue({
+        id: 'cdrom_complete', name: 'CD-ROM',
+        getLines: function() { return { lines: [
+            "The disc is clean! You can read the label now:",
+            "'MAMA ROSA'S SAUCE SECRETS — Digital Backup (1998)'",
+            "The disc also has a map fragment etched on the back!",
+            "And the disc itself is sharp enough to throw... got: CD-ROM Disc!",
+        ] }; },
+    });
+}
+
+/** Renders the CD-ROM puzzle. */
+function renderCDROM(ctx) {
+    if (!cdrom.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+    var t = performance.now() / 1000;
+    var cx = W / 2, cy = H / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    // CD disc
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(cdrom.spinAngle);
+
+    // Outer disc
+    var grad = ctx.createRadialGradient(0, 0, 20, 0, 0, 80);
+    grad.addColorStop(0, '#aabbcc');
+    grad.addColorStop(0.3, '#8899bb');
+    grad.addColorStop(0.6, '#667799');
+    grad.addColorStop(1, '#556688');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, 80, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#334455';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Center hole
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sectors (12 pie slices)
+    for (var i = 0; i < 12; i++) {
+        var a1 = i * Math.PI * 2 / 12 - Math.PI / 2;
+        var a2 = (i + 1) * Math.PI * 2 / 12 - Math.PI / 2;
+
+        if (cdrom.cleaned[i]) {
+            // Clean sector — rainbow shimmer
+            ctx.fillStyle = 'rgba(100,200,255,0.3)';
+        } else {
+            // Scratched sector — darker
+            ctx.fillStyle = 'rgba(50,30,20,0.5)';
+        }
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, 78, a1, a2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Highlight current sector
+        if (i === cdrom.currentAngle && cdrom.phase === 'cleaning') {
+            ctx.strokeStyle = '#ffcc44';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, 78, a1, a2);
+            ctx.closePath();
+            ctx.stroke();
+        }
+    }
+
+    // Scratch lines (visual detail)
+    ctx.strokeStyle = 'rgba(80,60,40,0.3)';
+    ctx.lineWidth = 1;
+    for (var i = 0; i < 8; i++) {
+        var sa = Math.random() * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 25 + Math.random() * 50, sa, sa + 0.5);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Sparkles
+    for (var i = 0; i < cdrom.sparkles.length; i++) {
+        var sp = cdrom.sparkles[i];
+        ctx.fillStyle = 'rgba(255,255,200,' + sp.life + ')';
+        ctx.font = '16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('✦', sp.x, sp.y);
+    }
+
+    // Sector indicator
+    if (cdrom.phase === 'cleaning') {
+        var indicatorAngle = cdrom.currentAngle * Math.PI * 2 / 12 - Math.PI / 2 + Math.PI / 12;
+        var ix = cx + Math.cos(indicatorAngle) * 100;
+        var iy = cy + Math.sin(indicatorAngle) * 100;
+        ctx.fillStyle = '#ffcc44';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(cdrom.cleaned[cdrom.currentAngle] ? '✓' : '●', ix, iy);
+    }
+
+    // Title
+    ctx.fillStyle = '#aabbff';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CD-ROM CLEANING', cx, cy - 110);
+
+    // Progress
+    ctx.fillStyle = '#888';
+    ctx.font = '12px monospace';
+    var cleanCount = 0;
+    for (var i = 0; i < 12; i++) if (cdrom.cleaned[i]) cleanCount++;
+    ctx.fillText(cleanCount + '/12 sectors cleaned', cx, cy + 110);
+
+    // Instructions
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.fillText('Arrow keys to rotate  |  Space to scrub sector  |  Esc to close', cx, cy + 130);
+
+    // Result
+    if (cdrom.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#44ff88';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('DISC CLEANED!', cx, cy);
+        ctx.fillStyle = '#ffcc44';
+        ctx.font = '14px monospace';
+        ctx.fillText('Map fragment + CD-ROM weapon acquired!', cx, cy + 30);
+    }
+}
+
+// ============================================================
+// Red Rotary Phone #2 — Piazza (Z5)
+// Morse code decode — listen to pattern and dial the number
+// ============================================================
+
+var MORSE_SEQUENCE = [
+    { char: '3', pattern: '...--' },
+    { char: '9', pattern: '----.' },
+    { char: '2', pattern: '..---' },
+];
+
+/** Rotary phone #2 / Morse code state. */
+var morse = {
+    active: false,
+    phase: 'listening',  // 'listening' | 'input' | 'result'
+    playbackIndex: 0,
+    playbackTimer: 0,
+    currentDot: 0,       // which dot/dash in current char
+    inputDigits: '',
+    result: '',
+    resultTimer: 0,
+    solved: false,
+    shakeTimer: 0,
+    listenCount: 0,      // how many times listened
+};
+
+/** Starts the Morse code rotary phone puzzle. */
+function startMorsePuzzle() {
+    if (morse.active) return;
+    if (getFlag('morse_solved')) return;
+    morse.active = true;
+    morse.phase = 'listening';
+    morse.playbackIndex = 0;
+    morse.playbackTimer = 0;
+    morse.currentDot = 0;
+    morse.inputDigits = '';
+    morse.result = '';
+    morse.resultTimer = 0;
+    morse.solved = false;
+    morse.shakeTimer = 0;
+    morse.listenCount = 0;
+}
+
+/** Updates the Morse code puzzle. */
+function updateMorse(dt) {
+    if (!morse.active) return;
+
+    if (morse.result !== '') {
+        morse.resultTimer -= dt;
+        if (morse.resultTimer <= 0) {
+            if (morse.result === 'success') {
+                completeMorsePuzzle();
+            }
+            morse.result = '';
+            if (!morse.solved) {
+                morse.inputDigits = '';
+                morse.phase = 'listening';
+                morse.playbackIndex = 0;
+                morse.currentDot = 0;
+                morse.playbackTimer = 0;
+            }
+        }
+        if (morse.shakeTimer > 0) morse.shakeTimer -= dt;
+        return;
+    }
+
+    if (morse.phase === 'listening') {
+        morse.playbackTimer += dt;
+        // Play through the morse sequence visually
+        var totalChars = MORSE_SEQUENCE.length;
+        var charIndex = morse.playbackIndex;
+
+        if (charIndex < totalChars) {
+            var pattern = MORSE_SEQUENCE[charIndex].pattern;
+            var dotTime = 0.3; // time per dot/dash element
+            var elapsed = morse.playbackTimer;
+            var dotIndex = Math.floor(elapsed / dotTime);
+
+            if (dotIndex < pattern.length) {
+                morse.currentDot = dotIndex;
+            } else {
+                // Move to next character
+                morse.playbackIndex++;
+                morse.playbackTimer = 0;
+                morse.currentDot = 0;
+            }
+        } else {
+            // Done playing — switch to input
+            morse.listenCount++;
+            morse.phase = 'input';
+        }
+
+        // Space to skip to input
+        if (isJustPressed('Space')) {
+            morse.phase = 'input';
+            morse.listenCount++;
+        }
+    }
+
+    if (morse.phase === 'input') {
+        // Digit input
+        for (var d = 0; d <= 9; d++) {
+            if (isJustPressed('Digit' + d)) {
+                morse.inputDigits += '' + d;
+                // Auto-check at target length
+                if (morse.inputDigits.length >= MORSE_SEQUENCE.length) {
+                    var target = '';
+                    for (var i = 0; i < MORSE_SEQUENCE.length; i++) target += MORSE_SEQUENCE[i].char;
+                    if (morse.inputDigits === target) {
+                        morse.result = 'success';
+                        morse.resultTimer = 2.0;
+                        morse.solved = true;
+                        playItemPickup();
+                    } else {
+                        morse.result = 'fail';
+                        morse.resultTimer = 1.5;
+                        morse.shakeTimer = 0.4;
+                    }
+                }
+                break;
+            }
+        }
+
+        // R to replay
+        if (isJustPressed('KeyR')) {
+            morse.phase = 'listening';
+            morse.playbackIndex = 0;
+            morse.currentDot = 0;
+            morse.playbackTimer = 0;
+        }
+
+        // Backspace
+        if (isJustPressed('Backspace')) {
+            if (morse.inputDigits.length > 0) {
+                morse.inputDigits = morse.inputDigits.slice(0, -1);
+            }
+        }
+    }
+
+    if (isJustPressed('Escape')) {
+        morse.active = false;
+    }
+}
+
+/** Completes Morse code puzzle. */
+function completeMorsePuzzle() {
+    morse.active = false;
+    setFlag('morse_solved', true);
+    startDialogue({
+        id: 'morse_complete', name: 'Payphone',
+        getLines: function() { return { lines: [
+            "*CLICK* The payphone connects! A recorded message plays:",
+            "'To find what you seek, look beneath the fountain...'",
+            "'...where the pigeons fear to tread.'",
+            "A hidden tunnel entrance has been revealed near the fountain!",
+        ] }; },
+    });
+}
+
+/** Renders the Morse code puzzle. */
+function renderMorse(ctx) {
+    if (!morse.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+    var t = performance.now() / 1000;
+    var cx = W / 2, cy = H / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    var sx = 0, sy = 0;
+    if (morse.shakeTimer > 0) {
+        sx = (Math.random() - 0.5) * 6;
+        sy = (Math.random() - 0.5) * 6;
+    }
+
+    // Payphone body (taller, blue/gray)
+    ctx.fillStyle = '#3a4a5a';
+    ctx.fillRect(cx - 60 + sx, cy - 100 + sy, 120, 200);
+    ctx.strokeStyle = '#2a3a4a';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(cx - 60 + sx, cy - 100 + sy, 120, 200);
+
+    // Coin slot
+    ctx.fillStyle = '#1a2a3a';
+    ctx.fillRect(cx - 15 + sx, cy - 85 + sy, 30, 6);
+
+    // Speaker grille
+    ctx.fillStyle = '#222';
+    for (var i = 0; i < 4; i++) {
+        ctx.fillRect(cx - 20 + sx, cy - 70 + sy + i * 8, 40, 3);
+    }
+
+    // Morse display area
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(cx - 45 + sx, cy - 30 + sy, 90, 40);
+
+    if (morse.phase === 'listening' && morse.playbackIndex < MORSE_SEQUENCE.length) {
+        var pattern = MORSE_SEQUENCE[morse.playbackIndex].pattern;
+        var dotX = cx - 35 + sx;
+        for (var i = 0; i < pattern.length; i++) {
+            var isDash = pattern[i] === '-';
+            var dotW = isDash ? 18 : 8;
+            var isActive = i <= morse.currentDot;
+            ctx.fillStyle = isActive ? '#ffcc44' : '#333';
+            ctx.fillRect(dotX, cy - 15 + sy, dotW, 8);
+            dotX += dotW + 4;
+        }
+        // Current char label
+        ctx.fillStyle = '#888';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Char ' + (morse.playbackIndex + 1) + '/' + MORSE_SEQUENCE.length, cx + sx, cy + 5 + sy);
+    } else if (morse.phase === 'input') {
+        ctx.fillStyle = '#44ff44';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(morse.inputDigits + '_', cx + sx, cy - 5 + sy);
+    }
+
+    // Number pad (simplified)
+    var padY = cy + 20 + sy;
+    var digits = [1,2,3,4,5,6,7,8,9,0];
+    for (var i = 0; i < 10; i++) {
+        var col = i % 3;
+        var row = Math.floor(i / 3);
+        if (i === 9) { col = 1; row = 3; } // 0 centered
+        var bx = cx - 35 + col * 28 + sx;
+        var by = padY + row * 22;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(bx, by, 22, 18);
+        ctx.fillStyle = '#ddd';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('' + digits[i], bx + 11, by + 14);
+    }
+
+    // Title
+    ctx.fillStyle = '#6688bb';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PIAZZA PAYPHONE', cx, cy - 120);
+
+    // Phase instructions
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    if (morse.phase === 'listening') {
+        ctx.fillText('Watch the Morse code pattern...  Space to skip', cx, cy + 120);
+    } else {
+        ctx.fillText('Type the number the Morse code spells  |  R to replay  |  Esc to close', cx, cy + 120);
+    }
+
+    // Morse reference hint (after first listen)
+    if (morse.listenCount > 0 && morse.phase === 'input') {
+        ctx.fillStyle = '#666';
+        ctx.font = '9px monospace';
+        ctx.fillText('Hint: count the dots(.) and dashes(-)  •=short  —=long', cx, cy + 135);
+    }
+
+    // Result
+    if (morse.result === 'success') {
+        ctx.fillStyle = '#44ff44';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('CONNECTED!', cx, cy);
+    } else if (morse.result === 'fail') {
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 22px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('WRONG NUMBER!', cx, cy);
+    }
+}
+
+// ============================================================
+// Tamagotchi — Gym (Z4)
+// Timed feeding sequence — feed the creature in the right order
+// ============================================================
+
+var TAMA_FOODS = ['🍎', '🥦', '🧀', '🍖', '🥕'];
+var TAMA_FOOD_NAMES = ['Apple', 'Broccoli', 'Cheese', 'Meat', 'Carrot'];
+var TAMA_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
+
+/** Tamagotchi state. */
+var tama = {
+    active: false,
+    phase: 'intro',    // 'intro' | 'feeding' | 'result'
+    sequence: [],       // target food sequence
+    currentStep: 0,
+    timer: 0,
+    maxTime: 15,        // seconds to complete
+    introTimer: 0,
+    resultTimer: 0,
+    happiness: 0,       // visual happiness meter
+    mistakes: 0,
+    maxMistakes: 3,
+    solved: false,
+    creatureState: 'neutral', // 'neutral' | 'happy' | 'sad' | 'excited'
+    stateTimer: 0,
+    bounceY: 0,
+    shakeTimer: 0,
+};
+
+/** Starts the Tamagotchi feeding puzzle. */
+function startTamagotchiPuzzle() {
+    if (tama.active) return;
+    if (getFlag('tamagotchi_solved')) return;
+    tama.active = true;
+    tama.phase = 'intro';
+    tama.introTimer = 3.0;
+
+    // Generate a sequence of 8 feeding steps
+    tama.sequence = [];
+    for (var i = 0; i < 8; i++) {
+        tama.sequence.push(Math.floor(Math.random() * TAMA_FOODS.length));
+    }
+    tama.currentStep = 0;
+    tama.timer = tama.maxTime;
+    tama.happiness = 0;
+    tama.mistakes = 0;
+    tama.solved = false;
+    tama.resultTimer = 0;
+    tama.creatureState = 'neutral';
+    tama.stateTimer = 0;
+    tama.bounceY = 0;
+    tama.shakeTimer = 0;
+}
+
+/** Updates the Tamagotchi puzzle. */
+function updateTamagotchi(dt) {
+    if (!tama.active) return;
+
+    tama.bounceY = Math.sin(performance.now() / 300) * 3;
+
+    if (tama.stateTimer > 0) {
+        tama.stateTimer -= dt;
+        if (tama.stateTimer <= 0) tama.creatureState = 'neutral';
+    }
+
+    if (tama.phase === 'intro') {
+        tama.introTimer -= dt;
+        if (tama.introTimer <= 0 || isJustPressed('Space')) {
+            tama.phase = 'feeding';
+        }
+        return;
+    }
+
+    if (tama.phase === 'result') {
+        tama.resultTimer -= dt;
+        if (tama.resultTimer <= 0) {
+            if (tama.solved) {
+                completeTamagotchiPuzzle();
+            } else {
+                tama.active = false;
+            }
+        }
+        return;
+    }
+
+    // Feeding phase
+    tama.timer -= dt;
+    if (tama.timer <= 0) {
+        // Time's up — fail
+        tama.phase = 'result';
+        tama.resultTimer = 2.5;
+        tama.creatureState = 'sad';
+        return;
+    }
+
+    // Check food key presses (1-5)
+    for (var k = 0; k < TAMA_KEYS.length; k++) {
+        if (isJustPressed(TAMA_KEYS[k])) {
+            if (k === tama.sequence[tama.currentStep]) {
+                // Correct!
+                tama.currentStep++;
+                tama.happiness += 1 / tama.sequence.length;
+                tama.creatureState = 'happy';
+                tama.stateTimer = 0.5;
+
+                if (tama.currentStep >= tama.sequence.length) {
+                    // All fed!
+                    tama.phase = 'result';
+                    tama.resultTimer = 2.5;
+                    tama.solved = true;
+                    tama.creatureState = 'excited';
+                    playItemPickup();
+                }
+            } else {
+                // Wrong!
+                tama.mistakes++;
+                tama.creatureState = 'sad';
+                tama.stateTimer = 0.5;
+                tama.shakeTimer = 0.3;
+
+                if (tama.mistakes >= tama.maxMistakes) {
+                    tama.phase = 'result';
+                    tama.resultTimer = 2.5;
+                }
+            }
+            break;
+        }
+    }
+
+    if (tama.shakeTimer > 0) tama.shakeTimer -= dt;
+
+    if (isJustPressed('Escape')) {
+        tama.active = false;
+    }
+}
+
+/** Completes the Tamagotchi puzzle. */
+function completeTamagotchiPuzzle() {
+    tama.active = false;
+    setFlag('tamagotchi_solved', true);
+    addToInventory('dirty_sock');
+    game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+    game.itemFlashName = 'Dirty Sock';
+    startDialogue({
+        id: 'tamagotchi_complete', name: 'Tamagotchi',
+        getLines: function() { return { lines: [
+            "Your Tamagotchi is SO happy! It's doing a little pixel dance!",
+            "It spits something out... a tiny digital key appears!",
+            "Wait, no — it's a DIRTY SOCK that was stuck behind the device.",
+            "Got: Dirty Sock — a fear-inducing weapon!",
+        ] }; },
+    });
+}
+
+/** Renders the Tamagotchi puzzle. */
+function renderTamagotchi(ctx) {
+    if (!tama.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
+    var t = performance.now() / 1000;
+    var cx = W / 2, cy = H / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    var sx = 0, sy = 0;
+    if (tama.shakeTimer > 0) {
+        sx = (Math.random() - 0.5) * 6;
+        sy = (Math.random() - 0.5) * 6;
+    }
+
+    // Tamagotchi body (egg shape)
+    ctx.fillStyle = '#e040fb';
+    ctx.beginPath();
+    ctx.ellipse(cx + sx, cy + sy - 10, 80, 100, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b030cb';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Screen
+    ctx.fillStyle = '#c8e8c0';
+    ctx.fillRect(cx - 50 + sx, cy - 75 + sy, 100, 80);
+    ctx.strokeStyle = '#88a880';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - 50 + sx, cy - 75 + sy, 100, 80);
+
+    // Creature on screen
+    var crX = cx + sx, crY = cy - 40 + sy + tama.bounceY;
+    // Body
+    ctx.fillStyle = tama.creatureState === 'happy' ? '#ffdd44' :
+                    tama.creatureState === 'sad' ? '#8888aa' :
+                    tama.creatureState === 'excited' ? '#ff8844' : '#44aa44';
+    ctx.beginPath();
+    ctx.arc(crX, crY, 18, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#000';
+    var eyeOffset = tama.creatureState === 'sad' ? 2 : 0;
+    ctx.fillRect(crX - 8, crY - 6 + eyeOffset, 4, 4);
+    ctx.fillRect(crX + 4, crY - 6 + eyeOffset, 4, 4);
+    // Mouth
+    if (tama.creatureState === 'happy' || tama.creatureState === 'excited') {
+        ctx.beginPath();
+        ctx.arc(crX, crY + 4, 6, 0, Math.PI);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    } else if (tama.creatureState === 'sad') {
+        ctx.beginPath();
+        ctx.arc(crX, crY + 10, 5, Math.PI, 0);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    } else {
+        ctx.fillRect(crX - 3, crY + 3, 6, 3);
+    }
+
+    // Buttons (3 round buttons below screen)
+    var btnY = cy + 25 + sy;
+    for (var b = 0; b < 3; b++) {
+        ctx.fillStyle = '#d030db';
+        ctx.beginPath();
+        ctx.arc(cx - 30 + b * 30 + sx, btnY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#a020ab';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // Title
+    ctx.fillStyle = '#e040fb';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TAMAGOTCHI', cx, cy - 120);
+
+    // Phase-specific content
+    if (tama.phase === 'intro') {
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px monospace';
+        ctx.fillText('Your pixel pet is hungry!', cx, cy + 70);
+        ctx.fillText('Feed it the right foods in order!', cx, cy + 88);
+        ctx.fillStyle = '#ffcc44';
+        ctx.font = '12px monospace';
+        ctx.fillText('Press Space to start...', cx, cy + 110);
+
+        // Show the sequence to memorize
+        ctx.fillStyle = '#fff';
+        ctx.font = '13px monospace';
+        ctx.fillText('Memorize: ', cx - 60, cy + 130);
+        var seqStr = '';
+        for (var i = 0; i < tama.sequence.length; i++) {
+            seqStr += TAMA_FOODS[tama.sequence[i]] + ' ';
+        }
+        ctx.fillText(seqStr, cx + 20, cy + 130);
+    }
+
+    if (tama.phase === 'feeding') {
+        // Current food to feed (highlighted)
+        var wantedFood = tama.sequence[tama.currentStep];
+        ctx.fillStyle = '#ffcc44';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText('Feed: ' + TAMA_FOODS[wantedFood] + ' ' + TAMA_FOOD_NAMES[wantedFood], cx, cy + 65);
+
+        // Step progress
+        ctx.fillStyle = '#aaa';
+        ctx.font = '12px monospace';
+        ctx.fillText('Step ' + (tama.currentStep + 1) + '/' + tama.sequence.length, cx, cy + 85);
+
+        // Food selection (1-5)
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px monospace';
+        for (var f = 0; f < TAMA_FOODS.length; f++) {
+            var fx = cx - 100 + f * 50;
+            ctx.fillText('[' + (f + 1) + ']', fx, cy + 105);
+            ctx.font = '18px monospace';
+            ctx.fillText(TAMA_FOODS[f], fx, cy + 125);
+            ctx.font = '14px monospace';
+        }
+
+        // Timer bar
+        ctx.fillStyle = '#333';
+        ctx.fillRect(cx - 80, cy + 140, 160, 10);
+        var timeFrac = tama.timer / tama.maxTime;
+        ctx.fillStyle = timeFrac > 0.3 ? '#44cc44' : '#ff4444';
+        ctx.fillRect(cx - 80, cy + 140, 160 * timeFrac, 10);
+
+        // Happiness meter
+        ctx.fillStyle = '#333';
+        ctx.fillRect(cx - 80, cy + 155, 160, 8);
+        ctx.fillStyle = '#ff88cc';
+        ctx.fillRect(cx - 80, cy + 155, 160 * tama.happiness, 8);
+        ctx.fillStyle = '#888';
+        ctx.font = '9px monospace';
+        ctx.fillText('Happiness', cx, cy + 162);
+
+        // Mistakes
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '11px monospace';
+        ctx.fillText('Mistakes: ' + tama.mistakes + '/' + tama.maxMistakes, cx, cy + 180);
+    }
+
+    if (tama.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(0, 0, W, H);
+        if (tama.solved) {
+            ctx.fillStyle = '#44ff44';
+            ctx.font = 'bold 28px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('PET HAPPY!', cx, cy);
+            ctx.fillStyle = '#ffcc44';
+            ctx.font = '14px monospace';
+            ctx.fillText('Your Tamagotchi loves you!', cx, cy + 30);
+        } else {
+            ctx.fillStyle = '#ff6644';
+            ctx.font = 'bold 24px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('PET UNHAPPY...', cx, cy);
+            ctx.fillStyle = '#aaa';
+            ctx.font = '12px monospace';
+            ctx.fillText('Try again next time!', cx, cy + 30);
+        }
+    }
+
+    // Esc hint
+    ctx.fillStyle = '#666';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Esc to close', cx, H - 15);
+}

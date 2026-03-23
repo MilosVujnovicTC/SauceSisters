@@ -37,6 +37,7 @@ const ITEMS = {
     flour: { id: 'flour', name: 'Bag of Flour', color: '#f5f5dc', icon: 'FL', description: '2-tile radius cloud stun.' },
     banana: { id: 'banana', name: 'Banana', color: '#ffd600', icon: 'BN', description: 'Floor trap — enemies slip.' },
     dirty_sock: { id: 'dirty_sock', name: 'Dirty Sock', color: '#8d6e63', icon: 'SK', description: 'Fear + stun — enemy retreats.' },
+    cdrom_disc: { id: 'cdrom_disc', name: 'CD-ROM Disc', color: '#6688aa', icon: 'CD', description: 'One-time spinning disc stun.' },
 };
 
 // ============================================================

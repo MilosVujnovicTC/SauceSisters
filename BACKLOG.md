@@ -610,7 +610,7 @@
   - [ ] Scoring and rewards work for each
   - [ ] All are skippable
 
-### Stage 8-4: Remaining millennial puzzles `[ ]`
+### Stage 8-4: Remaining millennial puzzles `[x] 2026-03-24`
 - Red rotary phone #1 (Z1): dial combination
 - Red rotary phone #2 (Z5): Morse code
 - VHS tape (Z3): rewind tension meter
