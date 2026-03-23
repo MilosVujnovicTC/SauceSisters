@@ -4053,3 +4053,498 @@ function drawPepeRunner(ctx, x, y, t) {
     ctx.quadraticCurveTo(x - 4, y + tailWag, x - 6, y + 2 + tailWag * 0.5);
     ctx.stroke();
 }
+
+// ============================================================
+// Tomato Juggling — Multi-lane reflex catching game
+// ============================================================
+
+/** Tomato juggling config. */
+var JUGGLE_CONFIG = {
+    DURATION: 35,           // seconds
+    LANE_COUNT: 4,          // number of lanes
+    LANE_WIDTH: 80,         // pixels per lane
+    BASKET_W: 60,
+    BASKET_H: 20,
+    FALL_SPEED_BASE: 150,
+    FALL_SPEED_RAMP: 5,     // speed increase per second
+    SPAWN_INTERVAL_BASE: 0.9,
+    SPAWN_INTERVAL_MIN: 0.3,
+    INTRO_TIME: 2.0,
+    RESULT_TIME: 3.0,
+};
+
+/** Tomato juggling state. */
+var juggle = {
+    active: false,
+    phase: 'intro',         // 'intro', 'playing', 'result'
+    introTimer: 0,
+    resultTimer: 0,
+    timer: 0,
+    lane: 1,                // current basket lane (0-3)
+    tomatoes: [],           // falling objects
+    spawnTimer: 0,
+    caught: 0,
+    missed: 0,
+    maxMissed: 5,
+    combo: 0,
+    maxCombo: 0,
+    grade: '',
+    reward: null,
+    animTimer: 0,
+    catchFlash: 0,
+    missFlash: 0,
+    // Splat effects
+    splats: [],
+};
+
+/** Returns the X center of a lane. */
+function juggleLaneX(lane) {
+    var totalW = JUGGLE_CONFIG.LANE_COUNT * JUGGLE_CONFIG.LANE_WIDTH;
+    var startX = (CONFIG.CANVAS_W - totalW) / 2;
+    return startX + lane * JUGGLE_CONFIG.LANE_WIDTH + JUGGLE_CONFIG.LANE_WIDTH / 2;
+}
+
+/** Starts the tomato juggling interlude. */
+function startJuggling() {
+    if (juggle.active) return;
+    juggle.active = true;
+    game.mode = 'juggling';
+    juggle.phase = 'intro';
+    juggle.introTimer = JUGGLE_CONFIG.INTRO_TIME;
+    juggle.resultTimer = 0;
+    juggle.timer = 0;
+    juggle.lane = 1;
+    juggle.tomatoes = [];
+    juggle.spawnTimer = 0.5;
+    juggle.caught = 0;
+    juggle.missed = 0;
+    juggle.combo = 0;
+    juggle.maxCombo = 0;
+    juggle.grade = '';
+    juggle.reward = null;
+    juggle.animTimer = 0;
+    juggle.catchFlash = 0;
+    juggle.missFlash = 0;
+    juggle.splats = [];
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+/** Updates the tomato juggling each frame. */
+function updateJuggling(dt) {
+    if (!juggle.active) return;
+    juggle.animTimer += dt;
+    if (juggle.catchFlash > 0) juggle.catchFlash -= dt;
+    if (juggle.missFlash > 0) juggle.missFlash -= dt;
+
+    // Update splats
+    for (var si = juggle.splats.length - 1; si >= 0; si--) {
+        juggle.splats[si].timer -= dt;
+        if (juggle.splats[si].timer <= 0) juggle.splats.splice(si, 1);
+    }
+
+    // Intro
+    if (juggle.phase === 'intro') {
+        juggle.introTimer -= dt;
+        if (juggle.introTimer <= 0) {
+            juggle.phase = 'playing';
+            juggle.timer = 0;
+        }
+        if (actionJustPressed('interact') && juggle.introTimer < 1.0) {
+            juggle.phase = 'playing';
+            juggle.timer = 0;
+        }
+        return;
+    }
+
+    // Result
+    if (juggle.phase === 'result') {
+        juggle.resultTimer -= dt;
+        if (juggle.resultTimer <= 0 && actionJustPressed('interact')) {
+            endJuggling();
+        }
+        if (juggle.resultTimer < -3) endJuggling();
+        return;
+    }
+
+    // Skip with Escape
+    if (isJustPressed('Escape')) {
+        juggle.grade = 'C';
+        juggle.reward = null;
+        juggle.phase = 'result';
+        juggle.resultTimer = JUGGLE_CONFIG.RESULT_TIME;
+        return;
+    }
+
+    juggle.timer += dt;
+
+    // Lane switching
+    if (isJustPressed('ArrowLeft') || isJustPressed('KeyA')) {
+        if (juggle.lane > 0) juggle.lane--;
+    }
+    if (isJustPressed('ArrowRight') || isJustPressed('KeyD')) {
+        if (juggle.lane < JUGGLE_CONFIG.LANE_COUNT - 1) juggle.lane++;
+    }
+
+    // Spawn tomatoes
+    var speed = JUGGLE_CONFIG.FALL_SPEED_BASE + juggle.timer * JUGGLE_CONFIG.FALL_SPEED_RAMP;
+    var interval = Math.max(JUGGLE_CONFIG.SPAWN_INTERVAL_MIN,
+        JUGGLE_CONFIG.SPAWN_INTERVAL_BASE - juggle.timer * 0.018);
+    juggle.spawnTimer -= dt;
+    if (juggle.spawnTimer <= 0) {
+        spawnJuggleTomato();
+        juggle.spawnTimer = interval + Math.random() * 0.2;
+    }
+
+    // Update falling tomatoes
+    var basketY = CONFIG.CANVAS_H - 80;
+    for (var i = juggle.tomatoes.length - 1; i >= 0; i--) {
+        var tom = juggle.tomatoes[i];
+        tom.y += speed * dt;
+        tom.rot += tom.rotSpeed * dt;
+
+        // Caught check — tomato reaches basket level in correct lane
+        if (tom.y >= basketY - 10 && tom.y <= basketY + 20 && !tom.caught && !tom.missed) {
+            if (tom.lane === juggle.lane) {
+                tom.caught = true;
+                juggle.caught++;
+                juggle.combo++;
+                if (juggle.combo > juggle.maxCombo) juggle.maxCombo = juggle.combo;
+                juggle.catchFlash = 0.3;
+                playItemPickup();
+            }
+        }
+
+        // Missed — fell past basket
+        if (tom.y > basketY + 30 && !tom.caught && !tom.missed) {
+            tom.missed = true;
+            juggle.missed++;
+            juggle.combo = 0;
+            juggle.missFlash = 0.3;
+            // Splat on ground
+            juggle.splats.push({
+                x: juggleLaneX(tom.lane),
+                y: CONFIG.CANVAS_H - 30,
+                timer: 1.0,
+            });
+        }
+
+        // Remove if off screen
+        if (tom.y > CONFIG.CANVAS_H + 40) {
+            juggle.tomatoes.splice(i, 1);
+        }
+    }
+
+    // End conditions
+    if (juggle.timer >= JUGGLE_CONFIG.DURATION || juggle.missed >= juggle.maxMissed) {
+        finalizeJuggling();
+    }
+}
+
+/** Spawns a falling tomato in a random lane. */
+function spawnJuggleTomato() {
+    var lane = Math.floor(Math.random() * JUGGLE_CONFIG.LANE_COUNT);
+    // Occasionally spawn a golden tomato (bonus points)
+    var golden = juggle.timer > 8 && Math.random() < 0.12;
+    juggle.tomatoes.push({
+        lane: lane,
+        x: juggleLaneX(lane),
+        y: -20,
+        rot: 0,
+        rotSpeed: (Math.random() - 0.5) * 6,
+        caught: false,
+        missed: false,
+        golden: golden,
+    });
+    // Double spawn after 15s
+    if (juggle.timer > 15 && Math.random() < 0.25) {
+        var lane2 = (lane + 1 + Math.floor(Math.random() * (JUGGLE_CONFIG.LANE_COUNT - 1))) % JUGGLE_CONFIG.LANE_COUNT;
+        juggle.tomatoes.push({
+            lane: lane2,
+            x: juggleLaneX(lane2),
+            y: -20 - Math.random() * 30,
+            rot: 0,
+            rotSpeed: (Math.random() - 0.5) * 6,
+            caught: false,
+            missed: false,
+            golden: false,
+        });
+    }
+}
+
+/** Calculates final grade and reward. */
+function finalizeJuggling() {
+    var total = juggle.caught + juggle.missed;
+    var catchRate = total > 0 ? juggle.caught / total : 0;
+
+    if (catchRate >= 0.9 && juggle.maxCombo >= 8) {
+        juggle.grade = 'S';
+        juggle.reward = { type: 'powerup', id: 'brownie', name: 'Brodo Boost' };
+    } else if (catchRate >= 0.75) {
+        juggle.grade = 'A';
+        juggle.reward = { type: 'powerup', id: 'chocolate_milk', name: 'Sugar Rush' };
+    } else if (catchRate >= 0.5) {
+        juggle.grade = 'B';
+        juggle.reward = { type: 'item', id: 'tomato', name: 'Tomato' };
+    } else {
+        juggle.grade = 'C';
+        juggle.reward = null;
+    }
+
+    juggle.phase = 'result';
+    juggle.resultTimer = JUGGLE_CONFIG.RESULT_TIME;
+}
+
+/** Ends the juggling — grant reward and return. */
+function endJuggling() {
+    if (juggle.reward) {
+        if (juggle.reward.type === 'powerup') {
+            activatePowerup(juggle.reward.id);
+        } else if (juggle.reward.type === 'item') {
+            addToInventory(juggle.reward.id);
+        }
+        game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+        game.itemFlashName = juggle.reward.name;
+    }
+
+    setFlag('juggling_completed', true);
+    setFlag('juggling_grade', juggle.grade);
+
+    juggle.active = false;
+    game.mode = 'overworld';
+
+    if (game.juggleReturnZone) {
+        loadZone(game.juggleReturnZone, game.juggleReturnSpawnX, game.juggleReturnSpawnY);
+        game.juggleReturnZone = null;
+    }
+}
+
+/** Renders the tomato juggling game. */
+function renderJuggling(ctx) {
+    if (!juggle.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = juggle.animTimer;
+
+    // Dark kitchen background
+    var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#1a1a2e');
+    bgGrad.addColorStop(1, '#2d2d44');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Lane columns
+    var totalW = JUGGLE_CONFIG.LANE_COUNT * JUGGLE_CONFIG.LANE_WIDTH;
+    var startX = (W - totalW) / 2;
+    for (var ln = 0; ln < JUGGLE_CONFIG.LANE_COUNT; ln++) {
+        var lx = startX + ln * JUGGLE_CONFIG.LANE_WIDTH;
+        ctx.fillStyle = ln % 2 === 0 ? 'rgba(80, 60, 40, 0.3)' : 'rgba(60, 45, 30, 0.3)';
+        ctx.fillRect(lx, 0, JUGGLE_CONFIG.LANE_WIDTH, H);
+        // Lane divider
+        if (ln > 0) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(lx, 0);
+            ctx.lineTo(lx, H);
+            ctx.stroke();
+        }
+    }
+
+    // Ground / counter
+    ctx.fillStyle = '#5a3a20';
+    ctx.fillRect(startX - 10, H - 50, totalW + 20, 50);
+    ctx.fillStyle = '#7a5a40';
+    ctx.fillRect(startX - 10, H - 50, totalW + 20, 4);
+
+    // Splats on counter
+    for (var si = 0; si < juggle.splats.length; si++) {
+        var sp = juggle.splats[si];
+        var sAlpha = Math.min(sp.timer / 0.3, 1) * 0.6;
+        ctx.fillStyle = 'rgba(200, 50, 30, ' + sAlpha + ')';
+        ctx.beginPath();
+        ctx.ellipse(sp.x, sp.y, 12, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Basket
+    var basketX = juggleLaneX(juggle.lane);
+    var basketY = H - 80;
+    var bw = JUGGLE_CONFIG.BASKET_W;
+    var bh = JUGGLE_CONFIG.BASKET_H;
+    // Basket glow on catch
+    if (juggle.catchFlash > 0) {
+        ctx.fillStyle = 'rgba(255, 215, 0, ' + (juggle.catchFlash / 0.3 * 0.3) + ')';
+        ctx.beginPath();
+        ctx.arc(basketX, basketY + bh / 2, 40, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // Basket body (wicker-style)
+    ctx.fillStyle = '#c69c6d';
+    ctx.beginPath();
+    ctx.moveTo(basketX - bw / 2, basketY);
+    ctx.lineTo(basketX - bw / 2 + 6, basketY + bh);
+    ctx.lineTo(basketX + bw / 2 - 6, basketY + bh);
+    ctx.lineTo(basketX + bw / 2, basketY);
+    ctx.closePath();
+    ctx.fill();
+    // Basket rim
+    ctx.strokeStyle = '#a07850';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(basketX - bw / 2 - 2, basketY);
+    ctx.lineTo(basketX + bw / 2 + 2, basketY);
+    ctx.stroke();
+    // Wicker pattern
+    ctx.strokeStyle = '#b08a5a';
+    ctx.lineWidth = 1;
+    for (var wl = 0; wl < 3; wl++) {
+        var wy = basketY + 5 + wl * 5;
+        ctx.beginPath();
+        ctx.moveTo(basketX - bw / 2 + 4, wy);
+        ctx.lineTo(basketX + bw / 2 - 4, wy);
+        ctx.stroke();
+    }
+
+    // Falling tomatoes
+    for (var ti = 0; ti < juggle.tomatoes.length; ti++) {
+        var tom = juggle.tomatoes[ti];
+        if (tom.caught) continue; // caught = disappeared
+        var tx = tom.x;
+        var ty = tom.y;
+        if (tom.missed) {
+            ctx.globalAlpha = 0.3;
+        }
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(tom.rot);
+        if (tom.golden) {
+            // Golden tomato
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffee88';
+            ctx.beginPath();
+            ctx.arc(-3, -3, 4, 0, Math.PI * 2);
+            ctx.fill();
+            // Star sparkle
+            ctx.fillStyle = '#ffffff';
+            var starA = t * 4;
+            ctx.fillRect(Math.cos(starA) * 8 - 1, Math.sin(starA) * 8 - 1, 2, 2);
+        } else {
+            // Regular tomato
+            ctx.fillStyle = '#cc3333';
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            // Highlight
+            ctx.fillStyle = '#ee5555';
+            ctx.beginPath();
+            ctx.arc(-3, -3, 4, 0, Math.PI * 2);
+            ctx.fill();
+            // Stem
+            ctx.fillStyle = '#33aa33';
+            ctx.fillRect(-2, -12, 4, 4);
+            ctx.fillStyle = '#228822';
+            ctx.fillRect(-4, -10, 3, 2);
+            ctx.fillRect(1, -10, 3, 2);
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    // HUD — timer bar
+    var timerPct = Math.min(juggle.timer / JUGGLE_CONFIG.DURATION, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(20, 16, W - 40, 12);
+    ctx.fillStyle = timerPct > 0.8 ? '#ff4444' : '#44cc44';
+    ctx.fillRect(20, 16, (W - 40) * timerPct, 12);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 16, W - 40, 12);
+
+    // Score + misses
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Caught: ' + juggle.caught, 20, 48);
+    ctx.textAlign = 'center';
+    ctx.fillText('Combo: ' + juggle.combo, W / 2, 48);
+    ctx.textAlign = 'right';
+    // Miss counter as X marks
+    var missStr = '';
+    for (var mi = 0; mi < juggle.maxMissed; mi++) {
+        missStr += mi < juggle.missed ? '\u2717 ' : '\u2610 ';
+    }
+    ctx.fillStyle = juggle.missed >= juggle.maxMissed - 1 ? '#ff4444' : '#ffffff';
+    ctx.fillText(missStr, W - 20, 48);
+
+    // Time remaining
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    var timeLeft = Math.max(0, JUGGLE_CONFIG.DURATION - juggle.timer);
+    ctx.fillText(Math.ceil(timeLeft) + 's', W / 2, 28);
+
+    // Miss flash (red border)
+    if (juggle.missFlash > 0) {
+        ctx.strokeStyle = 'rgba(255, 50, 50, ' + (juggle.missFlash / 0.3 * 0.5) + ')';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, W - 4, H - 4);
+    }
+
+    // Intro overlay
+    if (juggle.phase === 'intro') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 24px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('TOMATO JUGGLING!', W / 2, H / 2 - 40);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText('Catch the falling tomatoes with Left/Right!', W / 2, H / 2);
+        ctx.fillText('Golden tomatoes = bonus points!', W / 2, H / 2 + 24);
+        var countdown = Math.ceil(juggle.introTimer);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 36px monospace';
+        ctx.fillText(countdown > 0 ? '' + countdown : 'GO!', W / 2, H / 2 + 80);
+        ctx.fillStyle = '#888888';
+        ctx.font = '10px monospace';
+        ctx.fillText('Esc to skip', W / 2, H - 20);
+    }
+
+    // Result overlay
+    if (juggle.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('JUGGLING COMPLETE!', W / 2, H / 2 - 70);
+
+        var gradeColors = { S: '#ffd700', A: '#44cc44', B: '#4488ff', C: '#aaaaaa' };
+        ctx.fillStyle = gradeColors[juggle.grade] || '#ffffff';
+        ctx.font = 'bold 48px monospace';
+        ctx.fillText(juggle.grade, W / 2, H / 2 - 10);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText('Caught: ' + juggle.caught + '  |  Missed: ' + juggle.missed + '  |  Best Combo: ' + juggle.maxCombo, W / 2, H / 2 + 25);
+
+        if (juggle.reward) {
+            ctx.fillStyle = '#ffcc44';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText('Reward: ' + juggle.reward.name, W / 2, H / 2 + 60);
+        } else {
+            ctx.fillStyle = '#888888';
+            ctx.font = '12px monospace';
+            ctx.fillText('No reward this time.', W / 2, H / 2 + 60);
+        }
+
+        if (juggle.resultTimer <= 0 && Math.sin(t * 3) > 0) {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '12px monospace';
+            ctx.fillText('Press Space to continue', W / 2, H / 2 + 100);
+        }
+    }
+}

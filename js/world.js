@@ -1453,6 +1453,15 @@ function checkTransitions() {
         if (playerCol === t.col && playerRow === t.row) {
             playDoorOpen();
 
+            // Trigger tomato juggling when leaving the market with recipe #1
+            if (zone.id === 'market' && getFlag('recipe_1_found') && !getFlag('juggling_completed')) {
+                game.juggleReturnZone = t.target;
+                game.juggleReturnSpawnX = t.spawnX;
+                game.juggleReturnSpawnY = t.spawnY;
+                startJuggling();
+                return;
+            }
+
             // Trigger drum solo interlude when leaving the gym with recipe #3
             if (zone.id === 'gym' && getFlag('recipe_3_found') && !getFlag('drum_solo_completed')) {
                 // Store where the player was going so we return there after

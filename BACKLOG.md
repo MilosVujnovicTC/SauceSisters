@@ -589,7 +589,7 @@
   - [ ] Timer counts down, score tallies
   - [ ] Skippable
 
-### Stage 8-2: Tomato juggling interlude `[ ]`
+### Stage 8-2: Tomato juggling interlude `[x] 2026-03-23`
 - Multi-lane reflex game: tomatoes fall, catch in correct lane
 - Triggers after completing Zone 1
 - Left/right to move, up/down for lane switch
