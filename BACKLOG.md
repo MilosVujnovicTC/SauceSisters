@@ -599,7 +599,7 @@
   - [ ] Miss penalty, scoring works
   - [ ] Reward granted based on grade
 
-### Stage 8-3: Remaining interludes `[ ]`
+### Stage 8-3: Remaining interludes `[x] 2026-03-23`
 - Coco's air guitar (rhythm, optional Z2)
 - Signora Betta's accordion (Simon Says, optional Z1)
 - Mama's sewing rhythm (precision rhythm, Z7 unlock)

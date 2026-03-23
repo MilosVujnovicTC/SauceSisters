@@ -4548,3 +4548,711 @@ function renderJuggling(ctx) {
         }
     }
 }
+
+// ============================================================
+// Coco's Air Guitar — Rhythm chord combo game (optional, Canal Z2)
+// ============================================================
+
+var GUITAR_CONFIG = { DURATION: 30, INTRO_TIME: 2.0, RESULT_TIME: 3.0 };
+
+/** Air guitar chord patterns — sequences of arrow combos to match. */
+var GUITAR_CHORDS = [
+    { name: 'Power Chord', keys: ['ArrowLeft', 'ArrowDown'], time: 1.2 },
+    { name: 'Riff', keys: ['ArrowRight', 'ArrowUp'], time: 1.2 },
+    { name: 'Strum', keys: ['ArrowDown', 'ArrowRight', 'ArrowDown'], time: 1.8 },
+    { name: 'Solo Lick', keys: ['ArrowUp', 'ArrowLeft', 'ArrowUp', 'ArrowRight'], time: 2.4 },
+    { name: 'Windmill', keys: ['ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight'], time: 2.0 },
+    { name: 'Slam', keys: ['ArrowDown', 'ArrowDown', 'ArrowUp'], time: 1.6 },
+    { name: 'Shred', keys: ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'], time: 2.4 },
+];
+
+var guitar = {
+    active: false, phase: 'intro', introTimer: 0, resultTimer: 0,
+    timer: 0, animTimer: 0,
+    currentChord: null, chordIndex: 0, inputIndex: 0, chordTimer: 0,
+    perfect: 0, great: 0, ok: 0, miss: 0,
+    totalChords: 0, grade: '', reward: null,
+    feedback: '', feedbackTimer: 0, comboFlash: 0,
+};
+
+/** Starts Coco's air guitar interlude. */
+function startAirGuitar() {
+    if (guitar.active) return;
+    guitar.active = true;
+    game.mode = 'air_guitar';
+    guitar.phase = 'intro';
+    guitar.introTimer = GUITAR_CONFIG.INTRO_TIME;
+    guitar.timer = 0; guitar.animTimer = 0;
+    guitar.perfect = 0; guitar.great = 0; guitar.ok = 0; guitar.miss = 0;
+    guitar.totalChords = 0; guitar.grade = ''; guitar.reward = null;
+    guitar.feedback = ''; guitar.feedbackTimer = 0; guitar.comboFlash = 0;
+    guitar.currentChord = null; guitar.inputIndex = 0;
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+/** Picks the next chord to play. */
+function nextGuitarChord() {
+    var idx = Math.floor(Math.random() * GUITAR_CHORDS.length);
+    guitar.currentChord = GUITAR_CHORDS[idx];
+    guitar.chordTimer = guitar.currentChord.time;
+    guitar.inputIndex = 0;
+    guitar.totalChords++;
+}
+
+function updateAirGuitar(dt) {
+    if (!guitar.active) return;
+    guitar.animTimer += dt;
+    if (guitar.feedbackTimer > 0) guitar.feedbackTimer -= dt;
+    if (guitar.comboFlash > 0) guitar.comboFlash -= dt;
+
+    if (guitar.phase === 'intro') {
+        guitar.introTimer -= dt;
+        if (guitar.introTimer <= 0) { guitar.phase = 'playing'; guitar.timer = 0; nextGuitarChord(); }
+        if (actionJustPressed('interact') && guitar.introTimer < 1.0) { guitar.phase = 'playing'; guitar.timer = 0; nextGuitarChord(); }
+        return;
+    }
+    if (guitar.phase === 'result') {
+        guitar.resultTimer -= dt;
+        if (guitar.resultTimer <= 0 && actionJustPressed('interact')) endAirGuitar();
+        if (guitar.resultTimer < -3) endAirGuitar();
+        return;
+    }
+    if (isJustPressed('Escape')) {
+        guitar.grade = 'C'; guitar.reward = null;
+        guitar.phase = 'result'; guitar.resultTimer = GUITAR_CONFIG.RESULT_TIME;
+        return;
+    }
+
+    guitar.timer += dt;
+    if (guitar.timer >= GUITAR_CONFIG.DURATION) { finalizeAirGuitar(); return; }
+
+    // Chord timer countdown
+    if (guitar.currentChord) {
+        guitar.chordTimer -= dt;
+        // Check input
+        var keys = guitar.currentChord.keys;
+        if (isJustPressed(keys[guitar.inputIndex])) {
+            guitar.inputIndex++;
+            guitar.comboFlash = 0.15;
+            if (guitar.inputIndex >= keys.length) {
+                // Completed chord!
+                var remaining = guitar.chordTimer / guitar.currentChord.time;
+                if (remaining > 0.5) { guitar.perfect++; guitar.feedback = 'PERFECT!'; }
+                else if (remaining > 0.2) { guitar.great++; guitar.feedback = 'GREAT!'; }
+                else { guitar.ok++; guitar.feedback = 'OK'; }
+                guitar.feedbackTimer = 0.6;
+                playItemPickup();
+                nextGuitarChord();
+            }
+        } else {
+            // Wrong key pressed?
+            for (var ki = 0; ki < 4; ki++) {
+                var arrowKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+                if (isJustPressed(arrowKeys[ki]) && arrowKeys[ki] !== keys[guitar.inputIndex]) {
+                    guitar.inputIndex = 0; // reset combo
+                    break;
+                }
+            }
+        }
+        if (guitar.chordTimer <= 0) {
+            guitar.miss++; guitar.feedback = 'MISS'; guitar.feedbackTimer = 0.6;
+            nextGuitarChord();
+        }
+    }
+}
+
+function finalizeAirGuitar() {
+    var total = guitar.perfect + guitar.great + guitar.ok + guitar.miss;
+    var score = (guitar.perfect * 3 + guitar.great * 2 + guitar.ok) / Math.max(total * 3, 1);
+    if (score >= 0.85) { guitar.grade = 'S'; guitar.reward = { type: 'powerup', id: 'chocolate_milk', name: 'Sugar Rush' }; }
+    else if (score >= 0.65) { guitar.grade = 'A'; guitar.reward = { type: 'powerup', id: 'broccoli', name: 'Iron Legs' }; }
+    else if (score >= 0.4) { guitar.grade = 'B'; guitar.reward = { type: 'item', id: 'tomato', name: 'Tomato' }; }
+    else { guitar.grade = 'C'; guitar.reward = null; }
+    guitar.phase = 'result'; guitar.resultTimer = GUITAR_CONFIG.RESULT_TIME;
+    setFlag('air_guitar_completed', true);
+}
+
+function endAirGuitar() {
+    if (guitar.reward) {
+        if (guitar.reward.type === 'powerup') activatePowerup(guitar.reward.id);
+        else if (guitar.reward.type === 'item') addToInventory(guitar.reward.id);
+        game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+        game.itemFlashName = guitar.reward.name;
+    }
+    guitar.active = false; game.mode = 'overworld';
+}
+
+function renderAirGuitar(ctx) {
+    if (!guitar.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H, t = guitar.animTimer;
+
+    // Stage background
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a2e'); grad.addColorStop(1, '#2d1a44');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    // Spotlight
+    var spotGrad = ctx.createRadialGradient(W / 2, H * 0.6, 20, W / 2, H * 0.6, 200);
+    spotGrad.addColorStop(0, 'rgba(255,200,100,0.15)'); spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = spotGrad; ctx.fillRect(0, 0, W, H);
+
+    // Stage floor
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(0, H * 0.75, W, H * 0.25);
+
+    if (guitar.phase === 'playing' && guitar.currentChord) {
+        // Chord display
+        var chord = guitar.currentChord;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(chord.name, W / 2, H * 0.25);
+
+        // Arrow sequence display
+        var arrowLabels = { ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192' };
+        var seqStr = '';
+        for (var ki = 0; ki < chord.keys.length; ki++) {
+            var label = arrowLabels[chord.keys[ki]] || '?';
+            if (ki < guitar.inputIndex) {
+                seqStr += '\u2713 '; // completed
+            } else if (ki === guitar.inputIndex) {
+                seqStr += '[' + label + '] ';
+            } else {
+                seqStr += label + ' ';
+            }
+        }
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 28px monospace';
+        ctx.fillText(seqStr, W / 2, H * 0.4);
+
+        // Timer bar for chord
+        var chordPct = guitar.chordTimer / chord.time;
+        var barW = 200;
+        ctx.fillStyle = '#333'; ctx.fillRect(W / 2 - barW / 2, H * 0.5, barW, 10);
+        ctx.fillStyle = chordPct > 0.3 ? '#44cc44' : '#ff4444';
+        ctx.fillRect(W / 2 - barW / 2, H * 0.5, barW * chordPct, 10);
+
+        // Combo flash
+        if (guitar.comboFlash > 0) {
+            ctx.fillStyle = 'rgba(255,215,0,' + (guitar.comboFlash / 0.15 * 0.3) + ')';
+            ctx.fillRect(0, 0, W, H);
+        }
+    }
+
+    // Coco character (simple silhouette with guitar pose)
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath(); ctx.arc(W / 2, H * 0.65, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(W / 2 - 6, H * 0.65 + 10, 12, 20);
+    // Guitar shape
+    ctx.fillStyle = '#8b4513';
+    ctx.save(); ctx.translate(W / 2 + 10, H * 0.65 + 5);
+    ctx.rotate(Math.sin(t * 3) * 0.1 - 0.3);
+    ctx.fillRect(-3, -15, 6, 30);
+    ctx.beginPath(); ctx.ellipse(0, 18, 10, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Feedback text
+    if (guitar.feedbackTimer > 0) {
+        var fbColors = { 'PERFECT!': '#ffd700', 'GREAT!': '#44cc44', 'OK': '#4488ff', 'MISS': '#ff4444' };
+        ctx.fillStyle = fbColors[guitar.feedback] || '#ffffff';
+        ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(guitar.feedback, W / 2, H * 0.55 - guitar.feedbackTimer * 30);
+    }
+
+    // HUD
+    ctx.fillStyle = '#ffffff'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('P:' + guitar.perfect + ' G:' + guitar.great + ' OK:' + guitar.ok + ' M:' + guitar.miss, 20, 20);
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.ceil(Math.max(0, GUITAR_CONFIG.DURATION - guitar.timer)) + 's', W - 20, 20);
+
+    // Intro/Result overlays
+    if (guitar.phase === 'intro') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ff6600'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+        ctx.fillText("COCO'S AIR GUITAR!", W / 2, H / 2 - 40);
+        ctx.fillStyle = '#ffffff'; ctx.font = '14px monospace';
+        ctx.fillText('Match the arrow combos before time runs out!', W / 2, H / 2);
+        var cd = Math.ceil(guitar.introTimer);
+        ctx.fillStyle = '#ff6600'; ctx.font = 'bold 36px monospace';
+        ctx.fillText(cd > 0 ? '' + cd : 'ROCK!', W / 2, H / 2 + 60);
+        ctx.fillStyle = '#888'; ctx.font = '10px monospace'; ctx.fillText('Esc to skip', W / 2, H - 20);
+    }
+    if (guitar.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ff6600'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('ENCORE!', W / 2, H / 2 - 60);
+        var gc = { S: '#ffd700', A: '#44cc44', B: '#4488ff', C: '#aaaaaa' };
+        ctx.fillStyle = gc[guitar.grade] || '#fff'; ctx.font = 'bold 48px monospace';
+        ctx.fillText(guitar.grade, W / 2, H / 2);
+        ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
+        ctx.fillText('P:' + guitar.perfect + ' G:' + guitar.great + ' OK:' + guitar.ok + ' Miss:' + guitar.miss, W / 2, H / 2 + 30);
+        if (guitar.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + guitar.reward.name, W / 2, H / 2 + 60); }
+        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        if (guitar.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
+    }
+}
+
+// ============================================================
+// Signora Betta's Accordion — Simon Says memory game (optional, Market Z1)
+// ============================================================
+
+var ACCORDION_CONFIG = { ROUNDS: 8, SHOW_SPEED: 0.6, INTRO_TIME: 2.0, RESULT_TIME: 3.0 };
+
+var accordion = {
+    active: false, phase: 'intro', introTimer: 0, resultTimer: 0,
+    animTimer: 0,
+    sequence: [],           // the full sequence of directions
+    showIndex: 0,           // current index being shown
+    inputIndex: 0,          // player's current input position
+    round: 0,               // current round (sequence length)
+    showTimer: 0,           // timer for showing each element
+    showingSequence: false,  // true while displaying sequence
+    playerTurn: false,       // true when player should input
+    correct: 0, wrong: 0,
+    grade: '', reward: null,
+    feedback: '', feedbackTimer: 0,
+    buttonFlash: [0, 0, 0, 0], // flash timers for ↑↓←→
+};
+
+var ACCORDION_DIRS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+var ACCORDION_LABELS = ['\u2191', '\u2193', '\u2190', '\u2192'];
+var ACCORDION_COLORS = ['#4488ff', '#44cc44', '#ff6644', '#ffcc44'];
+
+function startAccordion() {
+    if (accordion.active) return;
+    accordion.active = true;
+    game.mode = 'accordion';
+    accordion.phase = 'intro';
+    accordion.introTimer = ACCORDION_CONFIG.INTRO_TIME;
+    accordion.animTimer = 0;
+    accordion.sequence = [];
+    accordion.round = 0; accordion.correct = 0; accordion.wrong = 0;
+    accordion.grade = ''; accordion.reward = null;
+    accordion.feedback = ''; accordion.feedbackTimer = 0;
+    accordion.buttonFlash = [0, 0, 0, 0];
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+/** Advances to the next round — adds one element and starts showing. */
+function nextAccordionRound() {
+    accordion.round++;
+    accordion.sequence.push(Math.floor(Math.random() * 4)); // 0-3 = ↑↓←→
+    accordion.showIndex = 0;
+    accordion.inputIndex = 0;
+    accordion.showingSequence = true;
+    accordion.playerTurn = false;
+    accordion.showTimer = ACCORDION_CONFIG.SHOW_SPEED;
+}
+
+function updateAccordion(dt) {
+    if (!accordion.active) return;
+    accordion.animTimer += dt;
+    if (accordion.feedbackTimer > 0) accordion.feedbackTimer -= dt;
+    for (var bi = 0; bi < 4; bi++) { if (accordion.buttonFlash[bi] > 0) accordion.buttonFlash[bi] -= dt; }
+
+    if (accordion.phase === 'intro') {
+        accordion.introTimer -= dt;
+        if (accordion.introTimer <= 0) { accordion.phase = 'playing'; nextAccordionRound(); }
+        if (actionJustPressed('interact') && accordion.introTimer < 1.0) { accordion.phase = 'playing'; nextAccordionRound(); }
+        return;
+    }
+    if (accordion.phase === 'result') {
+        accordion.resultTimer -= dt;
+        if (accordion.resultTimer <= 0 && actionJustPressed('interact')) endAccordion();
+        if (accordion.resultTimer < -3) endAccordion();
+        return;
+    }
+    if (isJustPressed('Escape')) {
+        accordion.grade = 'C'; accordion.reward = null;
+        accordion.phase = 'result'; accordion.resultTimer = ACCORDION_CONFIG.RESULT_TIME;
+        return;
+    }
+
+    // Showing sequence
+    if (accordion.showingSequence) {
+        accordion.showTimer -= dt;
+        if (accordion.showTimer <= 0) {
+            if (accordion.showIndex < accordion.sequence.length) {
+                accordion.buttonFlash[accordion.sequence[accordion.showIndex]] = 0.4;
+                accordion.showIndex++;
+                accordion.showTimer = ACCORDION_CONFIG.SHOW_SPEED;
+            } else {
+                accordion.showingSequence = false;
+                accordion.playerTurn = true;
+                accordion.inputIndex = 0;
+            }
+        }
+        return;
+    }
+
+    // Player turn
+    if (accordion.playerTurn) {
+        for (var di = 0; di < 4; di++) {
+            if (isJustPressed(ACCORDION_DIRS[di])) {
+                accordion.buttonFlash[di] = 0.3;
+                if (di === accordion.sequence[accordion.inputIndex]) {
+                    accordion.inputIndex++;
+                    if (accordion.inputIndex >= accordion.sequence.length) {
+                        // Round complete!
+                        accordion.correct++;
+                        accordion.feedback = 'Correct!'; accordion.feedbackTimer = 0.5;
+                        accordion.playerTurn = false;
+                        playItemPickup();
+                        if (accordion.round >= ACCORDION_CONFIG.ROUNDS) {
+                            finalizeAccordion();
+                        } else {
+                            // Brief pause then next round
+                            setTimeout(function() { if (accordion.active && accordion.phase === 'playing') nextAccordionRound(); }, 600);
+                        }
+                    }
+                } else {
+                    // Wrong!
+                    accordion.wrong++;
+                    accordion.feedback = 'Wrong!'; accordion.feedbackTimer = 0.5;
+                    accordion.playerTurn = false;
+                    playEnemyHit();
+                    if (accordion.wrong >= 3) {
+                        finalizeAccordion();
+                    } else {
+                        setTimeout(function() { if (accordion.active && accordion.phase === 'playing') nextAccordionRound(); }, 600);
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+function finalizeAccordion() {
+    var pct = accordion.correct / ACCORDION_CONFIG.ROUNDS;
+    if (pct >= 0.9) { accordion.grade = 'S'; accordion.reward = { type: 'powerup', id: 'brownie', name: 'Brodo Boost' }; }
+    else if (pct >= 0.7) { accordion.grade = 'A'; accordion.reward = { type: 'powerup', id: 'water', name: 'Cool Head' }; }
+    else if (pct >= 0.4) { accordion.grade = 'B'; accordion.reward = { type: 'item', id: 'flour', name: 'Bag of Flour' }; }
+    else { accordion.grade = 'C'; accordion.reward = null; }
+    accordion.phase = 'result'; accordion.resultTimer = ACCORDION_CONFIG.RESULT_TIME;
+    setFlag('accordion_completed', true);
+}
+
+function endAccordion() {
+    if (accordion.reward) {
+        if (accordion.reward.type === 'powerup') activatePowerup(accordion.reward.id);
+        else if (accordion.reward.type === 'item') addToInventory(accordion.reward.id);
+        game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+        game.itemFlashName = accordion.reward.name;
+    }
+    accordion.active = false; game.mode = 'overworld';
+}
+
+function renderAccordion(ctx) {
+    if (!accordion.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H, t = accordion.animTimer;
+
+    // Background — warm market atmosphere
+    ctx.fillStyle = '#2a1a0a'; ctx.fillRect(0, 0, W, H);
+    var grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.5);
+    grad.addColorStop(0, 'rgba(180,120,60,0.15)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    if (accordion.phase === 'playing') {
+        // Four directional buttons
+        var btnSize = 60, gap = 20;
+        var cx = W / 2, cy = H / 2;
+        var positions = [
+            { x: cx, y: cy - btnSize - gap / 2 },   // up
+            { x: cx, y: cy + gap / 2 },               // down
+            { x: cx - btnSize - gap / 2, y: cy - btnSize / 2 + gap / 4 }, // left
+            { x: cx + gap / 2, y: cy - btnSize / 2 + gap / 4 },           // right
+        ];
+        for (var bi = 0; bi < 4; bi++) {
+            var bp = positions[bi];
+            var flash = accordion.buttonFlash[bi];
+            var alpha = flash > 0 ? 0.9 : 0.3;
+            ctx.fillStyle = ACCORDION_COLORS[bi];
+            ctx.globalAlpha = alpha;
+            ctx.fillRect(bp.x - btnSize / 2, bp.y, btnSize, btnSize);
+            ctx.globalAlpha = 1;
+            // Arrow label
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+            ctx.fillText(ACCORDION_LABELS[bi], bp.x, bp.y + btnSize / 2 + 8);
+        }
+
+        // Round indicator
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('Round ' + accordion.round + ' / ' + ACCORDION_CONFIG.ROUNDS, W / 2, 30);
+
+        // Status
+        ctx.fillStyle = '#ffcc44'; ctx.font = '14px monospace';
+        if (accordion.showingSequence) {
+            ctx.fillText('Watch the sequence...', W / 2, H - 60);
+        } else if (accordion.playerTurn) {
+            ctx.fillText('Your turn! Repeat the sequence.', W / 2, H - 60);
+            // Show progress dots
+            var dotStr = '';
+            for (var di = 0; di < accordion.sequence.length; di++) {
+                dotStr += di < accordion.inputIndex ? '\u25cf ' : '\u25cb ';
+            }
+            ctx.fillText(dotStr, W / 2, H - 40);
+        }
+
+        // Wrong count
+        ctx.fillStyle = '#ff4444'; ctx.textAlign = 'right'; ctx.font = '12px monospace';
+        ctx.fillText('Mistakes: ' + accordion.wrong + '/3', W - 20, 30);
+    }
+
+    // Feedback
+    if (accordion.feedbackTimer > 0) {
+        ctx.fillStyle = accordion.feedback === 'Correct!' ? '#44cc44' : '#ff4444';
+        ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(accordion.feedback, W / 2, H * 0.2);
+    }
+
+    // Intro
+    if (accordion.phase === 'intro') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+        ctx.fillText("BETTA'S ACCORDION!", W / 2, H / 2 - 40);
+        ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
+        ctx.fillText('Watch the sequence, then repeat it!', W / 2, H / 2);
+        ctx.fillText('Use the arrow keys. 3 mistakes = game over!', W / 2, H / 2 + 24);
+        var cd = Math.ceil(accordion.introTimer);
+        ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 36px monospace';
+        ctx.fillText(cd > 0 ? '' + cd : 'GO!', W / 2, H / 2 + 80);
+        ctx.fillStyle = '#888'; ctx.font = '10px monospace'; ctx.fillText('Esc to skip', W / 2, H - 20);
+    }
+    // Result
+    if (accordion.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('BRAVA!', W / 2, H / 2 - 60);
+        var gc = { S: '#ffd700', A: '#44cc44', B: '#4488ff', C: '#aaaaaa' };
+        ctx.fillStyle = gc[accordion.grade] || '#fff'; ctx.font = 'bold 48px monospace';
+        ctx.fillText(accordion.grade, W / 2, H / 2);
+        ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
+        ctx.fillText('Rounds: ' + accordion.correct + '/' + ACCORDION_CONFIG.ROUNDS + '  Mistakes: ' + accordion.wrong, W / 2, H / 2 + 30);
+        if (accordion.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + accordion.reward.name, W / 2, H / 2 + 60); }
+        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        if (accordion.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
+    }
+}
+
+// ============================================================
+// Mama's Sewing Rhythm — Precision alternating rhythm (Sewing Shop Z7)
+// ============================================================
+
+var SEWING_CONFIG = { DURATION: 25, BPM: 120, INTRO_TIME: 2.0, RESULT_TIME: 3.0 };
+
+var sewing = {
+    active: false, phase: 'intro', introTimer: 0, resultTimer: 0,
+    timer: 0, animTimer: 0,
+    beatInterval: 0,        // seconds per beat
+    nextBeat: 0,            // time of next expected beat
+    expectedKey: 0,         // 0 = down, 1 = down (alternating left/right pedal feel)
+    perfect: 0, great: 0, ok: 0, miss: 0,
+    totalBeats: 0,
+    grade: '', reward: null,
+    feedback: '', feedbackTimer: 0,
+    needleY: 0,             // visual needle position (0-1)
+    stitchCount: 0,         // visual stitch counter
+    lastHitSide: 0,         // 0=left, 1=right for alternating display
+};
+
+function startSewingRhythm() {
+    if (sewing.active) return;
+    sewing.active = true;
+    game.mode = 'sewing_rhythm';
+    sewing.phase = 'intro';
+    sewing.introTimer = SEWING_CONFIG.INTRO_TIME;
+    sewing.timer = 0; sewing.animTimer = 0;
+    sewing.beatInterval = 60 / SEWING_CONFIG.BPM;
+    sewing.nextBeat = sewing.beatInterval;
+    sewing.expectedKey = 0;
+    sewing.perfect = 0; sewing.great = 0; sewing.ok = 0; sewing.miss = 0;
+    sewing.totalBeats = 0; sewing.grade = ''; sewing.reward = null;
+    sewing.feedback = ''; sewing.feedbackTimer = 0;
+    sewing.needleY = 0; sewing.stitchCount = 0; sewing.lastHitSide = 0;
+    if (typeof stopAllMusic === 'function') stopAllMusic();
+}
+
+function updateSewingRhythm(dt) {
+    if (!sewing.active) return;
+    sewing.animTimer += dt;
+    if (sewing.feedbackTimer > 0) sewing.feedbackTimer -= dt;
+
+    if (sewing.phase === 'intro') {
+        sewing.introTimer -= dt;
+        if (sewing.introTimer <= 0) { sewing.phase = 'playing'; sewing.timer = 0; sewing.nextBeat = sewing.beatInterval; }
+        if (actionJustPressed('interact') && sewing.introTimer < 1.0) { sewing.phase = 'playing'; sewing.timer = 0; sewing.nextBeat = sewing.beatInterval; }
+        return;
+    }
+    if (sewing.phase === 'result') {
+        sewing.resultTimer -= dt;
+        if (sewing.resultTimer <= 0 && actionJustPressed('interact')) endSewingRhythm();
+        if (sewing.resultTimer < -3) endSewingRhythm();
+        return;
+    }
+    if (isJustPressed('Escape')) {
+        sewing.grade = 'C'; sewing.reward = null;
+        sewing.phase = 'result'; sewing.resultTimer = SEWING_CONFIG.RESULT_TIME;
+        return;
+    }
+
+    sewing.timer += dt;
+    if (sewing.timer >= SEWING_CONFIG.DURATION) { finalizeSewingRhythm(); return; }
+
+    // Needle animation — bounces with beat
+    sewing.needleY = 0.5 + Math.sin(sewing.timer * Math.PI * 2 / sewing.beatInterval) * 0.4;
+
+    // Check for player input (ArrowDown or Space)
+    var pressed = isJustPressed('ArrowDown') || isJustPressed('ArrowLeft') || isJustPressed('ArrowRight') || actionJustPressed('interact');
+    if (pressed) {
+        var diff = Math.abs(sewing.timer - sewing.nextBeat);
+        if (diff < 0.05) {
+            sewing.perfect++; sewing.feedback = 'PERFECT!';
+        } else if (diff < 0.12) {
+            sewing.great++; sewing.feedback = 'GREAT!';
+        } else if (diff < 0.2) {
+            sewing.ok++; sewing.feedback = 'OK';
+        } else {
+            sewing.miss++; sewing.feedback = 'MISS';
+        }
+        sewing.feedbackTimer = 0.4;
+        sewing.totalBeats++;
+        sewing.stitchCount++;
+        sewing.lastHitSide = 1 - sewing.lastHitSide;
+        if (sewing.feedback !== 'MISS') playItemPickup();
+        // Advance to next beat
+        if (sewing.timer >= sewing.nextBeat - 0.2) {
+            sewing.nextBeat += sewing.beatInterval;
+        }
+    }
+
+    // Auto-miss if beat passes without input
+    if (sewing.timer > sewing.nextBeat + 0.2) {
+        sewing.miss++; sewing.feedback = 'MISS'; sewing.feedbackTimer = 0.4;
+        sewing.totalBeats++;
+        sewing.nextBeat += sewing.beatInterval;
+    }
+}
+
+function finalizeSewingRhythm() {
+    var total = sewing.perfect + sewing.great + sewing.ok + sewing.miss;
+    var score = total > 0 ? (sewing.perfect * 3 + sewing.great * 2 + sewing.ok) / (total * 3) : 0;
+    if (score >= 0.85) { sewing.grade = 'S'; sewing.reward = { type: 'powerup', id: 'milk', name: "Mama's Comfort" }; }
+    else if (score >= 0.65) { sewing.grade = 'A'; sewing.reward = { type: 'powerup', id: 'gouda', name: 'Sticky Aura' }; }
+    else if (score >= 0.4) { sewing.grade = 'B'; sewing.reward = { type: 'item', id: 'banana', name: 'Banana' }; }
+    else { sewing.grade = 'C'; sewing.reward = null; }
+    sewing.phase = 'result'; sewing.resultTimer = SEWING_CONFIG.RESULT_TIME;
+    setFlag('sewing_rhythm_completed', true);
+}
+
+function endSewingRhythm() {
+    if (sewing.reward) {
+        if (sewing.reward.type === 'powerup') activatePowerup(sewing.reward.id);
+        else if (sewing.reward.type === 'item') addToInventory(sewing.reward.id);
+        game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+        game.itemFlashName = sewing.reward.name;
+    }
+    sewing.active = false; game.mode = 'overworld';
+}
+
+function renderSewingRhythm(ctx) {
+    if (!sewing.active) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H, t = sewing.animTimer;
+
+    // Cozy sewing room background
+    ctx.fillStyle = '#2a1a2e'; ctx.fillRect(0, 0, W, H);
+    var grad = ctx.createRadialGradient(W / 2, H * 0.4, 30, W / 2, H * 0.4, 250);
+    grad.addColorStop(0, 'rgba(200,150,100,0.12)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    if (sewing.phase === 'playing') {
+        // Sewing machine body
+        ctx.fillStyle = '#556b2f'; // green machine
+        ctx.fillRect(W / 2 - 60, H * 0.35, 120, 80);
+        ctx.fillStyle = '#6b8e23';
+        ctx.fillRect(W / 2 - 55, H * 0.35 + 5, 110, 30);
+        // Needle
+        var needleX = W / 2;
+        var needleTop = H * 0.35 + 10;
+        var needleBot = H * 0.35 + 65;
+        var needlePos = needleTop + sewing.needleY * (needleBot - needleTop);
+        ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(needleX, needleTop); ctx.lineTo(needleX, needlePos); ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(needleX, needlePos, 3, 0, Math.PI * 2); ctx.fill();
+
+        // Fabric strip moving through
+        ctx.fillStyle = '#e8a0c0';
+        ctx.fillRect(W / 2 - 100, H * 0.35 + 55, 200, 15);
+        // Stitches on fabric
+        for (var si = 0; si < Math.min(sewing.stitchCount, 30); si++) {
+            var sx = W / 2 - 90 + si * 6;
+            var sy = H * 0.35 + 60;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(sx, sy + (si % 2 === 0 ? 0 : 4), 2, 4);
+        }
+
+        // Beat indicator — pulsing circle
+        var beatProgress = (sewing.nextBeat - sewing.timer) / sewing.beatInterval;
+        beatProgress = Math.max(0, Math.min(1, beatProgress));
+        var ringRadius = 30 + (1 - beatProgress) * 20;
+        var ringAlpha = beatProgress * 0.6;
+        ctx.strokeStyle = 'rgba(255, 200, 100, ' + ringAlpha + ')';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(W / 2, H * 0.6, ringRadius, 0, Math.PI * 2); ctx.stroke();
+        // Target ring
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(W / 2, H * 0.6, 30, 0, Math.PI * 2); ctx.stroke();
+
+        // Instructions
+        ctx.fillStyle = '#ffffff'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('Press any arrow or Space on the beat!', W / 2, H * 0.8);
+
+        // Timer bar
+        var pct = sewing.timer / SEWING_CONFIG.DURATION;
+        ctx.fillStyle = '#333'; ctx.fillRect(20, 16, W - 40, 10);
+        ctx.fillStyle = pct > 0.8 ? '#ff4444' : '#e8a0c0';
+        ctx.fillRect(20, 16, (W - 40) * pct, 10);
+
+        // Score
+        ctx.fillStyle = '#fff'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+        ctx.fillText('P:' + sewing.perfect + ' G:' + sewing.great + ' OK:' + sewing.ok + ' M:' + sewing.miss, 20, 44);
+        ctx.textAlign = 'right';
+        ctx.fillText('Stitches: ' + sewing.stitchCount, W - 20, 44);
+    }
+
+    // Feedback
+    if (sewing.feedbackTimer > 0) {
+        var fbC = { 'PERFECT!': '#ffd700', 'GREAT!': '#44cc44', 'OK': '#4488ff', 'MISS': '#ff4444' };
+        ctx.fillStyle = fbC[sewing.feedback] || '#fff';
+        ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(sewing.feedback, W / 2, H * 0.5);
+    }
+
+    // Intro
+    if (sewing.phase === 'intro') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#e8a0c0'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+        ctx.fillText("MAMA'S SEWING RHYTHM!", W / 2, H / 2 - 40);
+        ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
+        ctx.fillText('Press on the beat as the needle falls!', W / 2, H / 2);
+        ctx.fillText('Keep the rhythm steady for the best score!', W / 2, H / 2 + 24);
+        var cd = Math.ceil(sewing.introTimer);
+        ctx.fillStyle = '#e8a0c0'; ctx.font = 'bold 36px monospace';
+        ctx.fillText(cd > 0 ? '' + cd : 'SEW!', W / 2, H / 2 + 80);
+        ctx.fillStyle = '#888'; ctx.font = '10px monospace'; ctx.fillText('Esc to skip', W / 2, H - 20);
+    }
+    // Result
+    if (sewing.phase === 'result') {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#e8a0c0'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('BEAUTIFUL STITCHING!', W / 2, H / 2 - 60);
+        var gc = { S: '#ffd700', A: '#44cc44', B: '#4488ff', C: '#aaaaaa' };
+        ctx.fillStyle = gc[sewing.grade] || '#fff'; ctx.font = 'bold 48px monospace';
+        ctx.fillText(sewing.grade, W / 2, H / 2);
+        ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
+        ctx.fillText('P:' + sewing.perfect + ' G:' + sewing.great + ' OK:' + sewing.ok + ' Miss:' + sewing.miss, W / 2, H / 2 + 30);
+        if (sewing.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + sewing.reward.name, W / 2, H / 2 + 60); }
+        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        if (sewing.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
+    }
+}

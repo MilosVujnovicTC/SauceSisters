@@ -304,6 +304,29 @@ const ZONES = {
                     playItemPickup();
                 },
             },
+            {
+                id: 'betta_accordion',
+                name: "Betta's Accordion",
+                col: 8, row: 18,
+                color: '#ffcc44',
+                onInteract: function() {
+                    if (getFlag('accordion_completed')) {
+                        startDialogue({ id: 'betta_accordion', name: 'Accordion',
+                            getLines: function() { return { lines: ["The accordion sits quietly. Signora Betta smiles knowingly."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'betta_accordion_intro', name: 'Signora Betta',
+                        getLines: function() {
+                            return { lines: [
+                                "Ah, you want to try my accordion?",
+                                "It's simple — watch the sequence, then repeat it!",
+                                "Let's see if you have the memory of a Betta!",
+                            ], onComplete: function() { startAccordion(); } };
+                        },
+                    });
+                },
+            },
         ],
         enemies: [
             {
@@ -443,6 +466,29 @@ const ZONES = {
                 col: 22, row: 4,
                 color: '#ff5722',
                 onInteract: function() { startBMXMiniGame(); },
+            },
+            {
+                id: 'coco_guitar',
+                name: "Coco's Guitar Spot",
+                col: 4, row: 4,
+                color: '#ff6600',
+                onInteract: function() {
+                    if (getFlag('air_guitar_completed')) {
+                        startDialogue({ id: 'coco_guitar', name: 'Guitar Spot',
+                            getLines: function() { return { lines: ["Coco already rocked this spot. The echoes still linger."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'coco_guitar_intro', name: 'Coco',
+                        getLines: function() {
+                            return { lines: [
+                                "*air guitar intensifies*",
+                                "This spot has PERFECT acoustics! Well, for imaginary guitars.",
+                                "Wanna jam? Match my chord combos!",
+                            ], onComplete: function() { startAirGuitar(); } };
+                        },
+                    });
+                },
             },
         ],
         powerups: [
@@ -1241,6 +1287,29 @@ const ZONES = {
                                 ],
                                 onComplete: function() { startPrinterPuzzle(); },
                             };
+                        },
+                    });
+                },
+            },
+            {
+                id: 'sewing_machine_rhythm',
+                name: 'Sewing Machine',
+                col: 6, row: 12,
+                color: '#556b2f',
+                onInteract: function() {
+                    if (getFlag('sewing_rhythm_completed')) {
+                        startDialogue({ id: 'sewing_machine', name: 'Sewing Machine',
+                            getLines: function() { return { lines: ["The sewing machine hums contentedly. Your rhythm was impeccable."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'sewing_machine_intro', name: 'Mama Rosa',
+                        getLines: function() {
+                            return { lines: [
+                                "This is my favorite sewing machine!",
+                                "It has a rhythm all its own. Can you keep up?",
+                                "Press on the beat — like a heartbeat through fabric.",
+                            ], onComplete: function() { startSewingRhythm(); } };
                         },
                     });
                 },

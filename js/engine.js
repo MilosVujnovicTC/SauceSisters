@@ -411,6 +411,18 @@ function update(dt) {
         updateJuggling(dt);
         return;
     }
+    if (game.mode === 'air_guitar') {
+        updateAirGuitar(dt);
+        return;
+    }
+    if (game.mode === 'accordion') {
+        updateAccordion(dt);
+        return;
+    }
+    if (game.mode === 'sewing_rhythm') {
+        updateSewingRhythm(dt);
+        return;
+    }
 
     // Nokia T9 puzzle intercepts all input when active
     if (nokia.active) {
@@ -576,6 +588,18 @@ function render(ctx) {
     }
     if (game.mode === 'juggling') {
         renderJuggling(ctx);
+        return;
+    }
+    if (game.mode === 'air_guitar') {
+        renderAirGuitar(ctx);
+        return;
+    }
+    if (game.mode === 'accordion') {
+        renderAccordion(ctx);
+        return;
+    }
+    if (game.mode === 'sewing_rhythm') {
+        renderSewingRhythm(ctx);
         return;
     }
 
