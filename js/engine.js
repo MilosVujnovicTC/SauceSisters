@@ -412,6 +412,12 @@ function update(dt) {
         return;
     }
 
+    // Printer puzzle intercepts all input when active
+    if (printer.active) {
+        updatePrinter(dt);
+        return;
+    }
+
     // Remap overlay intercepts all input when open
     if (remapUI.open) {
         updateRemapUI();
@@ -656,6 +662,11 @@ function render(ctx) {
     // Cartridge puzzle overlay
     if (cartridge.active) {
         renderCartridge(ctx);
+    }
+
+    // Printer puzzle overlay
+    if (printer.active) {
+        renderPrinter(ctx);
     }
 
     // Remap overlay (drawn on top of everything)

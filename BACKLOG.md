@@ -547,7 +547,7 @@
   - [ ] Zone has distinct fabric/sewing visual theme
   - [ ] Zone is only accessible after Enzo boss is defeated
 
-### Stage 7-8: Dot-matrix printer puzzle + recipe #5 `[ ]`
+### Stage 7-8: Dot-matrix printer puzzle + recipe #5 `[x] 2026-03-23`
 - Interact with dot-matrix printer to start puzzle
 - Paper-threading micro-maze: guide paper through rollers
 - Arrow key navigation through tight maze path

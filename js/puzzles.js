@@ -2893,3 +2893,334 @@ function renderCookingResult(ctx, W, H, t) {
         }
     }
 }
+
+// ============================================================
+// Dot-Matrix Printer Puzzle — paper-threading micro-maze
+// Navigate paper through 3 sections of a maze. Walls reset to section start.
+// ============================================================
+
+/** Maze definition: 1 = wall, 0 = path. 24 cols × 16 rows, divided into 3 sections. */
+var PRINTER_MAZE = [
+    // Section 1: rows 0-4 (entry at left, exit at right)
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,1,0,1,0,1,1,1,0,1,0,1,1,0,1,0,1,1,1,1,1,1,0,1],
+    [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+    // Section 2: rows 5-9 (entry top-right from section 1, exit bottom-right)
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1],
+    [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+    // Section 3: rows 10-15 (entry top-right from section 2, exit bottom-right)
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1],
+    [1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,1,0,0,0,1],
+    [1,1,0,1,1,1,1,0,1,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0],
+];
+
+/** Section checkpoints: {startRow, startCol, endRow, endCol} */
+var PRINTER_SECTIONS = [
+    { startRow: 1, startCol: 0, endRow: 4, endCol: 22 },
+    { startRow: 5, startCol: 22, endRow: 9, endCol: 22 },
+    { startRow: 10, startCol: 22, endRow: 15, endCol: 23 },
+];
+
+/** Printer puzzle state. */
+var printer = {
+    active: false,
+    // Paper cursor position (maze grid coords)
+    row: 0,
+    col: 0,
+    // Current section (0-2)
+    section: 0,
+    // Trail of visited cells
+    trail: [],
+    // Result
+    solved: false,
+    resultTimer: 0,
+    // Visual
+    animTimer: 0,
+    shakeTimer: 0,
+    moveDelay: 0,      // brief cooldown between moves for feel
+};
+
+/** Starts the printer puzzle overlay. */
+function startPrinterPuzzle() {
+    if (printer.active) return;
+    if (getFlag('printer_puzzle_solved')) return;
+
+    printer.active = true;
+    printer.section = 0;
+    printer.solved = false;
+    printer.resultTimer = 0;
+    printer.animTimer = 0;
+    printer.shakeTimer = 0;
+    printer.moveDelay = 0;
+    printer.trail = [];
+    resetPrinterSection();
+}
+
+/** Resets the paper cursor to the start of the current section. */
+function resetPrinterSection() {
+    var sec = PRINTER_SECTIONS[printer.section];
+    printer.row = sec.startRow;
+    printer.col = sec.startCol;
+    printer.trail = [{ row: printer.row, col: printer.col }];
+}
+
+/** Updates the printer puzzle each frame. */
+function updatePrinter(dt) {
+    if (!printer.active) return;
+    printer.animTimer += dt;
+    if (printer.shakeTimer > 0) printer.shakeTimer -= dt;
+    if (printer.moveDelay > 0) { printer.moveDelay -= dt; return; }
+
+    // Result display
+    if (printer.solved) {
+        printer.resultTimer -= dt;
+        if (printer.resultTimer <= 0 && (actionJustPressed('interact') || isJustPressed('Space'))) {
+            endPrinterPuzzle();
+        }
+        if (printer.resultTimer <= -3) {
+            endPrinterPuzzle();
+        }
+        return;
+    }
+
+    // Escape to close
+    if (isJustPressed('Escape')) {
+        printer.active = false;
+        return;
+    }
+
+    // Arrow key movement
+    var dr = 0, dc = 0;
+    if (actionJustPressed('move_up') || isJustPressed('ArrowUp')) dr = -1;
+    else if (actionJustPressed('move_down') || isJustPressed('ArrowDown')) dr = 1;
+    else if (actionJustPressed('move_left') || isJustPressed('ArrowLeft')) dc = -1;
+    else if (actionJustPressed('move_right') || isJustPressed('ArrowRight')) dc = 1;
+
+    if (dr === 0 && dc === 0) return;
+
+    var newRow = printer.row + dr;
+    var newCol = printer.col + dc;
+
+    // Bounds check
+    if (newRow < 0 || newRow >= PRINTER_MAZE.length || newCol < 0 || newCol >= PRINTER_MAZE[0].length) return;
+
+    // Wall check
+    if (PRINTER_MAZE[newRow][newCol] === 1) {
+        // Hit wall — reset to section start
+        printer.shakeTimer = 0.3;
+        printer.moveDelay = 0.3;
+        resetPrinterSection();
+        return;
+    }
+
+    // Move
+    printer.row = newRow;
+    printer.col = newCol;
+    printer.trail.push({ row: newRow, col: newCol });
+    printer.moveDelay = 0.08; // brief delay for feel
+
+    // Check if reached section end
+    var sec = PRINTER_SECTIONS[printer.section];
+    if (printer.row === sec.endRow && printer.col === sec.endCol) {
+        printer.section++;
+        if (printer.section >= PRINTER_SECTIONS.length) {
+            // Maze complete!
+            printer.solved = true;
+            printer.resultTimer = 3.0;
+            setFlag('printer_puzzle_solved', true);
+        } else {
+            // Advance to next section
+            resetPrinterSection();
+        }
+    }
+}
+
+/** Ends the printer puzzle, spawns recipe #5. */
+function endPrinterPuzzle() {
+    printer.active = false;
+    // Spawn recipe #5
+    if (!hasItem('recipe_5')) {
+        spawnWorldItem('recipe_5_printer', 19, 7, 'recipe_5');
+    }
+    // Dialogue
+    startDialogue({
+        id: 'printer_complete', name: 'Giulia',
+        getLines: function() {
+            return { lines: [
+                "The printer churned out... a recipe fragment!",
+                "That's the LAST piece! Fragment #5!",
+                "Mama must have hidden it in the printer's memory. Clever!",
+            ]};
+        },
+    });
+}
+
+/** Renders the printer puzzle overlay. */
+function renderPrinter(ctx) {
+    if (!printer.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = printer.animTimer;
+
+    // Dark overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Printer body frame
+    var frameW = 560;
+    var frameH = 420;
+    var frameX = (W - frameW) / 2;
+    var frameY = (H - frameH) / 2 - 10;
+
+    // Shake on wall hit
+    var shakeX = 0, shakeY = 0;
+    if (printer.shakeTimer > 0) {
+        shakeX = Math.sin(t * 40) * 3;
+        shakeY = Math.cos(t * 35) * 2;
+    }
+
+    // Printer body
+    ctx.fillStyle = '#d0c8b8';
+    ctx.fillRect(frameX + shakeX - 10, frameY + shakeY - 10, frameW + 20, frameH + 40);
+    ctx.fillStyle = '#c0b8a8';
+    ctx.fillRect(frameX + shakeX, frameY + shakeY, frameW, frameH);
+    // Printer details
+    ctx.fillStyle = '#aaa098';
+    ctx.fillRect(frameX + shakeX + 10, frameY + shakeY - 8, frameW - 20, 6);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(frameX + shakeX + frameW - 40, frameY + shakeY + frameH + 5, 30, 8);
+
+    // Title
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('DOT-MATRIX PRINTER', W / 2 + shakeX, frameY + shakeY + 20);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '10px monospace';
+    ctx.fillText('Guide the paper through the rollers! Walls reset to checkpoint.', W / 2 + shakeX, frameY + shakeY + 36);
+
+    // Section indicator
+    ctx.fillStyle = '#888';
+    ctx.font = '10px monospace';
+    ctx.fillText('Section ' + (printer.section + 1) + ' / ' + PRINTER_SECTIONS.length, W / 2 + shakeX, frameY + shakeY + 50);
+
+    // Draw maze
+    var mazeRows = PRINTER_MAZE.length;
+    var mazeCols = PRINTER_MAZE[0].length;
+    var cellSize = Math.min((frameW - 40) / mazeCols, (frameH - 80) / mazeRows);
+    var mazeW = mazeCols * cellSize;
+    var mazeH = mazeRows * cellSize;
+    var mazeX = frameX + (frameW - mazeW) / 2 + shakeX;
+    var mazeY = frameY + 60 + shakeY;
+
+    // Draw cells
+    for (var r = 0; r < mazeRows; r++) {
+        for (var c = 0; c < mazeCols; c++) {
+            var cx = mazeX + c * cellSize;
+            var cy = mazeY + r * cellSize;
+            if (PRINTER_MAZE[r][c] === 1) {
+                // Wall — dark roller
+                ctx.fillStyle = '#4a4040';
+                ctx.fillRect(cx, cy, cellSize, cellSize);
+                // Roller texture
+                ctx.fillStyle = '#3a3030';
+                ctx.fillRect(cx, cy + cellSize / 2 - 1, cellSize, 2);
+            } else {
+                // Path — paper-colored
+                ctx.fillStyle = '#f5f0e8';
+                ctx.fillRect(cx, cy, cellSize, cellSize);
+                // Subtle paper texture
+                if ((r + c) % 3 === 0) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.02)';
+                    ctx.fillRect(cx, cy, cellSize, cellSize);
+                }
+            }
+        }
+    }
+
+    // Draw trail (paper path — dotted ink line)
+    if (printer.trail.length > 1) {
+        ctx.strokeStyle = 'rgba(50, 50, 200, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mazeX + printer.trail[0].col * cellSize + cellSize / 2,
+                   mazeY + printer.trail[0].row * cellSize + cellSize / 2);
+        for (var ti = 1; ti < printer.trail.length; ti++) {
+            ctx.lineTo(mazeX + printer.trail[ti].col * cellSize + cellSize / 2,
+                       mazeY + printer.trail[ti].row * cellSize + cellSize / 2);
+        }
+        ctx.stroke();
+    }
+
+    // Draw section start/end markers
+    for (var si = 0; si < PRINTER_SECTIONS.length; si++) {
+        var sec = PRINTER_SECTIONS[si];
+        // Start — green
+        var startCx = mazeX + sec.startCol * cellSize + cellSize / 2;
+        var startCy = mazeY + sec.startRow * cellSize + cellSize / 2;
+        ctx.fillStyle = si <= printer.section ? 'rgba(76, 175, 80, 0.5)' : 'rgba(76, 175, 80, 0.2)';
+        ctx.beginPath(); ctx.arc(startCx, startCy, cellSize / 3, 0, Math.PI * 2); ctx.fill();
+        // End — gold
+        var endCx = mazeX + sec.endCol * cellSize + cellSize / 2;
+        var endCy = mazeY + sec.endRow * cellSize + cellSize / 2;
+        var endPulse = 0.3 + Math.sin(t * 3 + si) * 0.15;
+        ctx.fillStyle = 'rgba(255, 213, 79, ' + endPulse + ')';
+        ctx.beginPath(); ctx.arc(endCx, endCy, cellSize / 3, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Draw paper cursor (current position)
+    if (!printer.solved) {
+        var pcx = mazeX + printer.col * cellSize + cellSize / 2;
+        var pcy = mazeY + printer.row * cellSize + cellSize / 2;
+        // Paper tip — white with red tip
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(pcx, pcy, cellSize / 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath(); ctx.arc(pcx, pcy, cellSize / 4, 0, Math.PI * 2); ctx.fill();
+        // Glow
+        ctx.strokeStyle = 'rgba(255, 100, 100, ' + (0.4 + Math.sin(t * 5) * 0.2) + ')';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(pcx, pcy, cellSize / 2, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Result overlay
+    if (printer.solved) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAPER THREADED!', W / 2, H / 2 - 30);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px monospace';
+        ctx.fillText('The printer whirs to life and prints...', W / 2, H / 2 + 10);
+        ctx.fillStyle = '#ffeb3b';
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText('Recipe Fragment #5!', W / 2, H / 2 + 40);
+
+        if (printer.resultTimer <= 0) {
+            var blink = Math.sin(t * 4) > 0;
+            if (blink) {
+                ctx.fillStyle = '#aaaaaa';
+                ctx.font = '11px monospace';
+                ctx.fillText('Press Space to continue', W / 2, H / 2 + 80);
+            }
+        }
+    }
+
+    // Controls hint
+    if (!printer.solved) {
+        ctx.fillStyle = '#888888';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Arrow keys to move  |  Esc to exit', W / 2, frameY + frameH + 20 + shakeY);
+    }
+}

@@ -1223,13 +1223,24 @@ const ZONES = {
                 col: 17, row: 6,
                 color: '#aaaaaa',
                 onInteract: function() {
+                    if (getFlag('printer_puzzle_solved')) {
+                        startDialogue({
+                            id: 'dot_matrix_printer', name: 'Printer',
+                            getLines: function() { return { lines: ["The old printer sits quietly. Its work is done."] }; },
+                        });
+                        return;
+                    }
                     startDialogue({
-                        id: 'dot_matrix_printer', name: 'Printer',
+                        id: 'dot_matrix_printer_intro', name: 'Printer',
                         getLines: function() {
-                            if (getFlag('printer_puzzle_solved')) {
-                                return { lines: ["The old printer sits quietly. Its work is done."] };
-                            }
-                            return { lines: ["An ancient dot-matrix printer. It hums with latent energy.", "Something is jammed inside... (Stage 7-8: Printer puzzle coming soon!)"] };
+                            return {
+                                lines: [
+                                    "An ancient dot-matrix printer. It hums with latent energy.",
+                                    "There's paper jammed inside! You need to thread it through the rollers.",
+                                    "Let's see if you can guide it through...",
+                                ],
+                                onComplete: function() { startPrinterPuzzle(); },
+                            };
                         },
                     });
                 },
