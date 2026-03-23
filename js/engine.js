@@ -395,6 +395,10 @@ function update(dt) {
         updateDrumSolo(dt);
         return;
     }
+    if (game.mode === 'cooking') {
+        updateCooking(dt);
+        return;
+    }
 
     // Nokia T9 puzzle intercepts all input when active
     if (nokia.active) {
@@ -535,6 +539,10 @@ function render(ctx) {
     }
     if (game.mode === 'drum') {
         renderDrumSolo(ctx);
+        return;
+    }
+    if (game.mode === 'cooking') {
+        renderCooking(ctx);
         return;
     }
 

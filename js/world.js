@@ -1987,6 +1987,12 @@ function pickupItem(item) {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = ITEMS[item.itemId] ? ITEMS[item.itemId].name : item.itemId;
         playItemPickup();
+
+        // Trigger cooking mini-game after picking up recipe #4
+        if (item.itemId === 'recipe_4' && !getFlag('cooking_minigame_done')) {
+            // Brief delay so the pickup flash plays first
+            setTimeout(function() { startCooking(); }, 800);
+        }
     }
 }
 

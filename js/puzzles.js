@@ -2149,3 +2149,747 @@ function endDrumSolo() {
         game.drumReturnZone = null;
     }
 }
+
+// ============================================================
+// Cooking Mini-Game — triggered after collecting recipe #4
+// 4 steps: Stir, Season, Taste, Heat. Each scored Perfect/Great/OK/Miss.
+// ============================================================
+
+/** Cooking mini-game config. */
+var COOK_CONFIG = {
+    STEP_COUNT: 4,
+    // Stir: alternate left/right presses, fill a ring
+    STIR_TARGET: 12,       // total presses needed
+    STIR_TIME: 6,          // seconds allowed
+    // Season: moving meter, press Space in green zone
+    SEASON_SPEED: 2.5,     // oscillations per second
+    SEASON_GREEN_WIDTH: 0.18, // fraction of bar that is "perfect"
+    SEASON_GOOD_WIDTH: 0.30,  // fraction that is "great"
+    // Taste: rising indicator, press Space in sweet spot window
+    TASTE_SPEED: 0.6,      // rises per second (0→1)
+    TASTE_SWEET_LOW: 0.55, // sweet spot range
+    TASTE_SWEET_HIGH: 0.72,
+    TASTE_GOOD_LOW: 0.45,
+    TASTE_GOOD_HIGH: 0.80,
+    // Heat: hold down arrow, release in target zone
+    HEAT_RISE_SPEED: 0.4,  // per second while held
+    HEAT_FALL_SPEED: 0.15, // per second when released
+    HEAT_TARGET_LOW: 0.60,
+    HEAT_TARGET_HIGH: 0.75,
+    HEAT_GOOD_LOW: 0.50,
+    HEAT_GOOD_HIGH: 0.85,
+    HEAT_TIME: 5,          // seconds allowed
+    // Result screen
+    RESULT_TIME: 4,
+};
+
+/** Cooking mini-game state. */
+var cooking = {
+    active: false,
+    // Phase: 'intro' | 'stir' | 'season' | 'taste' | 'heat' | 'result'
+    phase: 'intro',
+    introTimer: 0,
+    stepIndex: 0,          // 0-3
+    stepTimer: 0,          // time in current step
+    // Stir state
+    stirCount: 0,
+    stirLastDir: '',       // 'left' or 'right'
+    stirProgress: 0,       // 0→1
+    // Season state
+    seasonPos: 0,          // 0→1 oscillating
+    seasonLocked: false,
+    seasonResult: 0,       // where it was locked
+    // Taste state
+    tastePos: 0,           // 0→1 rising
+    tasteLocked: false,
+    tasteResult: 0,
+    // Heat state
+    heatLevel: 0,          // 0→1
+    heatHolding: false,
+    heatLocked: false,
+    heatResult: 0,
+    // Scoring
+    stepScores: [],        // array of 'perfect'|'great'|'ok'|'miss'
+    totalScore: 0,
+    grade: '',
+    quality: '',
+    // Result
+    resultTimer: 0,
+    // Visual
+    animTimer: 0,
+    stepFlash: 0,          // flash on step complete
+};
+
+/** Step names and instructions for display. */
+var COOK_STEPS = [
+    { name: 'STIR THE SAUCE', instruction: 'Alternate \u2190 and \u2192 to stir!', icon: '\u21C4' },
+    { name: 'ADD SEASONING', instruction: 'Press Space when the needle is in the GREEN zone!', icon: '\u2728' },
+    { name: 'TASTE TEST', instruction: 'Press Space at the right moment!', icon: '\uD83D\uDC45' },
+    { name: 'ADJUST THE HEAT', instruction: 'Hold \u2193 to heat up. Release in the TARGET zone!', icon: '\uD83D\uDD25' },
+];
+
+/** Starts the cooking mini-game. */
+function startCooking() {
+    if (cooking.active) return;
+    cooking.active = true;
+    game.mode = 'cooking';
+    cooking.phase = 'intro';
+    cooking.introTimer = 2.5;
+    cooking.stepIndex = 0;
+    cooking.stepTimer = 0;
+    cooking.stirCount = 0;
+    cooking.stirLastDir = '';
+    cooking.stirProgress = 0;
+    cooking.seasonPos = 0;
+    cooking.seasonLocked = false;
+    cooking.tastePos = 0;
+    cooking.tasteLocked = false;
+    cooking.heatLevel = 0;
+    cooking.heatHolding = false;
+    cooking.heatLocked = false;
+    cooking.stepScores = [];
+    cooking.totalScore = 0;
+    cooking.grade = '';
+    cooking.quality = '';
+    cooking.resultTimer = 0;
+    cooking.animTimer = 0;
+    cooking.stepFlash = 0;
+}
+
+/** Updates the cooking mini-game. */
+function updateCooking(dt) {
+    if (!cooking.active) return;
+    cooking.animTimer += dt;
+    if (cooking.stepFlash > 0) cooking.stepFlash -= dt;
+
+    if (cooking.phase === 'intro') {
+        cooking.introTimer -= dt;
+        if (cooking.introTimer <= 0) {
+            cooking.phase = 'stir';
+            cooking.stepTimer = 0;
+        }
+        return;
+    }
+
+    if (cooking.phase === 'result') {
+        cooking.resultTimer -= dt;
+        if (cooking.resultTimer <= 0 && (actionJustPressed('interact') || isJustPressed('Space'))) {
+            endCooking();
+        }
+        // Auto-end after timer
+        if (cooking.resultTimer <= -2) {
+            endCooking();
+        }
+        return;
+    }
+
+    cooking.stepTimer += dt;
+
+    switch (cooking.phase) {
+        case 'stir': updateCookingStir(dt); break;
+        case 'season': updateCookingSeason(dt); break;
+        case 'taste': updateCookingTaste(dt); break;
+        case 'heat': updateCookingHeat(dt); break;
+    }
+}
+
+/** Advances to the next cooking step or result screen. */
+function advanceCookingStep(score) {
+    cooking.stepScores.push(score);
+    cooking.stepFlash = 0.5;
+    cooking.stepIndex++;
+    cooking.stepTimer = 0;
+
+    if (cooking.stepIndex >= COOK_CONFIG.STEP_COUNT) {
+        // Calculate final grade
+        finalizeCooking();
+        return;
+    }
+
+    // Next step
+    var phases = ['stir', 'season', 'taste', 'heat'];
+    cooking.phase = phases[cooking.stepIndex];
+
+    // Reset step-specific state
+    cooking.seasonPos = 0;
+    cooking.seasonLocked = false;
+    cooking.tastePos = 0;
+    cooking.tasteLocked = false;
+    cooking.heatLevel = 0;
+    cooking.heatHolding = false;
+    cooking.heatLocked = false;
+}
+
+/** Stir step: alternate left/right arrow presses. */
+function updateCookingStir(dt) {
+    if (cooking.stepTimer >= COOK_CONFIG.STIR_TIME) {
+        // Time's up
+        var pct = cooking.stirCount / COOK_CONFIG.STIR_TARGET;
+        advanceCookingStep(pct >= 0.9 ? 'perfect' : pct >= 0.7 ? 'great' : pct >= 0.5 ? 'ok' : 'miss');
+        return;
+    }
+
+    if (isJustPressed('ArrowLeft') || actionJustPressed('move_left')) {
+        if (cooking.stirLastDir !== 'left') {
+            cooking.stirCount++;
+            cooking.stirLastDir = 'left';
+            cooking.stirProgress = cooking.stirCount / COOK_CONFIG.STIR_TARGET;
+            if (cooking.stirCount >= COOK_CONFIG.STIR_TARGET) {
+                advanceCookingStep('perfect');
+            }
+        }
+    }
+    if (isJustPressed('ArrowRight') || actionJustPressed('move_right')) {
+        if (cooking.stirLastDir !== 'right') {
+            cooking.stirCount++;
+            cooking.stirLastDir = 'right';
+            cooking.stirProgress = cooking.stirCount / COOK_CONFIG.STIR_TARGET;
+            if (cooking.stirCount >= COOK_CONFIG.STIR_TARGET) {
+                advanceCookingStep('perfect');
+            }
+        }
+    }
+}
+
+/** Season step: oscillating meter, press Space in green zone. */
+function updateCookingSeason(dt) {
+    if (cooking.seasonLocked) return;
+
+    cooking.seasonPos = (Math.sin(cooking.stepTimer * COOK_CONFIG.SEASON_SPEED * Math.PI * 2) + 1) / 2;
+
+    if (isJustPressed('Space') || actionJustPressed('interact')) {
+        cooking.seasonLocked = true;
+        cooking.seasonResult = cooking.seasonPos;
+        // Score based on distance from center (0.5)
+        var dist = Math.abs(cooking.seasonPos - 0.5);
+        var score = dist <= COOK_CONFIG.SEASON_GREEN_WIDTH / 2 ? 'perfect' :
+                    dist <= COOK_CONFIG.SEASON_GOOD_WIDTH / 2 ? 'great' :
+                    dist <= 0.35 ? 'ok' : 'miss';
+        setTimeout(function() { advanceCookingStep(score); }, 600);
+    }
+
+    // Auto-miss after 8 seconds
+    if (cooking.stepTimer > 8 && !cooking.seasonLocked) {
+        cooking.seasonLocked = true;
+        cooking.seasonResult = cooking.seasonPos;
+        setTimeout(function() { advanceCookingStep('miss'); }, 400);
+    }
+}
+
+/** Taste step: rising indicator, press Space in sweet spot. */
+function updateCookingTaste(dt) {
+    if (cooking.tasteLocked) return;
+
+    cooking.tastePos += COOK_CONFIG.TASTE_SPEED * dt;
+
+    if (isJustPressed('Space') || actionJustPressed('interact')) {
+        cooking.tasteLocked = true;
+        cooking.tasteResult = cooking.tastePos;
+        var p = cooking.tastePos;
+        var score = (p >= COOK_CONFIG.TASTE_SWEET_LOW && p <= COOK_CONFIG.TASTE_SWEET_HIGH) ? 'perfect' :
+                    (p >= COOK_CONFIG.TASTE_GOOD_LOW && p <= COOK_CONFIG.TASTE_GOOD_HIGH) ? 'great' :
+                    (p >= 0.3 && p <= 0.9) ? 'ok' : 'miss';
+        setTimeout(function() { advanceCookingStep(score); }, 600);
+    }
+
+    // Overshot
+    if (cooking.tastePos >= 1.0 && !cooking.tasteLocked) {
+        cooking.tasteLocked = true;
+        cooking.tasteResult = 1.0;
+        setTimeout(function() { advanceCookingStep('miss'); }, 400);
+    }
+}
+
+/** Heat step: hold down to raise heat, release in target zone. */
+function updateCookingHeat(dt) {
+    if (cooking.heatLocked) return;
+
+    if (cooking.stepTimer >= COOK_CONFIG.HEAT_TIME && !cooking.heatLocked) {
+        // Time's up — score where it is
+        cooking.heatLocked = true;
+        cooking.heatResult = cooking.heatLevel;
+        var h = cooking.heatLevel;
+        var score = (h >= COOK_CONFIG.HEAT_TARGET_LOW && h <= COOK_CONFIG.HEAT_TARGET_HIGH) ? 'perfect' :
+                    (h >= COOK_CONFIG.HEAT_GOOD_LOW && h <= COOK_CONFIG.HEAT_GOOD_HIGH) ? 'great' :
+                    (h >= 0.3 && h <= 0.9) ? 'ok' : 'miss';
+        setTimeout(function() { advanceCookingStep(score); }, 600);
+        return;
+    }
+
+    var holding = actionHeld('move_down') || isHeld('ArrowDown');
+    if (holding) {
+        cooking.heatLevel = Math.min(1, cooking.heatLevel + COOK_CONFIG.HEAT_RISE_SPEED * dt);
+        cooking.heatHolding = true;
+    } else {
+        cooking.heatLevel = Math.max(0, cooking.heatLevel - COOK_CONFIG.HEAT_FALL_SPEED * dt);
+        cooking.heatHolding = false;
+    }
+
+    // Release in target zone — lock it
+    if (!holding && cooking.heatHolding === false && cooking.heatLevel > 0.1 && cooking.stepTimer > 0.5) {
+        // Check if they deliberately released (had been holding recently)
+    }
+
+    // Press Space to lock in current heat level
+    if (isJustPressed('Space') || actionJustPressed('interact')) {
+        cooking.heatLocked = true;
+        cooking.heatResult = cooking.heatLevel;
+        var h2 = cooking.heatLevel;
+        var score2 = (h2 >= COOK_CONFIG.HEAT_TARGET_LOW && h2 <= COOK_CONFIG.HEAT_TARGET_HIGH) ? 'perfect' :
+                     (h2 >= COOK_CONFIG.HEAT_GOOD_LOW && h2 <= COOK_CONFIG.HEAT_GOOD_HIGH) ? 'great' :
+                     (h2 >= 0.3 && h2 <= 0.9) ? 'ok' : 'miss';
+        setTimeout(function() { advanceCookingStep(score2); }, 600);
+    }
+}
+
+/** Calculates final cooking grade and quality text. */
+function finalizeCooking() {
+    var scoreMap = { perfect: 3, great: 2, ok: 1, miss: 0 };
+    var total = 0;
+    for (var i = 0; i < cooking.stepScores.length; i++) {
+        total += scoreMap[cooking.stepScores[i]] || 0;
+    }
+    cooking.totalScore = total;
+    // Max possible = 12 (4 perfects)
+    if (total >= 11) { cooking.grade = 'S'; cooking.quality = "Mama's Masterpiece!"; }
+    else if (total >= 8) { cooking.grade = 'A'; cooking.quality = 'Delizioso!'; }
+    else if (total >= 5) { cooking.grade = 'B'; cooking.quality = 'Not bad... needs more garlic.'; }
+    else { cooking.grade = 'C'; cooking.quality = "Well... it's technically sauce."; }
+
+    cooking.phase = 'result';
+    cooking.resultTimer = COOK_CONFIG.RESULT_TIME;
+    setFlag('cooking_minigame_grade', cooking.grade);
+    setFlag('cooking_minigame_done', true);
+}
+
+/** Ends the cooking mini-game and returns to overworld. */
+function endCooking() {
+    cooking.active = false;
+    game.mode = 'overworld';
+    // Show a brief dialogue about the result
+    startDialogue({
+        id: 'cooking_result', name: 'Giulia',
+        getLines: function() {
+            if (cooking.grade === 'S') {
+                return { lines: ["This sauce is PERFECT! Mama would be so proud!", "Now I just need the last fragment from Mama's shop..."] };
+            } else if (cooking.grade === 'A') {
+                return { lines: ["Mmm, that's really good sauce!", "Not quite Mama's level, but close. Let's keep going!"] };
+            } else if (cooking.grade === 'B') {
+                return { lines: ["It's... okay. Could use more seasoning.", "But we don't have time to redo it. Onward!"] };
+            } else {
+                return { lines: ["*cough* That's... that's definitely sauce. Probably.", "Let's just... move on and hope for the best."] };
+            }
+        },
+    });
+}
+
+/** Renders the cooking mini-game. */
+function renderCooking(ctx) {
+    if (!cooking.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = cooking.animTimer;
+
+    // Background — warm kitchen gradient
+    ctx.fillStyle = '#2a1a0e';
+    ctx.fillRect(0, 0, W, H);
+    // Warm gradient overlay
+    var grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, H);
+    grad.addColorStop(0, 'rgba(180, 100, 40, 0.15)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Pot drawing (center of screen)
+    var potX = W / 2;
+    var potY = H / 2 + 40;
+    drawCookingPot(ctx, potX, potY, t);
+
+    // Title
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('COOKING TIME!', W / 2, 40);
+
+    // Step progress dots
+    for (var i = 0; i < COOK_CONFIG.STEP_COUNT; i++) {
+        var dx = W / 2 - 60 + i * 40;
+        var dy = 60;
+        if (i < cooking.stepScores.length) {
+            var sc = cooking.stepScores[i];
+            ctx.fillStyle = sc === 'perfect' ? '#4caf50' : sc === 'great' ? '#8bc34a' : sc === 'ok' ? '#ffc107' : '#f44336';
+            ctx.beginPath(); ctx.arc(dx, dy, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px monospace';
+            ctx.fillText(sc === 'perfect' ? 'P' : sc === 'great' ? 'G' : sc === 'ok' ? 'O' : 'M', dx, dy + 3);
+        } else if (i === cooking.stepIndex) {
+            ctx.strokeStyle = '#ffd54f';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(dx, dy, 10, 0, Math.PI * 2); ctx.stroke();
+            // Pulse
+            ctx.strokeStyle = 'rgba(255, 213, 79, ' + (0.3 + Math.sin(t * 4) * 0.2) + ')';
+            ctx.beginPath(); ctx.arc(dx, dy, 14, 0, Math.PI * 2); ctx.stroke();
+        } else {
+            ctx.fillStyle = '#555';
+            ctx.beginPath(); ctx.arc(dx, dy, 8, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    // Phase-specific rendering
+    if (cooking.phase === 'intro') {
+        renderCookingIntro(ctx, W, H, t);
+    } else if (cooking.phase === 'stir') {
+        renderCookingStir(ctx, W, H, t);
+    } else if (cooking.phase === 'season') {
+        renderCookingSeason(ctx, W, H, t);
+    } else if (cooking.phase === 'taste') {
+        renderCookingTaste(ctx, W, H, t);
+    } else if (cooking.phase === 'heat') {
+        renderCookingHeat(ctx, W, H, t);
+    } else if (cooking.phase === 'result') {
+        renderCookingResult(ctx, W, H, t);
+    }
+
+    // Step flash overlay
+    if (cooking.stepFlash > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 200, ' + (cooking.stepFlash * 0.3) + ')';
+        ctx.fillRect(0, 0, W, H);
+    }
+}
+
+/** Draws the cooking pot. */
+function drawCookingPot(ctx, x, y, t) {
+    // Pot body
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 10, 50, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x - 50, y - 30, 100, 40);
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 30, 50, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sauce (red, bubbling)
+    ctx.fillStyle = '#cc3300';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 28, 45, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bubbles
+    for (var i = 0; i < 5; i++) {
+        var bx = x - 30 + i * 15 + Math.sin(t * 2 + i) * 5;
+        var by = y - 32 - Math.abs(Math.sin(t * 3 + i * 1.5)) * 8;
+        var br = 3 + Math.sin(t * 4 + i) * 1;
+        ctx.fillStyle = 'rgba(220, 60, 20, 0.6)';
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Steam
+    ctx.globalAlpha = 0.3;
+    for (var s = 0; s < 3; s++) {
+        var sx = x - 20 + s * 20 + Math.sin(t * 1.5 + s) * 8;
+        var sy = y - 50 - t * 10 % 40;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6 + Math.sin(t + s) * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Handles
+    ctx.fillStyle = '#777';
+    ctx.fillRect(x - 58, y - 15, 10, 6);
+    ctx.fillRect(x + 48, y - 15, 10, 6);
+}
+
+/** Renders intro countdown. */
+function renderCookingIntro(ctx, W, H, t) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText("Time to cook Mama's sauce!", W / 2, H / 2 - 80);
+    ctx.font = '12px monospace';
+    ctx.fillText('Follow the instructions for each step.', W / 2, H / 2 - 60);
+
+    var countdown = Math.ceil(cooking.introTimer);
+    if (countdown > 0) {
+        ctx.fillStyle = '#ffd54f';
+        ctx.font = 'bold 36px monospace';
+        ctx.fillText('' + countdown, W / 2, H / 2 - 20);
+    }
+}
+
+/** Renders stir step. */
+function renderCookingStir(ctx, W, H, t) {
+    var step = COOK_STEPS[0];
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(step.name, W / 2, 90);
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '11px monospace';
+    ctx.fillText(step.instruction, W / 2, 110);
+
+    // Progress ring
+    var cx = W / 2;
+    var cy = H / 2 - 40;
+    var radius = 50;
+    // Background ring
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    // Progress ring
+    var progress = Math.min(1, cooking.stirProgress);
+    ctx.strokeStyle = progress >= 0.9 ? '#4caf50' : progress >= 0.5 ? '#ffc107' : '#ff5722';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    ctx.stroke();
+
+    // Spoon animation
+    var spoonAngle = t * 3;
+    var spoonX = cx + Math.cos(spoonAngle) * 25;
+    var spoonY = cy + Math.sin(spoonAngle) * 25;
+    ctx.fillStyle = '#c4a46c';
+    ctx.beginPath();
+    ctx.arc(spoonX, spoonY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#a0845a';
+    ctx.fillRect(spoonX - 2, spoonY, 4, 20);
+
+    // Counter
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(cooking.stirCount + '/' + COOK_CONFIG.STIR_TARGET, cx, cy + 5);
+
+    // Timer
+    var timeLeft = Math.max(0, COOK_CONFIG.STIR_TIME - cooking.stepTimer);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = timeLeft < 2 ? '#ff4444' : '#aaaaaa';
+    ctx.fillText(timeLeft.toFixed(1) + 's', cx, cy + radius + 20);
+
+    // Arrow indicators
+    var arrowAlpha = 0.5 + Math.sin(t * 6) * 0.3;
+    ctx.fillStyle = 'rgba(255, 213, 79, ' + arrowAlpha + ')';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText(cooking.stirLastDir === 'left' ? '\u2192' : '\u2190', cx, H - 60);
+}
+
+/** Renders season step. */
+function renderCookingSeason(ctx, W, H, t) {
+    var step = COOK_STEPS[1];
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(step.name, W / 2, 90);
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '11px monospace';
+    ctx.fillText(step.instruction, W / 2, 110);
+
+    // Meter bar
+    var barX = W / 2 - 150;
+    var barY = H / 2 - 60;
+    var barW = 300;
+    var barH = 30;
+
+    // Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // Green zone (center)
+    var greenW = barW * COOK_CONFIG.SEASON_GREEN_WIDTH;
+    var goodW = barW * COOK_CONFIG.SEASON_GOOD_WIDTH;
+    ctx.fillStyle = '#8bc34a';
+    ctx.fillRect(barX + (barW - goodW) / 2, barY, goodW, barH);
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(barX + (barW - greenW) / 2, barY, greenW, barH);
+
+    // Needle
+    var needleX = barX + cooking.seasonPos * barW;
+    ctx.fillStyle = cooking.seasonLocked ? '#ffffff' : '#ffd54f';
+    ctx.fillRect(needleX - 2, barY - 5, 4, barH + 10);
+    // Triangle on top
+    ctx.beginPath();
+    ctx.moveTo(needleX - 6, barY - 5);
+    ctx.lineTo(needleX + 6, barY - 5);
+    ctx.lineTo(needleX, barY - 12);
+    ctx.closePath();
+    ctx.fill();
+
+    // Labels
+    ctx.fillStyle = '#aaa';
+    ctx.font = '9px monospace';
+    ctx.fillText('[Space] to lock', W / 2, barY + barH + 20);
+}
+
+/** Renders taste step. */
+function renderCookingTaste(ctx, W, H, t) {
+    var step = COOK_STEPS[2];
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(step.name, W / 2, 90);
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '11px monospace';
+    ctx.fillText(step.instruction, W / 2, 110);
+
+    // Vertical meter
+    var meterX = W / 2 - 20;
+    var meterY = H / 2 + 60;
+    var meterW = 40;
+    var meterH = -140; // goes upward
+
+    // Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(meterX, meterY + meterH, meterW, -meterH);
+
+    // Sweet spot zone
+    var ssTop = meterY + meterH * COOK_CONFIG.TASTE_SWEET_HIGH;
+    var ssBot = meterY + meterH * COOK_CONFIG.TASTE_SWEET_LOW;
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(meterX, ssTop, meterW, ssBot - ssTop);
+
+    // Good zone
+    var gdTop = meterY + meterH * COOK_CONFIG.TASTE_GOOD_HIGH;
+    var gdBot = meterY + meterH * COOK_CONFIG.TASTE_GOOD_LOW;
+    ctx.fillStyle = 'rgba(139, 195, 74, 0.3)';
+    ctx.fillRect(meterX, gdTop, meterW, gdBot - gdTop);
+
+    // Rising indicator
+    var indicatorY = meterY + meterH * cooking.tastePos;
+    ctx.fillStyle = cooking.tasteLocked ? '#ffffff' : '#ff5722';
+    ctx.fillRect(meterX - 5, indicatorY - 3, meterW + 10, 6);
+
+    // Labels
+    ctx.fillStyle = '#4caf50';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('SWEET SPOT', meterX + meterW + 10, (ssTop + ssBot) / 2 + 3);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('[Space] to taste!', W / 2, meterY + 25);
+}
+
+/** Renders heat step. */
+function renderCookingHeat(ctx, W, H, t) {
+    var step = COOK_STEPS[3];
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(step.name, W / 2, 90);
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '11px monospace';
+    ctx.fillText(step.instruction, W / 2, 110);
+
+    // Thermometer
+    var thermoX = W / 2 - 15;
+    var thermoY = H / 2 + 60;
+    var thermoW = 30;
+    var thermoH = -140;
+
+    // Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(thermoX, thermoY + thermoH, thermoW, -thermoH);
+
+    // Target zone
+    var tgtTop = thermoY + thermoH * COOK_CONFIG.HEAT_TARGET_HIGH;
+    var tgtBot = thermoY + thermoH * COOK_CONFIG.HEAT_TARGET_LOW;
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(thermoX, tgtTop, thermoW, tgtBot - tgtTop);
+
+    // Good zone
+    var gdTop2 = thermoY + thermoH * COOK_CONFIG.HEAT_GOOD_HIGH;
+    var gdBot2 = thermoY + thermoH * COOK_CONFIG.HEAT_GOOD_LOW;
+    ctx.fillStyle = 'rgba(139, 195, 74, 0.3)';
+    ctx.fillRect(thermoX, gdTop2, thermoW, gdBot2 - gdTop2);
+
+    // Heat fill
+    var fillH = (-thermoH) * cooking.heatLevel;
+    var heatColor = cooking.heatLevel > 0.85 ? '#f44336' : cooking.heatLevel > 0.5 ? '#ff9800' : '#ffeb3b';
+    ctx.fillStyle = heatColor;
+    ctx.fillRect(thermoX, thermoY - fillH, thermoW, fillH);
+
+    // Locked indicator
+    if (cooking.heatLocked) {
+        var lockY = thermoY + thermoH * cooking.heatResult;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(thermoX - 8, lockY - 2, thermoW + 16, 4);
+    }
+
+    // Flame when holding
+    if (cooking.heatHolding && !cooking.heatLocked) {
+        ctx.fillStyle = 'rgba(255, 100, 0, ' + (0.5 + Math.sin(t * 10) * 0.3) + ')';
+        for (var fi = 0; fi < 3; fi++) {
+            var fx = thermoX + thermoW / 2 + Math.sin(t * 8 + fi * 2) * 8;
+            var fy = thermoY + 10 + Math.sin(t * 6 + fi) * 4;
+            ctx.beginPath();
+            ctx.arc(fx, fy, 5 + Math.sin(t * 12 + fi) * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Labels
+    ctx.fillStyle = '#4caf50';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('TARGET', thermoX + thermoW + 10, (tgtTop + tgtBot) / 2 + 3);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('Hold \u2193 then [Space] to lock', W / 2, thermoY + 25);
+
+    // Timer
+    var timeLeft = Math.max(0, COOK_CONFIG.HEAT_TIME - cooking.stepTimer);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = timeLeft < 2 ? '#ff4444' : '#aaaaaa';
+    ctx.fillText(timeLeft.toFixed(1) + 's', W / 2, thermoY + 40);
+}
+
+/** Renders result screen. */
+function renderCookingResult(ctx, W, H, t) {
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SAUCE COMPLETE!', W / 2, H / 2 - 80);
+
+    // Grade
+    var gradeColor = cooking.grade === 'S' ? '#ffd700' : cooking.grade === 'A' ? '#4caf50' : cooking.grade === 'B' ? '#ffc107' : '#ff5722';
+    ctx.fillStyle = gradeColor;
+    ctx.font = 'bold 48px monospace';
+    ctx.fillText(cooking.grade, W / 2, H / 2 - 20);
+
+    // Quality text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px monospace';
+    ctx.fillText(cooking.quality, W / 2, H / 2 + 20);
+
+    // Step scores
+    var labels = ['Stir', 'Season', 'Taste', 'Heat'];
+    for (var i = 0; i < cooking.stepScores.length; i++) {
+        var sc = cooking.stepScores[i];
+        var scColor = sc === 'perfect' ? '#4caf50' : sc === 'great' ? '#8bc34a' : sc === 'ok' ? '#ffc107' : '#f44336';
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(labels[i] + ':', W / 2 - 10, H / 2 + 50 + i * 18);
+        ctx.fillStyle = scColor;
+        ctx.textAlign = 'left';
+        ctx.fillText(sc.toUpperCase(), W / 2 + 10, H / 2 + 50 + i * 18);
+    }
+
+    // Continue prompt
+    if (cooking.resultTimer <= 0) {
+        var blink = Math.sin(t * 4) > 0;
+        if (blink) {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('Press Space to continue', W / 2, H - 40);
+        }
+    }
+}

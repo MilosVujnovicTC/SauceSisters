@@ -523,7 +523,7 @@
   - [ ] Recipe #4 is collectible after victory
   - [ ] Losing allows retry (respawn at zone entrance)
 
-### Stage 7-6: Cooking mini-game `[ ]`
+### Stage 7-6: Cooking mini-game `[x] 2026-03-23`
 - Triggered after collecting recipe #4 from sauce machine
 - Timed cooking sequence: stir, season, taste, adjust heat
 - Uses arrow keys + timing-based inputs
