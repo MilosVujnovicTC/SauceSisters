@@ -22,6 +22,6 @@ Everything is still tiny, can we do full screen for all stages?
 
 NPCs talking - can we connect to Elevenlabs.io API and have it create voiceovers?
 
-Can you connect to this repo https://github.com/MilosVujnovicTC/SauceSisters and push everything into it?
+Need more scrollable walking areas between main stages (throuhg the woods, etc.) like in Zelda. Perhaps a cycling path also, or rolleblades, where they would "drive" through the area.
 
-Need more scrollable walking areas (throuhg the woods, etc.) like in Zelda. Perhaps a cycling also, or rolleblades.
+Mini game - store clerk is throwing sphagetti packs, player is at the bottom sliding left-right and holding a shopping basket trying to catch shpacgetti packs.
