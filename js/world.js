@@ -997,6 +997,9 @@ const ZONES = {
             // West exit → back to Piazza (east passage)
             { col: 0, row: 10, target: 'piazza', spawnX: 24, spawnY: 11 },
             { col: 0, row: 11, target: 'piazza', spawnX: 24, spawnY: 12 },
+            // East exit (sauce room) → Mama's Sewing Shop (only after boss defeated — door restored by restoreSewingShopDoor)
+            { col: 27, row: 8, target: 'sewing_shop', spawnX: 1, spawnY: 9 },
+            { col: 27, row: 9, target: 'sewing_shop', spawnX: 1, spawnY: 10 },
         ],
         npcs: [
             {
@@ -1100,6 +1103,140 @@ const ZONES = {
         ],
         powerups: [
             { id: 'pizzeria_deli', type: 'deli_meat', col: 18, row: 4 },
+        ],
+    },
+
+    // ================================================================
+    // Zone 7 — Mama's Sewing Shop: fabric rolls, sewing machines, mannequins.
+    // Player enters from west (Pizzeria sauce room). Final zone before credits.
+    // 24 columns × 18 rows
+    // ================================================================
+    sewing_shop: {
+        id: 'sewing_shop',
+        name: "Mama's Sewing Shop",
+        // 24 columns x 18 rows
+        map: [
+        //   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W], // 0  north wall
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 1  main room | back room
+            [W, _CP,_SW,_SW,_CP,_CP,_SW,_SW,_CP,_CP,_CP,_CP,_CP, W, _CP,_FB,_FB,_CP,_CP,_FB,_FB,_CP,_CP, W], // 2  sewing machines | fabric storage
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_MN,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 3  mannequin
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_FB,_CP,_CP,_CP,_CP,_FB,_CP,_CP, W], // 4
+            [W, _CP,_MN,_CP,_CP, R,  R,  R,  R, _CP,_CP,_MN,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 5  mannequins + rug center
+            [W, _CP,_CP,_CP,_CP, R,  R,  R,  R, _CP,_CP,_CP,_CP, W, _CP,_CP,_CP, C,  C, _CP,_CP,_CP,_CP, W], // 6  rug + counters in back
+            [W, _CP,_CP,_CP,_CP, R,  R,  R,  R, _CP,_CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 7  rug
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_FB,_CP,_CP,_CP,_CP,_FB,_CP,_CP, W], // 8
+            [D,  D, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, D, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 9  west entrance + passage to back
+            [D,  D, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, D, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 10 entrance + passage
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_FB,_CP,_CP,_CP,_CP,_FB,_CP,_CP, W], // 11
+            [W, _CP,_SW,_SW,_CP,_CP,_SW,_SW,_CP,_CP,_CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 12 sewing machines
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_MN,_CP,_CP, W, _CP,_CP,_CP,_SW,_SW,_CP,_CP,_CP,_CP, W], // 13 mannequin + back sewing
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 14
+            [W, _CP,_MN,_CP,_CP, H,  H,  H,  H,  H, _CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_MN,_CP,_CP, W], // 15 mannequin + shelves + back mannequin
+            [W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W, _CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP,_CP, W], // 16
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W], // 17 south wall
+        ],
+        spawnX: 1,
+        spawnY: 9,
+        transitions: [
+            // West exit → back to Pizzeria (sauce room)
+            { col: 0, row: 9, target: 'pizzeria', spawnX: 26, spawnY: 8 },
+            { col: 0, row: 10, target: 'pizzeria', spawnX: 26, spawnY: 9 },
+        ],
+        npcs: [
+            {
+                id: 'mama_rosa',
+                name: 'Mama Rosa',
+                col: 6, row: 6,
+                color: '#e8a0c0',
+                idle: { type: 'arrange', interval: 3.0, walkPath: [{col:6,row:6},{col:8,row:6},{col:8,row:8},{col:6,row:8}], walkSpeed: 25 },
+                getLines: function(flags) {
+                    if (flags.recipe_5_found) {
+                        var postRecipe = [
+                            ["You found all five fragments! My sauce recipe is complete!", "Now go save that wedding, ragazza!"],
+                            ["I'm so proud of you both. Your Papa would cry if he saw this.", "...he IS crying. I can hear him on the headset."],
+                        ];
+                        var pick = Math.floor(Math.random() * postRecipe.length);
+                        return { lines: postRecipe[pick] };
+                    }
+                    if (flags.talked_to_mama) {
+                        var returning = [
+                            ["The last piece of the recipe is sewn into my apron.", "But the dot-matrix printer in the back has something you need first..."],
+                            ["Look around, ragazza. This shop has many secrets.", "Your Nonna taught me to hide important things in plain sight."],
+                            ["The wedding is tomorrow! We need that recipe complete!", "Check the printer in the back room — it might help."],
+                        ];
+                        var pick2 = Math.floor(Math.random() * returning.length);
+                        return { lines: returning[pick2] };
+                    }
+                    return {
+                        lines: [
+                            "Giulia! Coco! You made it!",
+                            "I'm Mama Rosa... though I suppose you already knew that.",
+                            "I've been waiting for you. The last piece of the recipe...",
+                            "It's sewn into my favorite apron. But first...",
+                            "There's a dot-matrix printer in the back room. It has something you need.",
+                            "Be careful — the wedding planner has been... difficult lately.",
+                        ],
+                        onComplete: function() { setFlag('talked_to_mama', true); },
+                    };
+                },
+            },
+            {
+                id: 'shop_cat_lady',
+                name: 'Signora Threads',
+                col: 18, row: 5,
+                color: '#b088cc',
+                idle: { type: 'knit', interval: 2.0, walkPath: [{col:18,row:5},{col:20,row:5},{col:20,row:8},{col:18,row:8}], walkSpeed: 25 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["*measuring tape whips through the air*", "Ooh! A customer! Or are you here for Mama Rosa?"],
+                        ["I've been working on a dress for the wedding.", "It's almost done... if I can find my SCISSORS."],
+                        ["Mama Rosa is the best seamstress in town.", "Don't tell anyone, but she once sewed a button on blindfolded. WITH HER FEET."],
+                        ["The dot-matrix printer? Oh, that old thing.", "It's been making strange noises. Like it's THINKING."],
+                    ];
+                    var pick = Math.floor(Math.random() * lines.length);
+                    return { lines: lines[pick] };
+                },
+            },
+            {
+                id: 'shop_assistant',
+                name: 'Little Tomás',
+                col: 4, row: 14,
+                color: '#88cc88',
+                idle: { type: 'arrange', interval: 3.5, walkPath: [{col:4,row:14},{col:4,row:10},{col:8,row:10},{col:8,row:14}], walkSpeed: 30 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["I'm Mama Rosa's assistant! I carry the heavy fabric.", "My arms are VERY strong. *flexes unconvincingly*"],
+                        ["Did you know fabric has a grain? Like wood!", "I learned that yesterday. I'm basically an expert now."],
+                        ["The mannequins scare me at night.", "I swear that one moved. THAT one. *points*"],
+                        ["Mama Rosa said the recipe is in her apron.", "Which apron? She has like FIFTY aprons."],
+                    ];
+                    var pick = Math.floor(Math.random() * lines.length);
+                    return { lines: lines[pick] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'dot_matrix_printer',
+                name: 'Dot-Matrix Printer',
+                col: 17, row: 6,
+                color: '#aaaaaa',
+                onInteract: function() {
+                    startDialogue({
+                        id: 'dot_matrix_printer', name: 'Printer',
+                        getLines: function() {
+                            if (getFlag('printer_puzzle_solved')) {
+                                return { lines: ["The old printer sits quietly. Its work is done."] };
+                            }
+                            return { lines: ["An ancient dot-matrix printer. It hums with latent energy.", "Something is jammed inside... (Stage 7-8: Printer puzzle coming soon!)"] };
+                        },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'sewing_milk', type: 'milk', col: 20, row: 14 },
         ],
     },
 };
@@ -1213,9 +1350,10 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     if (zoneId === 'piazza') {
         restorePiazzaState();
     }
-    // Restore pizzeria sauce room door if boss defeated
+    // Restore pizzeria sauce room door + sewing shop door if boss defeated
     if (zoneId === 'pizzeria') {
         restoreSauceRoomDoor();
+        restoreSewingShopDoor();
     }
 
     // Snap camera instantly to player (no lerp on zone load)
@@ -1779,9 +1917,24 @@ function restorePiazzaState() {
 /** Opens the sauce machine room door in Enzo's Pizzeria if boss is defeated. */
 function restoreSauceRoomDoor() {
     if (!getFlag('enzo_boss_defeated')) return;
-    var map = ZONES.pizzeria.map;
-    map[9][22] = D;
-    map[10][22] = D;
+    // Modify both the zone definition AND the active map (in case they differ)
+    ZONES.pizzeria.map[9][22] = D;
+    ZONES.pizzeria.map[10][22] = D;
+    if (game.currentMap && game.currentZone && game.currentZone.id === 'pizzeria') {
+        game.currentMap[9][22] = D;
+        game.currentMap[10][22] = D;
+    }
+}
+
+/** Opens the east wall of the sauce room to Mama's Sewing Shop if boss is defeated. */
+function restoreSewingShopDoor() {
+    if (!getFlag('enzo_boss_defeated')) return;
+    ZONES.pizzeria.map[8][27] = D;
+    ZONES.pizzeria.map[9][27] = D;
+    if (game.currentMap && game.currentZone && game.currentZone.id === 'pizzeria') {
+        game.currentMap[8][27] = D;
+        game.currentMap[9][27] = D;
+    }
 }
 
 /** Renders pulsing target markers on Piazza fill target tiles. */

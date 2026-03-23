@@ -425,6 +425,15 @@ const PAPA_HINTS = {
         ],
         noHints: "Going for a set, talk later. [GRUNT] ...you can do this! Show Enzo who's boss!",
     },
+    sewing_shop: {
+        intro: "Mama's shop! *voice cracks* I haven't been in here since... well. [GRUNT] Your Mama is the best seamstress in town. And the best cook. Don't tell her I said the cook part — she'll make me do dishes.",
+        hints: [
+            "Talk to Mama Rosa first — she knows where the last recipe fragment is. It's sewn into her apron, apparently. Very on-brand.",
+            "There's an old dot-matrix printer in the back room. Mama said it has something important. Those things are LOUD. [CLANG]",
+            "The wedding planner might give you trouble. Stay sharp, ragazza! ...and maybe bring some flour. For emergencies. [GRUNT]",
+        ],
+        noHints: "Going for a set, talk later. [GRUNT] ...you're almost there! The recipe is nearly complete!",
+    },
 };
 
 /** The Papa Marco NPC-like object used with startDialogue. */

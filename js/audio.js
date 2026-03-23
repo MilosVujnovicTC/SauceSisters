@@ -113,6 +113,7 @@ const ZONE_SURFACE = {
     gym:       'footstep_stone',
     piazza:    'footstep_stone',
     pizzeria:  'footstep_wood',
+    sewing_shop: 'footstep_wood',
 };
 
 // ============================================================
@@ -153,6 +154,7 @@ function initZoneMusic() {
     createGymMusic();
     createPiazzaMusic();
     createPizzeriaMusic();
+    createSewingShopMusic();
 
     Tone.Transport.start();
 }
@@ -808,6 +810,87 @@ function createPizzeriaMusic() {
     };
 }
 
+/** Mama's Sewing Shop: warm, gentle, nostalgic (Bb major, 75 BPM). Music-box melody + soft pad + gentle bass. */
+function createSewingShopMusic() {
+    Tone.Transport.bpm.value = 75;
+
+    var gain = new Tone.Volume(0).connect(musicReverb);
+
+    // Soft music-box melody
+    var melody = safeTrigger(function() {
+        return new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.6 },
+            volume: -14,
+        }).connect(gain);
+    });
+    if (!melody) return;
+
+    // Warm pad
+    var pad = safeTrigger(function() {
+        return new Tone.PolySynth(Tone.Synth, {
+            maxPolyphony: 3,
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.5, decay: 1, sustain: 0.6, release: 1.5 },
+            volume: -20,
+        }).connect(gain);
+    });
+
+    // Gentle walking bass
+    var bass = safeTrigger(function() {
+        return new Tone.Synth({
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.05, decay: 0.3, sustain: 0.2, release: 0.4 },
+            volume: -18,
+        }).connect(gain);
+    });
+
+    // Music-box melody — tender Bb major
+    var melodySeq = new Tone.Sequence(function(time, note) {
+        if (note && melody) safeTrigger(function() { melody.triggerAttackRelease(note, '8n', time); });
+    }, [
+        'Bb4', 'D5', 'F5', null,
+        'Eb5', 'D5', 'C5', null,
+        'Bb4', null, 'F4', 'G4',
+        'Ab4', null, null, null,
+        'Bb4', 'C5', 'D5', 'Eb5',
+        'F5', null, 'D5', null,
+        'C5', 'Bb4', null, null,
+        null, null, null, null,
+    ], '8n');
+    melodySeq.loop = true;
+
+    // Pad chords
+    var padSeq = new Tone.Sequence(function(time, chord) {
+        if (chord && pad) safeTrigger(function() { pad.triggerAttackRelease(chord, '2n', time); });
+    }, [
+        ['Bb3', 'D4', 'F4'], null, null, null,
+        ['Eb3', 'G3', 'Bb3'], null, null, null,
+        ['F3', 'A3', 'C4'], null, null, null,
+        ['Bb3', 'D4', 'F4'], null, null, null,
+    ], '4n');
+    padSeq.loop = true;
+
+    // Bass line
+    var bassSeq = new Tone.Sequence(function(time, note) {
+        if (note && bass) safeTrigger(function() { bass.triggerAttackRelease(note, '4n', time); });
+    }, [
+        'Bb2', null, 'F2', null,
+        'Eb2', null, 'Bb2', null,
+        'F2', null, 'C3', null,
+        'Bb2', null, null, null,
+    ], '4n');
+    bassSeq.loop = true;
+
+    music.zones.sewing_shop = {
+        gain: gain,
+        synths: [melody, pad, bass].filter(Boolean),
+        effects: [],
+        patterns: [melodySeq, padSeq, bassSeq],
+        tempo: 75,
+    };
+}
+
 /** Starts music for a zone with crossfade from the current zone. */
 function startZoneMusic(zoneId) {
     if (!music.initialized) {
@@ -991,6 +1074,15 @@ function initAmbient() {
         var rumbleLfo = new Tone.LFO(0.1, 200, 400).connect(rumbleFilter.frequency);
         ambient.nodes.pizzeria = { gain: gain, sources: [sizzle, rumble], lfos: [sizzleLfo, rumbleLfo] };
     })();
+
+    // Sewing Shop — gentle hum
+    (function() {
+        var gain = new Tone.Volume(-30).toDestination();
+        var humFilter = new Tone.Filter(200, 'lowpass').connect(gain);
+        var hum = new Tone.Noise('brown').connect(humFilter);
+        hum.volume.value = -10;
+        ambient.nodes.sewing_shop = { gain: gain, sources: [hum], lfos: [] };
+    })();
 }
 
 /** Starts ambient sounds for a zone. Stops previous ambient. */
@@ -1062,6 +1154,9 @@ const NPC_BLIP_PROFILES = {
     enzo:            { type: 'fmsine',   baseNote: 'E3',  pitchRange: 6, harmonicity: 3 },
     pizzeria_waiter1:{ type: 'triangle', baseNote: 'D4',  pitchRange: 4, harmonicity: 1 },
     pizzeria_waiter2:{ type: 'sine',     baseNote: 'F4',  pitchRange: 5, harmonicity: 1.5 },
+    mama_rosa:       { type: 'fmsine',   baseNote: 'G3',  pitchRange: 5, harmonicity: 2 },
+    shop_cat_lady:   { type: 'triangle', baseNote: 'A4',  pitchRange: 4, harmonicity: 1 },
+    shop_assistant:  { type: 'sine',     baseNote: 'C5',  pitchRange: 6, harmonicity: 1 },
 };
 
 /** Creates SFX synths (for sounds that stay procedural). Called once after audio unlock. */

@@ -782,6 +782,128 @@ function generateTileSprites() {
             cx.stroke();
         }));
     }
+
+    // --- FABRIC (fabric rolls — sewing shop, solid) ---
+    SPRITES.tiles.fabric = createSprite(T, T, function(cx) {
+        // Rolled fabric stack
+        cx.fillStyle = '#c25a8e';
+        cx.fillRect(0, 0, T, T);
+        // Rolls (horizontal cylinders stacked)
+        var rollColors = ['#d46a9e', '#a84a7e', '#e07aae', '#9a3a6e'];
+        for (var r = 0; r < 4; r++) {
+            var ry = 2 + r * 7;
+            cx.fillStyle = rollColors[r];
+            cx.fillRect(2, ry, T - 4, 6);
+            // Highlight on top
+            cx.fillStyle = 'rgba(255,255,255,0.15)';
+            cx.fillRect(2, ry, T - 4, 2);
+            // End circle
+            cx.fillStyle = rollColors[r];
+            cx.beginPath(); cx.arc(4, ry + 3, 3, 0, Math.PI * 2); cx.fill();
+            cx.beginPath(); cx.arc(T - 4, ry + 3, 3, 0, Math.PI * 2); cx.fill();
+        }
+        // Border
+        cx.strokeStyle = 'rgba(0,0,0,0.15)';
+        cx.lineWidth = 1;
+        cx.strokeRect(0, 0, T, T);
+    });
+
+    // --- SEWMACH (sewing machine — solid) ---
+    SPRITES.tiles.sewmach = createSprite(T, T, function(cx) {
+        // Base/table
+        cx.fillStyle = '#5a6a4a';
+        cx.fillRect(0, 0, T, T);
+        cx.fillStyle = '#6a7a5a';
+        cx.fillRect(2, 2, T - 4, T - 4);
+        // Machine body
+        cx.fillStyle = '#444';
+        cx.fillRect(6, 4, 20, 14);
+        cx.fillStyle = '#555';
+        cx.fillRect(8, 6, 16, 10);
+        // Needle arm
+        cx.fillStyle = '#888';
+        cx.fillRect(14, 2, 4, 8);
+        // Needle
+        cx.fillStyle = '#ccc';
+        cx.fillRect(15, 14, 2, 6);
+        // Wheel
+        cx.fillStyle = '#777';
+        cx.beginPath(); cx.arc(24, 10, 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#999';
+        cx.beginPath(); cx.arc(24, 10, 2, 0, Math.PI * 2); cx.fill();
+        // Thread spool
+        cx.fillStyle = '#e44';
+        cx.fillRect(8, 2, 4, 4);
+        // Pedal area
+        cx.fillStyle = '#3a4a2a';
+        cx.fillRect(4, T - 8, T - 8, 6);
+        cx.strokeStyle = 'rgba(0,0,0,0.2)';
+        cx.lineWidth = 1;
+        cx.strokeRect(0, 0, T, T);
+    });
+
+    // --- MANNEQUIN (dress form — solid) ---
+    SPRITES.tiles.mannequin = createSprite(T, T, function(cx) {
+        // Floor
+        cx.fillStyle = '#8b4560';
+        cx.fillRect(0, 0, T, T);
+        // Stand base
+        cx.fillStyle = '#5a4030';
+        cx.fillRect(12, T - 4, 8, 4);
+        // Pole
+        cx.fillStyle = '#6a5040';
+        cx.fillRect(15, 10, 2, T - 14);
+        // Dress form body
+        cx.fillStyle = '#d4a88c';
+        cx.beginPath();
+        cx.moveTo(10, 10);
+        cx.lineTo(8, 20);
+        cx.lineTo(12, 24);
+        cx.lineTo(20, 24);
+        cx.lineTo(24, 20);
+        cx.lineTo(22, 10);
+        cx.closePath();
+        cx.fill();
+        // Shoulder line
+        cx.fillStyle = '#c49a7c';
+        cx.fillRect(9, 8, 14, 3);
+        // Neck
+        cx.fillStyle = '#d4a88c';
+        cx.fillRect(14, 4, 4, 5);
+        // Pin marks
+        cx.fillStyle = '#cc3333';
+        cx.fillRect(13, 15, 2, 2);
+        cx.fillRect(18, 18, 2, 2);
+        cx.strokeStyle = 'rgba(0,0,0,0.15)';
+        cx.lineWidth = 1;
+        cx.strokeRect(0, 0, T, T);
+    });
+
+    // --- CARPET (warm sewing shop floor — walkable) ---
+    SPRITES.tiles.carpet = [];
+    for (var cp = 0; cp < 2; cp++) {
+        SPRITES.tiles.carpet.push(createSprite(T, T, function(cx) {
+            // Deep rose/mauve carpet
+            cx.fillStyle = cp === 0 ? '#8b4560' : '#834058';
+            cx.fillRect(0, 0, T, T);
+            // Subtle pattern (diamond weave)
+            cx.strokeStyle = 'rgba(200,150,170,0.12)';
+            cx.lineWidth = 1;
+            for (var d = 0; d < 4; d++) {
+                var dx = 4 + d * 8;
+                cx.beginPath();
+                cx.moveTo(dx, 0); cx.lineTo(dx + T / 2, T);
+                cx.stroke();
+                cx.beginPath();
+                cx.moveTo(dx + T / 2, 0); cx.lineTo(dx, T);
+                cx.stroke();
+            }
+            // Warm highlights
+            cx.fillStyle = 'rgba(255,200,220,0.05)';
+            cx.fillRect(0, 0, T / 2, T / 2);
+            cx.fillRect(T / 2, T / 2, T / 2, T / 2);
+        }));
+    }
 }
 
 // ============================================================
@@ -2532,6 +2654,113 @@ function generatePortraits() {
         cx.fillStyle = '#fff9c4';
         cx.fillRect(24, 52, 4, 12);
         cx.fillRect(36, 52, 4, 12);
+    });
+
+    // Mama Rosa — warm, kind, apron, flour-dusted, gentle eyes
+    PORTRAITS['mama_rosa'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#e8b898', '#e8a0c0');
+        // Hair — dark brown, tied back
+        cx.fillStyle = '#3a2010';
+        cx.fillRect(14, 4, 36, 14);
+        cx.fillRect(12, 10, 40, 6);
+        // Hair bun
+        cx.beginPath(); cx.arc(32, 6, 10, 0, Math.PI * 2);
+        cx.fillStyle = '#3a2010'; cx.fill();
+        cx.fillStyle = '#4a3020';
+        cx.beginPath(); cx.arc(32, 5, 7, 0, Math.PI * 2); cx.fill();
+        // Warm kind eyes
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(20, 30, 8, 5);
+        cx.fillRect(36, 30, 8, 5);
+        cx.fillStyle = '#5a3020';
+        cx.fillRect(23, 31, 4, 3);
+        cx.fillRect(39, 31, 4, 3);
+        cx.fillStyle = '#000';
+        cx.fillRect(24, 31, 2, 2);
+        cx.fillRect(40, 31, 2, 2);
+        // Gentle smile
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 2;
+        cx.beginPath(); cx.arc(32, 44, 6, 0.2, Math.PI - 0.2); cx.stroke();
+        // Flour dust on cheek
+        cx.fillStyle = 'rgba(255,255,255,0.2)';
+        cx.beginPath(); cx.arc(44, 38, 4, 0, Math.PI * 2); cx.fill();
+        // Apron strap
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(22, 52, 6, 12);
+        cx.fillRect(36, 52, 6, 12);
+    });
+
+    // Signora Threads — eccentric, measuring tape around neck, colorful
+    PORTRAITS['shop_cat_lady'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f0c8a0', '#b088cc');
+        // Wild gray-purple hair
+        cx.fillStyle = '#8a6aaa';
+        cx.fillRect(10, 2, 44, 16);
+        cx.fillStyle = '#7a5a9a';
+        cx.fillRect(14, 0, 36, 10);
+        // Hair wisps
+        cx.fillStyle = '#9a7aba';
+        cx.fillRect(8, 10, 4, 8);
+        cx.fillRect(52, 10, 4, 8);
+        // Glasses (cat-eye shape)
+        cx.strokeStyle = '#cc3366';
+        cx.lineWidth = 2;
+        cx.beginPath(); cx.moveTo(16, 30); cx.lineTo(18, 28); cx.lineTo(28, 28); cx.lineTo(30, 32); cx.lineTo(28, 35); cx.lineTo(18, 35); cx.closePath(); cx.stroke();
+        cx.beginPath(); cx.moveTo(48, 30); cx.lineTo(46, 28); cx.lineTo(36, 28); cx.lineTo(34, 32); cx.lineTo(36, 35); cx.lineTo(46, 35); cx.closePath(); cx.stroke();
+        // Eyes
+        cx.fillStyle = '#2a5040';
+        cx.fillRect(22, 30, 4, 3);
+        cx.fillRect(38, 30, 4, 3);
+        // Measuring tape around neck
+        cx.fillStyle = '#ffeb3b';
+        cx.fillRect(14, 50, 36, 4);
+        // Tick marks on tape
+        cx.fillStyle = '#000';
+        for (var mt = 0; mt < 9; mt++) cx.fillRect(16 + mt * 4, 51, 1, 2);
+        // Excited smile
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 1.5;
+        cx.beginPath(); cx.arc(32, 44, 5, 0.1, Math.PI - 0.1); cx.stroke();
+    });
+
+    // Little Tomás — young boy, big eyes, messy hair, eager grin
+    PORTRAITS['shop_assistant'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#e8c8a0', '#88cc88');
+        // Messy brown hair
+        cx.fillStyle = '#5a3a10';
+        cx.fillRect(14, 4, 36, 10);
+        cx.fillStyle = '#6a4a20';
+        cx.fillRect(12, 6, 40, 6);
+        // Sticking-up hair bits
+        cx.fillRect(18, 1, 4, 6);
+        cx.fillRect(28, 0, 3, 5);
+        cx.fillRect(38, 2, 4, 5);
+        // Big round eyes
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(19, 28, 10, 8);
+        cx.fillRect(35, 28, 10, 8);
+        cx.fillStyle = '#3a2010';
+        cx.fillRect(23, 30, 5, 5);
+        cx.fillRect(39, 30, 5, 5);
+        cx.fillStyle = '#000';
+        cx.fillRect(24, 31, 3, 3);
+        cx.fillRect(40, 31, 3, 3);
+        // Highlight in eyes
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(25, 31, 1, 1);
+        cx.fillRect(41, 31, 1, 1);
+        // Big eager grin
+        cx.fillStyle = '#c05040';
+        cx.beginPath(); cx.arc(32, 46, 6, 0.1, Math.PI - 0.1); cx.fill();
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(28, 46, 8, 2);
+        // Freckles
+        cx.fillStyle = 'rgba(140,80,40,0.3)';
+        cx.fillRect(20, 40, 2, 2);
+        cx.fillRect(25, 42, 2, 2);
+        cx.fillRect(38, 40, 2, 2);
+        cx.fillRect(43, 42, 2, 2);
     });
 }
 

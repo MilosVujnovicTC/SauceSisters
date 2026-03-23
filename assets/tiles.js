@@ -31,6 +31,10 @@ const TILES = {
     DINING:   { id: 24, color: '#b08050', solid: true,  label: 'dining' },
     SAUCEMACH:{ id: 25, color: '#cc6633', solid: true,  label: 'saucemach' },
     CHECKERED:{ id: 26, color: '#e8dcc8', solid: false, label: 'checkered' },
+    FABRIC:   { id: 27, color: '#c25a8e', solid: true,  label: 'fabric' },
+    SEWMACH:  { id: 28, color: '#7a8a6a', solid: true,  label: 'sewmach' },
+    MANNEQUIN:{ id: 29, color: '#d4a88c', solid: true,  label: 'mannequin' },
+    CARPET:   { id: 30, color: '#8b4560', solid: false, label: 'carpet' },
 };
 
 // Reverse lookup: id → tile definition
@@ -70,3 +74,8 @@ var _OV = TILES.OVEN.id;
 var _DI = TILES.DINING.id;
 var _SM = TILES.SAUCEMACH.id;
 var _CK = TILES.CHECKERED.id;
+// Sewing shop tile shorthands
+var _FB = TILES.FABRIC.id;
+var _SW = TILES.SEWMACH.id;
+var _MN = TILES.MANNEQUIN.id;
+var _CP = TILES.CARPET.id;

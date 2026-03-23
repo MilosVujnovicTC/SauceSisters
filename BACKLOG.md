@@ -536,7 +536,7 @@
   - [ ] Score/quality shown at end
   - [ ] Returns to overworld regardless of performance
 
-### Stage 7-7: Zone 7 tilemap (Mama's Sewing Shop) `[ ]`
+### Stage 7-7: Zone 7 tilemap (Mama's Sewing Shop) `[x] 2026-03-23`
 - Sewing shop zone tilemap: fabric rolls, sewing machines, mannequins
 - Zone transition from Enzo's (post-boss)
 - Mama Rosa NPC with scripted + AI hybrid dialogue

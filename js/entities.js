@@ -1766,6 +1766,7 @@ function updateEnzoBossDefeat(dt) {
         // Defeat complete — set flag, open door, spawn recipe, show dialogue
         setFlag('enzo_boss_defeated', true);
         restoreSauceRoomDoor();
+        restoreSewingShopDoor();
         // Spawn recipe #4 in sauce machine room (col 25, row 8 — open floor)
         spawnWorldItem('recipe_4_sauce', 25, 8, 'recipe_4');
         // Restore Enzo NPC for post-boss dialogue
