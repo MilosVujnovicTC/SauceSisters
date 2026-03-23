@@ -405,6 +405,15 @@ const PAPA_HINTS = {
         ],
         noHints: "Going for a set, talk later. [GRUNT] ...check my desk! Back-left! You got this, ragazza!",
     },
+    piazza: {
+        intro: "The Piazza Vecchia! Beautiful square. I proposed to your Mama here... she said 'I'll think about it.' Twice. [GRUNT] The east passage leads to Enzo's place — but it's blocked!",
+        hints: [
+            "See those benches and planters scattered around? They need to go on the marked spots near the east side. Push 'em into place!",
+            "Four pushable objects, four golden target markers on the east wall. Line them up to clear the path to Enzo's Pizzeria.",
+            "Push all four objects onto the glowing targets near column 25. Once they're all placed, the east wall opens up! You can also pull with Shift. [CLANG]",
+        ],
+        noHints: "Going for a set, talk later. [GRUNT] ...push things onto the golden spots! East side! Andiamo!",
+    },
 };
 
 /** The Papa Marco NPC-like object used with startDialogue. */

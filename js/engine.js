@@ -78,6 +78,13 @@ const CONFIG = {
         { col: 3, row: 10 }, { col: 4, row: 10 }, { col: 5, row: 10 }, // middle row
         { col: 4, row: 11 },                         // bottom point
     ],
+    // Piazza build puzzle: arrange benches + planters to form a path to the east exit (Zone 6)
+    PIAZZA_TARGETS: [
+        { col: 25, row: 10 },  // path tile 1 (top)
+        { col: 25, row: 11 },  // path tile 2
+        { col: 25, row: 12 },  // path tile 3
+        { col: 25, row: 13 },  // path tile 4 (bottom)
+    ],
 };
 
 // ============================================================
@@ -543,6 +550,9 @@ function render(ctx) {
 
     // Heart puzzle target markers (below items and crates so they look like ground markings)
     renderTargetMarkers(ctx, game.cameraX, game.cameraY);
+
+    // Piazza build puzzle target markers
+    renderPiazzaTargetMarkers(ctx, game.cameraX, game.cameraY);
 
     // Render world items (below pushables so crate slides over reveal spot)
     renderWorldItems(ctx, game.cameraX, game.cameraY);

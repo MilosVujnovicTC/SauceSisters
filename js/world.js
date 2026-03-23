@@ -660,8 +660,8 @@ const ZONES = {
             [W, F, F,_JB,_JB,_JB,_JB,_JB,_JB, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 17 juice bar
             [W, F, F,_JB,_JB,_JB,_JB,_JB,_JB, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 18 juice bar
             [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 19
-            [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 20
-            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W], // 21 south wall
+            [W, F, F, F, F, F, F, F, F, F, F, F, F, D, D, F, F, F, F, F, F, F, F, F, F, F, F, W], // 20 south door to Piazza
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W, W, W, W, W, W, W], // 21 south wall
         ],
         spawnX: 13,
         spawnY: 1,
@@ -669,6 +669,9 @@ const ZONES = {
             // North entrance → back to Library (south wall)
             { col: 12, row: 0, target: 'library', spawnX: 11, spawnY: 16 },
             { col: 13, row: 0, target: 'library', spawnX: 12, spawnY: 16 },
+            // South exit → Piazza Vecchia (north-right entrance)
+            { col: 13, row: 21, target: 'piazza', spawnX: 24, spawnY: 1 },
+            { col: 14, row: 21, target: 'piazza', spawnX: 25, spawnY: 1 },
         ],
         npcs: [
             {
@@ -819,6 +822,138 @@ const ZONES = {
             { id: 'gym_milk', type: 'milk', col: 4, row: 18 },
         ],
     },
+
+    // ================================================================
+    // Zone 5 — Piazza Vecchia: open cobblestone square with fountain,
+    // benches, planters. Build puzzle unlocks east exit to Zone 6.
+    // 30 columns × 22 rows
+    // ================================================================
+    piazza: {
+        id: 'piazza',
+        name: 'Piazza Vecchia',
+        // 30 columns x 22 rows
+        map: [
+        //   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  D,  D,  D,  W,  W,  W,  W], // 0  north wall + entrance from Gym
+            [W, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, D,  D,  D, _CB,_CB,_CB, W], // 1
+            [W, _CB, L, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, L, _CB, W], // 2  flower corners
+            [W, _CB,_CB,_CB,_CB, P,  P,  P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P,  P,  P, _CB,_CB,_CB,_CB, W], // 3  paths to fountain
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB, W], // 4
+            [W, _CB, L, _CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB, L, _CB, W], // 5  flower planters
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB, W], // 6
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB, W], // 7
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_FN,_FN,_FN,_FN,_FN,_FN,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB, W], // 8  fountain area
+            [W,  P,  P,  P,  P,  P, _CB,_CB,_CB,_CB,_CB,_FN,_FN,_FN,_FN,_FN,_FN,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P,  W,  W,  W,  W,  W], // 9  cross path + east wall above passage
+            [W,  D,  D, _CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_FN,_FN,_FN,_FN,_FN,_FN,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _FT, W,  W,  W,  W], // 10 west entrance + east fill targets
+            [W,  D,  D, _CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_FN,_FN,_FN,_FN,_FN,_FN,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _FT, W,  W,  W,  W], // 11
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_FN,_FN,_FN,_FN,_FN,_FN,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _FT, W,  W,  W,  W], // 12
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _FT, W,  W,  W,  W], // 13
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P,  W,  W,  W,  W,  W], // 14 east wall below passage
+            [W, _CB, L, _CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB, L, _CB, W], // 15 flower planters
+            [W, _CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P, _CB,_CB,_CB,_CB, W], // 16
+            [W, _CB,_CB,_CB,_CB, P,  P,  P, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, P,  P,  P, _CB,_CB,_CB,_CB, W], // 17 south paths
+            [W, _CB, L, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, L, _CB, W], // 18 flower corners
+            [W, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, W], // 19
+            [W, _CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB,_CB, W], // 20
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W], // 21 south wall
+        ],
+        spawnX: 24,
+        spawnY: 1,
+        transitions: [
+            // North-right exit → back to Gym (south entrance)
+            { col: 23, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
+            { col: 24, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
+            { col: 25, row: 0, target: 'gym', spawnX: 14, spawnY: 20 },
+            // East exit → Zone 6 (Enzo's Pizzeria) — only accessible after build puzzle
+            // Transitions added dynamically when puzzle is complete
+        ],
+        npcs: [
+            {
+                id: 'piazza_vendor',
+                name: 'Vendor Gianluca',
+                col: 8, row: 6,
+                color: '#d4a03c',
+                idle: { type: 'arrange', interval: 2.5, walkPath: [{col:8,row:6},{col:8,row:8},{col:10,row:8},{col:10,row:6}], walkSpeed: 30 },
+                getLines: function(flags) {
+                    if (flags.talked_to_gianluca) {
+                        var returning = [
+                            ["Back again? My cannoli are the best in town.", "Don't tell Enzo I said that. He thinks HIS are."],
+                            ["You look like you're on a mission.", "Just don't knock over my display, per favore!"],
+                            ["The fountain used to work better before the pigeons moved in.", "Now it's more of a... bird bath."],
+                        ];
+                        var pick = Math.floor(Math.random() * returning.length);
+                        return { lines: returning[pick] };
+                    }
+                    return {
+                        lines: [
+                            "Benvenuta to the Piazza Vecchia!",
+                            "Beautiful square, eh? The fountain's been here for centuries.",
+                            "I heard there's a famous pizzeria through the east passage...",
+                            "But the path is blocked. Someone left benches everywhere!",
+                            "Maybe you could... rearrange them? Just an idea.",
+                        ],
+                        onComplete: function() { setFlag('talked_to_gianluca', true); },
+                    };
+                },
+            },
+            {
+                id: 'piazza_nonna',
+                name: 'Nonna Viola',
+                col: 18, row: 14,
+                color: '#9c27b0',
+                idle: { type: 'knit', interval: 3.0, walkPath: [{col:18,row:14},{col:20,row:14},{col:20,row:16},{col:18,row:16}], walkSpeed: 25 },
+                getLines: function(flags) {
+                    if (flags.talked_to_viola) {
+                        var returning = [
+                            ["*feeding pigeons* They remind me of my grandchildren.", "Always hungry, always loud, always adorable."],
+                            ["I've sat in this piazza for 40 years.", "The benches have moved more than I have."],
+                            ["*whispering* Enzo's pizzeria is through the east side.", "His pizza is... okay. But his EGO? Enormous!"],
+                        ];
+                        var pick = Math.floor(Math.random() * returning.length);
+                        return { lines: returning[pick] };
+                    }
+                    return {
+                        lines: [
+                            "Oh! A visitor! I'm Nonna Viola.",
+                            "I sit here every day and watch the world go by.",
+                            "The east passage used to be open, you know...",
+                            "But then someone put decorations in the way.",
+                            "Push the benches and planters onto the marked spots — that should clear the path!",
+                        ],
+                        onComplete: function() { setFlag('talked_to_viola', true); },
+                    };
+                },
+            },
+            {
+                id: 'piazza_musician',
+                name: 'Accordion Carlo',
+                col: 7, row: 15,
+                color: '#ff7043',
+                idle: { type: 'cook', interval: 2.0 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["*plays an off-key note*", "That was... intentional. Artistic choice."],
+                        ["I've been playing here for years!", "The pigeons are my biggest fans. Also my only fans."],
+                        ["My accordion is older than this piazza.", "And it sounds like it too, honestly."],
+                        ["*dramatic chord*", "That's my interpretation of... a cat sneezing. Thank you."],
+                    ];
+                    var pick = Math.floor(Math.random() * lines.length);
+                    return { lines: lines[pick] };
+                },
+            },
+        ],
+        // 4 pushable objects: 2 benches + 2 planters — must be placed on the fill targets
+        pushables: [
+            { id: 'piazza_bench_1',   col: 8,  row: 10, initCol: 8,  initRow: 10, type: 'bench' },
+            { id: 'piazza_bench_2',   col: 20, row: 12, initCol: 20, initRow: 12, type: 'bench' },
+            { id: 'piazza_planter_1', col: 3,  row: 7,  initCol: 3,  initRow: 7,  type: 'planter' },
+            { id: 'piazza_planter_2', col: 22, row: 15, initCol: 22, initRow: 15, type: 'planter' },
+        ],
+        powerups: [
+            { id: 'piazza_water', type: 'water', col: 14, row: 4 },
+            { id: 'piazza_gouda', type: 'gouda_cheese', col: 3, row: 15 },
+        ],
+    },
 };
 
 // ============================================================
@@ -882,8 +1017,18 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     traps = [];       // clear traps on zone change
     areaEffects = []; // clear area effects on zone change
 
-    // Reset market crate positions if heart puzzle not yet solved (prevents softlocks)
+    // Reset pushable positions for unsolved puzzles (prevents softlocks)
     if (zoneId === 'market' && !getFlag('recipe_1_found') && zone.pushables) {
+        for (let i = 0; i < zone.pushables.length; i++) {
+            const p = zone.pushables[i];
+            if (p.initCol !== undefined) {
+                p.col = p.initCol;
+                p.row = p.initRow;
+                p.sliding = false;
+            }
+        }
+    }
+    if (zoneId === 'piazza' && !getFlag('piazza_puzzle_complete') && zone.pushables) {
         for (let i = 0; i < zone.pushables.length; i++) {
             const p = zone.pushables[i];
             if (p.initCol !== undefined) {
@@ -913,6 +1058,10 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     // Restore bridge state if entering Canal with bridge already built
     if (zoneId === 'canal') {
         restoreBridgeState();
+    }
+    // Restore piazza path if puzzle already completed
+    if (zoneId === 'piazza') {
+        restorePiazzaState();
     }
 
     // Snap camera instantly to player (no lerp on zone load)
@@ -1052,6 +1201,8 @@ function tryPush(pushable, dirCol, dirRow) {
 
     // Check if heart puzzle is complete after this push
     checkHeartPuzzle();
+    // Check if piazza puzzle is complete after this push
+    checkPiazzaPuzzle();
 
     return true;
 }
@@ -1113,6 +1264,7 @@ function tryPull(pushable) {
     pushable.row = targetRow;
     playCratePush();
     checkHeartPuzzle();
+    checkPiazzaPuzzle();
     return true;
 }
 
@@ -1167,7 +1319,7 @@ function checkPushableCollision(newX, newY, pw, ph, dirCol, dirRow) {
 }
 
 /** Renders all pushable objects in the current zone. */
-/** Renders pushable crates using pre-generated sprite. */
+/** Renders pushable objects using type-specific sprites (crate, bench, planter). */
 function renderPushables(ctx, cameraX, cameraY) {
     const zone = game.currentZone;
     if (!zone || !zone.pushables) return;
@@ -1181,10 +1333,11 @@ function renderPushables(ctx, cameraX, cameraY) {
         const screenX = px - cameraX;
         const screenY = py - cameraY;
 
-        if (SPRITES.objects.crate) {
-            ctx.drawImage(SPRITES.objects.crate, screenX, screenY);
+        // Pick sprite based on pushable type
+        var sprite = SPRITES.objects[p.type] || SPRITES.objects.crate;
+        if (sprite) {
+            ctx.drawImage(sprite, screenX, screenY);
         } else {
-            // Fallback
             ctx.fillStyle = CONFIG.CRATE_COLOR;
             ctx.fillRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
         }
@@ -1408,6 +1561,103 @@ function renderBridgePrompt(ctx, cameraX, cameraY) {
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('[Z] Place Plank', sx, sy);
+}
+
+// ============================================================
+// Piazza build puzzle — arrange benches/planters on fill targets
+// ============================================================
+
+/** Checks if all Piazza fill target positions have a pushable on them. If so, unlocks east path. */
+function checkPiazzaPuzzle() {
+    if (getFlag('piazza_puzzle_complete')) return;
+    if (!game.currentZone || game.currentZone.id !== 'piazza') return;
+
+    var targets = CONFIG.PIAZZA_TARGETS;
+    for (var i = 0; i < targets.length; i++) {
+        if (!getPushableAt(targets[i].col, targets[i].row)) return;
+    }
+
+    // All targets filled — unlock east passage to Zone 6
+    setFlag('piazza_puzzle_complete', true);
+    completePiazzaPath();
+    game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+    game.itemFlashName = 'Path Opened!';
+    playItemPickup();
+}
+
+/** Converts fill target tiles to walkable cobble and adds Zone 6 transition tiles. */
+function completePiazzaPath() {
+    var map = ZONES.piazza.map;
+    // Convert fill targets to walkable cobble
+    var targets = CONFIG.PIAZZA_TARGETS;
+    for (var i = 0; i < targets.length; i++) {
+        var t = targets[i];
+        map[t.row][t.col] = _CB;
+    }
+    // Also open the adjacent wall tiles to create passage
+    map[10][26] = _CB;
+    map[11][26] = _CB;
+    map[12][26] = _CB;
+    map[13][26] = _CB;
+    // Open the east wall for passage
+    map[10][27] = _CB;
+    map[11][27] = _CB;
+    map[12][27] = _CB;
+    map[13][27] = _CB;
+    map[10][28] = D;
+    map[11][28] = D;
+    map[12][28] = D;
+    map[13][28] = D;
+    map[10][29] = D;
+    map[11][29] = D;
+    map[12][29] = D;
+    map[13][29] = D;
+}
+
+/** Restores Piazza puzzle state (converts tiles back to walkable) if already completed. */
+function restorePiazzaState() {
+    if (!getFlag('piazza_puzzle_complete')) return;
+    completePiazzaPath();
+}
+
+/** Renders pulsing target markers on Piazza fill target tiles. */
+function renderPiazzaTargetMarkers(ctx, cameraX, cameraY) {
+    if (getFlag('piazza_puzzle_complete')) return;
+    if (!game.currentZone || game.currentZone.id !== 'piazza') return;
+
+    var ts = CONFIG.TILE_SIZE;
+    var targets = CONFIG.PIAZZA_TARGETS;
+    var pulse = 0.2 + Math.sin(game.time * 2.5) * 0.1;
+
+    for (var i = 0; i < targets.length; i++) {
+        var t = targets[i];
+        var sx = t.col * ts - cameraX;
+        var sy = t.row * ts - cameraY;
+        var filled = !!getPushableAt(t.col, t.row);
+
+        if (filled) {
+            ctx.fillStyle = 'rgba(0, 255, 100, ' + (pulse * 0.6) + ')';
+            ctx.fillRect(sx + 1, sy + 1, ts - 2, ts - 2);
+        } else {
+            ctx.fillStyle = 'rgba(255, 215, 0, ' + pulse + ')';
+            ctx.fillRect(sx + 1, sy + 1, ts - 2, ts - 2);
+            ctx.strokeStyle = 'rgba(255, 215, 0, ' + (pulse + 0.15) + ')';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(sx + 3, sy + 3, ts - 6, ts - 6);
+            ctx.setLineDash([]);
+            var cx2 = sx + ts / 2;
+            var cy2 = sy + ts / 2;
+            ctx.fillStyle = 'rgba(255, 235, 59, ' + (pulse + 0.15) + ')';
+            ctx.beginPath();
+            ctx.moveTo(cx2, cy2 - 5);
+            ctx.lineTo(cx2 + 5, cy2);
+            ctx.lineTo(cx2, cy2 + 5);
+            ctx.lineTo(cx2 - 5, cy2);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
 }
 
 // ============================================================

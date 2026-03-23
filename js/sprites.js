@@ -561,6 +561,104 @@ function generateTileSprites() {
         cx.fillStyle = 'rgba(150,210,240,0.4)';
         cx.fillRect(2, T / 2, T - 4, T / 2 - 2);
     });
+
+    // --- FOUNTAIN (4 animation frames — water basin with spray) ---
+    SPRITES.tiles.fountain = [];
+    for (var ff = 0; ff < 4; ff++) {
+        (function(frame) {
+            SPRITES.tiles.fountain.push(createSprite(T, T, function(cx) {
+                var phase = frame * Math.PI / 2;
+                // Stone base
+                cx.fillStyle = '#8a8070';
+                cx.fillRect(0, 0, T, T);
+                // Circular basin border
+                cx.fillStyle = '#706658';
+                cx.beginPath();
+                cx.arc(T / 2, T / 2, 14, 0, Math.PI * 2);
+                cx.fill();
+                // Basin water
+                var waterB = 180 + Math.sin(phase) * 15;
+                cx.fillStyle = 'rgb(80,140,' + Math.round(waterB) + ')';
+                cx.beginPath();
+                cx.arc(T / 2, T / 2, 11, 0, Math.PI * 2);
+                cx.fill();
+                // Center spout
+                cx.fillStyle = '#9a9080';
+                cx.fillRect(T / 2 - 2, T / 2 - 2, 4, 4);
+                // Spray droplets
+                cx.fillStyle = 'rgba(180,220,255,0.6)';
+                var dy = Math.sin(phase) * 2;
+                cx.fillRect(T / 2 - 1, T / 2 - 6 + dy, 2, 2);
+                cx.fillRect(T / 2 - 4, T / 2 - 3 + dy * 0.5, 2, 1);
+                cx.fillRect(T / 2 + 2, T / 2 - 4 - dy * 0.5, 1, 2);
+                // Ripple rings
+                cx.strokeStyle = 'rgba(200,230,255,0.35)';
+                cx.lineWidth = 1;
+                var rr = 5 + Math.sin(phase) * 2;
+                cx.beginPath();
+                cx.arc(T / 2, T / 2, rr, 0, Math.PI * 2);
+                cx.stroke();
+            }));
+        })(ff);
+    }
+
+    // --- COBBLE (2 variants — stone cobblestone path) ---
+    SPRITES.tiles.cobble = [];
+    for (var cv = 0; cv < 2; cv++) {
+        SPRITES.tiles.cobble.push(createSprite(T, T, function(cx) {
+            cx.fillStyle = '#9e9484';
+            cx.fillRect(0, 0, T, T);
+            // Cobblestone grid
+            cx.strokeStyle = '#88786a';
+            cx.lineWidth = 1;
+            // Row 1 stones
+            cx.strokeRect(1, 1, 14, 14);
+            cx.strokeRect(17, 1, 14, 14);
+            // Row 2 stones (offset)
+            cx.strokeRect(8, 17, 14, 14);
+            cx.strokeRect(24, 17, 7, 14);
+            cx.strokeRect(1, 17, 6, 14);
+            // Stone color variation
+            cx.fillStyle = cv === 0 ? '#a49a8a' : '#96897a';
+            cx.fillRect(2, 2, 12, 12);
+            cx.fillStyle = cv === 0 ? '#96897a' : '#a49a8a';
+            cx.fillRect(18, 2, 12, 12);
+            cx.fillRect(9, 18, 12, 12);
+            // Highlight
+            cx.fillStyle = 'rgba(255,255,255,0.08)';
+            cx.fillRect(2, 2, 12, 2);
+            cx.fillRect(18, 2, 12, 2);
+            cx.fillRect(9, 18, 12, 2);
+        }));
+    }
+
+    // --- FILLTARGET (cobble with glowing target indicator) ---
+    SPRITES.tiles.filltarget = createSprite(T, T, function(cx) {
+        // Same cobble base
+        cx.fillStyle = '#9e9484';
+        cx.fillRect(0, 0, T, T);
+        cx.strokeStyle = '#88786a';
+        cx.lineWidth = 1;
+        cx.strokeRect(1, 1, 14, 14);
+        cx.strokeRect(17, 1, 14, 14);
+        cx.strokeRect(8, 17, 14, 14);
+        cx.strokeRect(24, 17, 7, 14);
+        cx.strokeRect(1, 17, 6, 14);
+        cx.fillStyle = '#a49a8a';
+        cx.fillRect(2, 2, 12, 12);
+        cx.fillStyle = '#96897a';
+        cx.fillRect(18, 2, 12, 12);
+        cx.fillRect(9, 18, 12, 12);
+        // Golden target overlay
+        cx.fillStyle = 'rgba(255,215,0,0.2)';
+        cx.fillRect(0, 0, T, T);
+        // Dashed border hint
+        cx.strokeStyle = 'rgba(255,180,0,0.4)';
+        cx.lineWidth = 2;
+        cx.setLineDash([4, 4]);
+        cx.strokeRect(2, 2, T - 4, T - 4);
+        cx.setLineDash([]);
+    });
 }
 
 // ============================================================
@@ -1123,6 +1221,90 @@ function generateObjectSprites() {
         cx.fillRect(T / 2 + 4, 20, 6, 1);
     });
 
+    // Bench — wooden park bench with slats and armrests
+    SPRITES.objects.bench = createSprite(T, T, function(cx) {
+        // Shadow
+        cx.fillStyle = 'rgba(0,0,0,0.15)';
+        cx.fillRect(3, 5, T - 2, T - 4);
+        // Legs (dark wood)
+        cx.fillStyle = '#5a3a1a';
+        cx.fillRect(4, T - 8, 3, 8);
+        cx.fillRect(T - 8, T - 8, 3, 8);
+        // Seat (warm wood planks)
+        cx.fillStyle = '#c4883a';
+        cx.fillRect(2, T - 14, T - 5, 4);
+        cx.fillStyle = '#b07830';
+        cx.fillRect(2, T - 10, T - 5, 3);
+        // Plank lines on seat
+        cx.strokeStyle = '#9a6820';
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(2, T - 12); cx.lineTo(T - 3, T - 12);
+        cx.stroke();
+        // Backrest
+        cx.fillStyle = '#c4883a';
+        cx.fillRect(2, T - 22, T - 5, 3);
+        cx.fillStyle = '#b07830';
+        cx.fillRect(2, T - 19, T - 5, 3);
+        // Backrest plank line
+        cx.strokeStyle = '#9a6820';
+        cx.beginPath();
+        cx.moveTo(2, T - 20); cx.lineTo(T - 3, T - 20);
+        cx.stroke();
+        // Armrests
+        cx.fillStyle = '#5a3a1a';
+        cx.fillRect(2, T - 16, 4, 2);
+        cx.fillRect(T - 7, T - 16, 4, 2);
+        // Wood grain highlights
+        cx.fillStyle = '#d4984a';
+        cx.fillRect(8, T - 13, 6, 1);
+        cx.fillRect(14, T - 21, 5, 1);
+    });
+
+    // Planter — stone planter box with green plant
+    SPRITES.objects.planter = createSprite(T, T, function(cx) {
+        // Shadow
+        cx.fillStyle = 'rgba(0,0,0,0.15)';
+        cx.fillRect(4, 6, T - 4, T - 4);
+        // Stone box
+        cx.fillStyle = '#8a8070';
+        cx.fillRect(3, T / 2 - 2, T - 7, T / 2);
+        // Stone highlights
+        cx.fillStyle = '#9a9084';
+        cx.fillRect(3, T / 2 - 2, T - 7, 3);
+        // Stone shadow
+        cx.fillStyle = '#706658';
+        cx.fillRect(3, T - 4, T - 7, 2);
+        // Stone border
+        cx.strokeStyle = '#605848';
+        cx.lineWidth = 1;
+        cx.strokeRect(3, T / 2 - 2, T - 7, T / 2);
+        // Dirt inside
+        cx.fillStyle = '#6a4e2a';
+        cx.fillRect(5, T / 2, T - 11, 4);
+        // Green bush/plant
+        cx.fillStyle = '#3a8a30';
+        cx.beginPath();
+        cx.arc(T / 2 - 1, T / 2 - 4, 9, 0, Math.PI * 2);
+        cx.fill();
+        cx.fillStyle = '#4a9e40';
+        cx.beginPath();
+        cx.arc(T / 2 - 5, T / 2 - 6, 6, 0, Math.PI * 2);
+        cx.fill();
+        cx.beginPath();
+        cx.arc(T / 2 + 4, T / 2 - 5, 5, 0, Math.PI * 2);
+        cx.fill();
+        // Leaf highlights
+        cx.fillStyle = '#5ab050';
+        cx.fillRect(T / 2 - 3, T / 2 - 10, 3, 2);
+        cx.fillRect(T / 2 + 2, T / 2 - 8, 2, 2);
+        // Small flowers
+        cx.fillStyle = '#ff6b8a';
+        cx.fillRect(T / 2 - 6, T / 2 - 7, 2, 2);
+        cx.fillStyle = '#ffb347';
+        cx.fillRect(T / 2 + 3, T / 2 - 9, 2, 2);
+    });
+
     // BMX bike
     SPRITES.objects.bmx = createSprite(T, T, function(cx) {
         // Wheels
@@ -1653,7 +1835,7 @@ function getTileSprite(tileId, col, row) {
     if (!sprites) return SPRITES.tiles.floor[0]; // fallback
 
     // Animated tiles use frame index
-    if (label === 'water' || label === 'bridgegap') {
+    if (label === 'water' || label === 'bridgegap' || label === 'fountain') {
         var frame = Math.floor(game.time * 3) % 4;
         return sprites[frame];
     }
@@ -2032,6 +2214,94 @@ function generatePortraits() {
         cx.strokeStyle = '#c06050';
         cx.lineWidth = 1.5;
         cx.beginPath(); cx.arc(32, 44, 5, 0.3, Math.PI - 0.3); cx.stroke();
+    });
+
+    // Vendor Gianluca — straw hat, big mustache, golden vest, cheerful grin
+    PORTRAITS['piazza_vendor'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5cc99', '#d4a03c');
+        // Straw hat
+        cx.fillStyle = '#d4b36a';
+        cx.fillRect(8, 2, 48, 6);
+        cx.fillStyle = '#c4a35a';
+        cx.fillRect(14, 6, 36, 10);
+        cx.fillStyle = '#b4934a';
+        cx.fillRect(16, 12, 32, 3);
+        // Hat band
+        cx.fillStyle = '#8b0000';
+        cx.fillRect(14, 14, 36, 3);
+        // Thick mustache
+        cx.fillStyle = '#3a2010';
+        cx.beginPath();
+        cx.moveTo(18, 40); cx.quadraticCurveTo(25, 35, 32, 40);
+        cx.quadraticCurveTo(39, 35, 46, 40);
+        cx.lineWidth = 3; cx.strokeStyle = '#3a2010'; cx.stroke();
+        // Big cheerful grin
+        cx.fillStyle = '#d4756b';
+        cx.beginPath(); cx.arc(32, 46, 7, 0, Math.PI); cx.fill();
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(27, 46, 10, 3);
+    });
+
+    // Nonna Viola — purple shawl, white hair, round glasses, gentle face
+    PORTRAITS['piazza_nonna'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5d0a0', '#9c27b0');
+        // White fluffy hair
+        cx.fillStyle = '#e8e0e8';
+        cx.fillRect(12, 4, 40, 14);
+        cx.beginPath(); cx.arc(32, 4, 14, Math.PI, 0); cx.fill();
+        cx.fillStyle = '#d8d0d8';
+        cx.fillRect(14, 6, 10, 8);
+        // Round glasses
+        cx.strokeStyle = '#8b6914';
+        cx.lineWidth = 2;
+        cx.beginPath(); cx.arc(24, 32, 7, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.arc(40, 32, 7, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.moveTo(31, 32); cx.lineTo(33, 32); cx.stroke();
+        // Kind eyes behind glasses
+        cx.fillStyle = '#5a3a20';
+        cx.fillRect(22, 31, 4, 3);
+        cx.fillRect(38, 31, 4, 3);
+        // Purple shawl
+        cx.fillStyle = '#9c27b0';
+        cx.fillRect(6, 50, 52, 14);
+        cx.fillStyle = '#7b1fa2';
+        cx.fillRect(10, 52, 44, 4);
+        // Gentle smile
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 1.5;
+        cx.beginPath(); cx.arc(32, 46, 5, 0.2, Math.PI - 0.2); cx.stroke();
+    });
+
+    // Accordion Carlo — beret, scruffy chin, red scarf, animated expression
+    PORTRAITS['piazza_musician'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#e8b888', '#ff7043');
+        // Black beret
+        cx.fillStyle = '#2a2a2a';
+        cx.fillRect(12, 2, 40, 8);
+        cx.beginPath(); cx.arc(32, 4, 16, Math.PI, 0); cx.fill();
+        cx.fillStyle = '#3a3a3a';
+        cx.fillRect(16, 4, 12, 5);
+        // Beret nub
+        cx.fillStyle = '#2a2a2a';
+        cx.beginPath(); cx.arc(32, 2, 3, 0, Math.PI * 2); cx.fill();
+        // Scruffy stubble
+        cx.fillStyle = 'rgba(60,40,20,0.3)';
+        for (var sx = 20; sx < 44; sx += 3) {
+            for (var sy = 42; sy < 50; sy += 3) {
+                cx.fillRect(sx, sy, 1, 1);
+            }
+        }
+        // Open mouth (singing)
+        cx.fillStyle = '#c05040';
+        cx.beginPath(); cx.arc(32, 46, 5, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#401010';
+        cx.beginPath(); cx.arc(32, 46, 3, 0, Math.PI * 2); cx.fill();
+        // Red scarf
+        cx.fillStyle = '#ff7043';
+        cx.fillRect(12, 52, 40, 8);
+        cx.fillStyle = '#e65100';
+        cx.fillRect(22, 54, 20, 4);
+        cx.fillRect(26, 58, 12, 6);
     });
 }
 

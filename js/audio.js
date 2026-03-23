@@ -111,6 +111,7 @@ const ZONE_SURFACE = {
     canal:     'footstep_stone',
     library:   'footstep_wood',
     gym:       'footstep_stone',
+    piazza:    'footstep_stone',
 };
 
 // ============================================================
@@ -149,6 +150,7 @@ function initZoneMusic() {
     createCanalMusic();
     createLibraryMusic();
     createGymMusic();
+    createPiazzaMusic();
 
     Tone.Transport.start();
 }
@@ -628,6 +630,100 @@ function createGymMusic() {
     };
 }
 
+/** Piazza Vecchia: warm, open Italian square (F major, 95 BPM). Mandolin + guitar strum + gentle accordion. */
+function createPiazzaMusic() {
+    var gain = new Tone.Volume(0).connect(musicReverb);
+    gain.volume.value = music.silentDb;
+
+    // Warm pad — accordion-like sustained chords
+    var pad = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.4, decay: 0.6, sustain: 0.5, release: 1.0 },
+    }).connect(gain);
+    pad.volume.value = -16;
+
+    // Plucked mandolin — FM synth with short decay
+    var mandolinDelay = new Tone.FeedbackDelay('8n.', 0.15).connect(gain);
+    mandolinDelay.wet.value = 0.2;
+    var mandolin = new Tone.FMSynth({
+        harmonicity: 3,
+        modulationIndex: 4,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.005, decay: 0.3, sustain: 0.02, release: 0.3 },
+        modulation: { type: 'triangle' },
+        modulationEnvelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.2 },
+    }).connect(mandolinDelay);
+    mandolin.volume.value = -10;
+
+    // Walking bass — gentle pizzicato feel
+    var bass = new Tone.Synth({
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.02, decay: 0.4, sustain: 0.05, release: 0.3 },
+    }).connect(gain);
+    bass.volume.value = -10;
+
+    // Pad chords — F major progression (F - Dm - Bb - C)
+    var padSeq = new Tone.Sequence(function(time, chord) {
+        if (chord) pad.triggerAttackRelease(chord, '2n', time);
+    }, [
+        ['F3', 'A3', 'C4'], null, null, null,
+        null, null, null, null,
+        ['D3', 'F3', 'A3'], null, null, null,
+        null, null, null, null,
+        ['Bb2', 'D3', 'F3'], null, null, null,
+        null, null, null, null,
+        ['C3', 'E3', 'G3'], null, null, null,
+        null, null, null, null,
+    ], '8n');
+    padSeq.loop = true;
+
+    // Mandolin melody — lilting Italian piazza theme
+    var melodySeq = new Tone.Sequence(function(time, note) {
+        if (note) mandolin.triggerAttackRelease(note, '16n', time);
+    }, [
+        'F4', null, 'A4', null,
+        'C5', null, 'A4', null,
+        'G4', null, 'F4', null,
+        null, 'E4', null, null,
+        'D4', null, 'F4', null,
+        'A4', null, 'G4', null,
+        'F4', null, 'E4', null,
+        null, null, null, null,
+        'Bb4', null, 'A4', null,
+        'G4', null, 'F4', null,
+        'D4', null, 'F4', null,
+        null, 'E4', null, null,
+        'C4', null, 'E4', null,
+        'G4', null, 'F4', null,
+        'E4', null, 'F4', null,
+        null, null, null, null,
+    ], '8n');
+    melodySeq.loop = true;
+
+    // Bass — gentle walking line
+    var bassSeq = new Tone.Sequence(function(time, note) {
+        if (note) bass.triggerAttackRelease(note, '8n', time);
+    }, [
+        'F2', null, 'A2', null,
+        'C3', null, 'A2', null,
+        'D2', null, 'F2', null,
+        'A2', null, 'D2', null,
+        'Bb1', null, 'D2', null,
+        'F2', null, 'Bb1', null,
+        'C2', null, 'E2', null,
+        'G2', null, 'C2', null,
+    ], '8n');
+    bassSeq.loop = true;
+
+    music.zones.piazza = {
+        gain: gain,
+        synths: [pad, mandolin, bass],
+        effects: [mandolinDelay],
+        patterns: [padSeq, melodySeq, bassSeq],
+        tempo: 95,
+    };
+}
+
 /** Starts music for a zone with crossfade from the current zone. */
 function startZoneMusic(zoneId) {
     if (!music.initialized) {
@@ -776,6 +872,24 @@ function initAmbient() {
         var lfo = new Tone.LFO(0.2, 250, 500).connect(humFilter.frequency);
         ambient.nodes.gym = { gain: gain, sources: [hum], lfos: [lfo] };
     })();
+
+    // Piazza — outdoor crowd murmur + fountain water trickle
+    (function() {
+        var gain = new Tone.Volume(-30).toDestination();
+        // Crowd murmur (filtered pink noise)
+        var crowdFilter = new Tone.Filter(1200, 'lowpass').connect(gain);
+        crowdFilter.Q.value = 0.8;
+        var crowd = new Tone.Noise('pink').connect(crowdFilter);
+        crowd.volume.value = -10;
+        var crowdLfo = new Tone.LFO(0.15, 800, 1400).connect(crowdFilter.frequency);
+        // Fountain trickle (higher filtered white noise)
+        var trickleFilter = new Tone.Filter(3000, 'bandpass').connect(gain);
+        trickleFilter.Q.value = 2;
+        var trickle = new Tone.Noise('white').connect(trickleFilter);
+        trickle.volume.value = -18;
+        var trickleLfo = new Tone.LFO(0.3, 2000, 4000).connect(trickleFilter.frequency);
+        ambient.nodes.piazza = { gain: gain, sources: [crowd, trickle], lfos: [crowdLfo, trickleLfo] };
+    })();
 }
 
 /** Starts ambient sounds for a zone. Stops previous ambient. */
@@ -841,6 +955,9 @@ const NPC_BLIP_PROFILES = {
     gym_trainer:     { type: 'fmsine',   baseNote: 'A3',  pitchRange: 5, harmonicity: 2 },
     gym_smoothie:    { type: 'triangle', baseNote: 'E4',  pitchRange: 4, harmonicity: 1 },
     gym_lifter:      { type: 'fmsine',   baseNote: 'C3',  pitchRange: 3, harmonicity: 3 },
+    piazza_vendor:   { type: 'fmsine',   baseNote: 'D4',  pitchRange: 5, harmonicity: 2 },
+    piazza_nonna:    { type: 'sine',     baseNote: 'G3',  pitchRange: 3, harmonicity: 1 },
+    piazza_musician: { type: 'triangle', baseNote: 'A4',  pitchRange: 6, harmonicity: 1.5 },
 };
 
 /** Creates SFX synths (for sounds that stay procedural). Called once after audio unlock. */

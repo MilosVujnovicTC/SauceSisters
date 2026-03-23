@@ -484,7 +484,7 @@
   - [ ] Returns to overworld after completion
   - [ ] Can be skipped (but lose reward)
 
-### Stage 7-3: Zone 5 tilemap (Piazza) + build puzzle `[ ]`
+### Stage 7-3: Zone 5 tilemap (Piazza) + build puzzle `[x] 2026-03-23`
 - Piazza zone tilemap: open square, fountain, benches, planters
 - Build puzzle: arrange benches and planters on fill targets to create a path
 - Pushable benches and planters with distinct visuals

@@ -24,6 +24,9 @@ const TILES = {
     EQUIPMENT:{ id: 17, color: '#888888', solid: true,  label: 'equipment' },
     JUICEBAR: { id: 18, color: '#e8a030', solid: true,  label: 'juicebar' },
     MIRROR:   { id: 19, color: '#a8d8ea', solid: true,  label: 'mirror' },
+    FOUNTAIN: { id: 20, color: '#6eb5d6', solid: true,  label: 'fountain' },
+    COBBLE:   { id: 21, color: '#9e9484', solid: false, label: 'cobble' },
+    FILLTARGET:{ id: 22, color: '#b8a080', solid: false, label: 'filltarget' },
 };
 
 // Reverse lookup: id → tile definition
@@ -54,3 +57,7 @@ var _MT = TILES.MAT.id;
 var _EQ = TILES.EQUIPMENT.id;
 var _JB = TILES.JUICEBAR.id;
 var _MR = TILES.MIRROR.id;
+// Piazza tile shorthands
+var _FN = TILES.FOUNTAIN.id;
+var _CB = TILES.COBBLE.id;
+var _FT = TILES.FILLTARGET.id;
