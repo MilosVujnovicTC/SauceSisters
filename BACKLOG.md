@@ -496,7 +496,7 @@
   - [ ] Completing the arrangement opens the path to Zone 6
   - [ ] Partial arrangements do not unlock the path
 
-### Stage 7-4: Zone 6 tilemap (Enzo's Pizzeria) `[ ]`
+### Stage 7-4: Zone 6 tilemap (Enzo's Pizzeria) `[x] 2026-03-23`
 - Pizzeria zone tilemap: kitchen, dining area, sauce machine room
 - Enzo NPC with scripted + AI hybrid dialogue
 - Pre-boss dialogue sequence with Enzo

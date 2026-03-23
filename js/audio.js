@@ -112,6 +112,7 @@ const ZONE_SURFACE = {
     library:   'footstep_wood',
     gym:       'footstep_stone',
     piazza:    'footstep_stone',
+    pizzeria:  'footstep_wood',
 };
 
 // ============================================================
@@ -151,6 +152,7 @@ function initZoneMusic() {
     createLibraryMusic();
     createGymMusic();
     createPiazzaMusic();
+    createPizzeriaMusic();
 
     Tone.Transport.start();
 }
@@ -724,6 +726,88 @@ function createPiazzaMusic() {
     };
 }
 
+/** Enzo's Pizzeria: brash, competitive Italian (A minor, 120 BPM). Punchy bass + staccato chords + cocky lead. */
+function createPizzeriaMusic() {
+    var gain = new Tone.Volume(0).connect(musicReverb);
+    gain.volume.value = music.silentDb;
+
+    // Punchy bass — aggressive FM
+    var bass = new Tone.FMSynth({
+        harmonicity: 1.5,
+        modulationIndex: 3,
+        oscillator: { type: 'square' },
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.15 },
+        modulation: { type: 'sine' },
+        modulationEnvelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 },
+    }).connect(gain);
+    bass.volume.value = -8;
+
+    // Staccato chord stabs — bright and brash
+    var chordSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sawtooth' },
+        envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.15 },
+    }).connect(gain);
+    chordSynth.volume.value = -14;
+
+    // Cocky lead melody — pizzeria swagger
+    var leadDelay = new Tone.FeedbackDelay('16n', 0.1).connect(gain);
+    leadDelay.wet.value = 0.15;
+    var lead = new Tone.Synth({
+        oscillator: { type: 'square' },
+        envelope: { attack: 0.01, decay: 0.15, sustain: 0.1, release: 0.2 },
+    }).connect(leadDelay);
+    lead.volume.value = -10;
+
+    // Bass line — driving A minor
+    var bassSeq = new Tone.Sequence(function(time, note) {
+        if (note) bass.triggerAttackRelease(note, '16n', time);
+    }, [
+        'A2', null, 'A2', null,
+        'C3', null, 'A2', null,
+        'E2', null, 'E2', null,
+        'G2', null, 'A2', null,
+        'F2', null, 'F2', null,
+        'A2', null, 'F2', null,
+        'G2', null, 'G2', null,
+        'G2', null, null, null,
+    ], '8n');
+    bassSeq.loop = true;
+
+    // Chord stabs — offbeat punchy
+    var chordSeq = new Tone.Sequence(function(time, chord) {
+        if (chord) chordSynth.triggerAttackRelease(chord, '16n', time);
+    }, [
+        null, ['A3', 'C4', 'E4'], null, null,
+        null, ['A3', 'C4', 'E4'], null, null,
+        null, ['F3', 'A3', 'C4'], null, null,
+        null, ['G3', 'B3', 'D4'], null, ['G3', 'B3', 'D4'],
+    ], '8n');
+    chordSeq.loop = true;
+
+    // Lead melody — cocky, rhythmic
+    var melodySeq = new Tone.Sequence(function(time, note) {
+        if (note) lead.triggerAttackRelease(note, '8n', time);
+    }, [
+        'E5', null, 'C5', null,
+        'A4', null, 'C5', null,
+        'B4', null, 'A4', null,
+        null, null, 'G4', null,
+        'A4', null, 'F4', null,
+        'A4', null, 'C5', null,
+        'B4', null, 'G4', null,
+        null, null, null, null,
+    ], '8n');
+    melodySeq.loop = true;
+
+    music.zones.pizzeria = {
+        gain: gain,
+        synths: [bass, chordSynth, lead],
+        effects: [leadDelay],
+        patterns: [bassSeq, chordSeq, melodySeq],
+        tempo: 120,
+    };
+}
+
 /** Starts music for a zone with crossfade from the current zone. */
 function startZoneMusic(zoneId) {
     if (!music.initialized) {
@@ -890,6 +974,23 @@ function initAmbient() {
         var trickleLfo = new Tone.LFO(0.3, 2000, 4000).connect(trickleFilter.frequency);
         ambient.nodes.piazza = { gain: gain, sources: [crowd, trickle], lfos: [crowdLfo, trickleLfo] };
     })();
+
+    // Pizzeria — busy kitchen sizzle + clatter
+    (function() {
+        var gain = new Tone.Volume(-28).toDestination();
+        // Sizzle (bandpass white noise)
+        var sizzleFilter = new Tone.Filter(4000, 'bandpass').connect(gain);
+        sizzleFilter.Q.value = 1.5;
+        var sizzle = new Tone.Noise('white').connect(sizzleFilter);
+        sizzle.volume.value = -12;
+        var sizzleLfo = new Tone.LFO(0.4, 3000, 5000).connect(sizzleFilter.frequency);
+        // Low kitchen rumble
+        var rumbleFilter = new Tone.Filter(300, 'lowpass').connect(gain);
+        var rumble = new Tone.Noise('brown').connect(rumbleFilter);
+        rumble.volume.value = -10;
+        var rumbleLfo = new Tone.LFO(0.1, 200, 400).connect(rumbleFilter.frequency);
+        ambient.nodes.pizzeria = { gain: gain, sources: [sizzle, rumble], lfos: [sizzleLfo, rumbleLfo] };
+    })();
 }
 
 /** Starts ambient sounds for a zone. Stops previous ambient. */
@@ -958,6 +1059,9 @@ const NPC_BLIP_PROFILES = {
     piazza_vendor:   { type: 'fmsine',   baseNote: 'D4',  pitchRange: 5, harmonicity: 2 },
     piazza_nonna:    { type: 'sine',     baseNote: 'G3',  pitchRange: 3, harmonicity: 1 },
     piazza_musician: { type: 'triangle', baseNote: 'A4',  pitchRange: 6, harmonicity: 1.5 },
+    enzo:            { type: 'fmsine',   baseNote: 'E3',  pitchRange: 6, harmonicity: 3 },
+    pizzeria_waiter1:{ type: 'triangle', baseNote: 'D4',  pitchRange: 4, harmonicity: 1 },
+    pizzeria_waiter2:{ type: 'sine',     baseNote: 'F4',  pitchRange: 5, harmonicity: 1.5 },
 };
 
 /** Creates SFX synths (for sounds that stay procedural). Called once after audio unlock. */

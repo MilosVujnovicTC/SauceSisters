@@ -414,6 +414,15 @@ const PAPA_HINTS = {
         ],
         noHints: "Going for a set, talk later. [GRUNT] ...push things onto the golden spots! East side! Andiamo!",
     },
+    pizzeria: {
+        intro: "Enzo's place! *sotto voce* That guy once challenged me to an arm-wrestling match. I won. He STILL hasn't gotten over it. [GRUNT] Be careful in there, ragazza.",
+        hints: [
+            "Enzo's got a piece of Mama's recipe in his sauce machine. But he won't let you near it without a fight!",
+            "Talk to the waiters — they might have useful info. And check out the kitchen area, there's a sauce machine room on the right side.",
+            "You'll need to defeat Enzo in his kitchen to get access to the sauce machine room. Use everything you've got! [CLANG]",
+        ],
+        noHints: "Going for a set, talk later. [GRUNT] ...you can do this! Show Enzo who's boss!",
+    },
 };
 
 /** The Papa Marco NPC-like object used with startDialogue. */

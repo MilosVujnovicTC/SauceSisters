@@ -659,6 +659,129 @@ function generateTileSprites() {
         cx.strokeRect(2, 2, T - 4, T - 4);
         cx.setLineDash([]);
     });
+
+    // --- OVEN (pizza oven — red brick with fire glow) ---
+    SPRITES.tiles.oven = createSprite(T, T, function(cx) {
+        // Red brick body
+        cx.fillStyle = '#b03020';
+        cx.fillRect(0, 0, T, T);
+        // Brick pattern
+        cx.strokeStyle = '#8a2018';
+        cx.lineWidth = 1;
+        for (var r = 0; r < 4; r++) {
+            var by = r * 8;
+            cx.strokeRect(0, by, T, 8);
+            var off = (r % 2) * 16;
+            cx.beginPath();
+            cx.moveTo(off, by); cx.lineTo(off, by + 8);
+            if (off + 16 < T) { cx.moveTo(off + 16, by); cx.lineTo(off + 16, by + 8); }
+            cx.stroke();
+        }
+        // Oven opening (dark arch)
+        cx.fillStyle = '#1a0a00';
+        cx.beginPath();
+        cx.arc(T / 2, T - 4, 8, Math.PI, 0);
+        cx.fillRect(T / 2 - 8, T / 2 + 4, 16, T / 2 - 4);
+        cx.fill();
+        // Fire glow inside
+        cx.fillStyle = '#ff6600';
+        cx.fillRect(T / 2 - 4, T - 10, 3, 3);
+        cx.fillStyle = '#ffaa00';
+        cx.fillRect(T / 2 + 1, T - 8, 2, 2);
+        // Top bevel
+        cx.fillStyle = '#c04030';
+        cx.fillRect(0, 0, T, 2);
+    });
+
+    // --- DINING (wooden dining table with checkered cloth) ---
+    SPRITES.tiles.dining = createSprite(T, T, function(cx) {
+        // Table surface
+        cx.fillStyle = '#b08050';
+        cx.fillRect(0, 0, T, T);
+        // Wood grain
+        cx.strokeStyle = '#9a7040';
+        cx.lineWidth = 1;
+        for (var i = 0; i < 4; i++) {
+            cx.beginPath();
+            cx.moveTo(0, 4 + i * 8);
+            cx.lineTo(T, 5 + i * 8);
+            cx.stroke();
+        }
+        // Checkered cloth center
+        cx.fillStyle = '#dd4444';
+        cx.fillRect(6, 6, T - 12, T - 12);
+        for (var ty = 0; ty < 4; ty++) {
+            for (var tx = 0; tx < 4; tx++) {
+                if ((tx + ty) % 2 === 0) {
+                    cx.fillStyle = '#ffffff';
+                    cx.fillRect(6 + tx * 5, 6 + ty * 5, 5, 5);
+                }
+            }
+        }
+        // Edge shadow
+        cx.fillStyle = '#8a6030';
+        cx.fillRect(0, T - 2, T, 2);
+        cx.fillRect(T - 2, 0, 2, T);
+    });
+
+    // --- SAUCEMACH (sauce machine — stainless steel with pipes) ---
+    SPRITES.tiles.saucemach = createSprite(T, T, function(cx) {
+        // Steel body
+        cx.fillStyle = '#999999';
+        cx.fillRect(0, 0, T, T);
+        // Panel lines
+        cx.strokeStyle = '#777777';
+        cx.lineWidth = 1;
+        cx.strokeRect(2, 2, T - 4, T - 4);
+        cx.beginPath();
+        cx.moveTo(T / 2, 2); cx.lineTo(T / 2, T - 2);
+        cx.stroke();
+        // Pipes on left side
+        cx.fillStyle = '#aaaaaa';
+        cx.fillRect(4, 6, 4, 20);
+        cx.fillRect(10, 4, 4, 24);
+        // Valve wheels
+        cx.strokeStyle = '#cc3300';
+        cx.lineWidth = 2;
+        cx.beginPath(); cx.arc(6, 8, 3, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.arc(12, 6, 3, 0, Math.PI * 2); cx.stroke();
+        // Sauce drip (orange-red)
+        cx.fillStyle = '#cc4400';
+        cx.fillRect(T / 2 + 4, T - 10, 6, 8);
+        cx.fillStyle = '#ff6633';
+        cx.fillRect(T / 2 + 5, T - 8, 4, 4);
+        // Highlight
+        cx.fillStyle = 'rgba(255,255,255,0.15)';
+        cx.fillRect(2, 2, T / 2 - 4, 3);
+    });
+
+    // --- CHECKERED (subtle cream/tan checkered floor — pizzeria dining) ---
+    SPRITES.tiles.checkered = [];
+    for (var ck = 0; ck < 2; ck++) {
+        SPRITES.tiles.checkered.push(createSprite(T, T, function(cx) {
+            // Base warm cream
+            cx.fillStyle = '#e8dcc8';
+            cx.fillRect(0, 0, T, T);
+            // Subtle checkerboard (2x2 large squares, warm tan accent)
+            var size = T / 2;
+            for (var cy = 0; cy < 2; cy++) {
+                for (var cx2 = 0; cx2 < 2; cx2++) {
+                    if ((cx2 + cy + ck) % 2 === 0) {
+                        cx.fillStyle = '#d8c8b0';
+                        cx.fillRect(cx2 * size, cy * size, size, size);
+                    }
+                }
+            }
+            // Thin grid lines
+            cx.strokeStyle = 'rgba(0,0,0,0.06)';
+            cx.lineWidth = 1;
+            cx.strokeRect(0, 0, T, T);
+            cx.beginPath();
+            cx.moveTo(T / 2, 0); cx.lineTo(T / 2, T);
+            cx.moveTo(0, T / 2); cx.lineTo(T, T / 2);
+            cx.stroke();
+        }));
+    }
 }
 
 // ============================================================
@@ -2302,6 +2425,113 @@ function generatePortraits() {
         cx.fillStyle = '#e65100';
         cx.fillRect(22, 54, 20, 4);
         cx.fillRect(26, 58, 12, 6);
+    });
+
+    // Enzo — angry chef, tall hat, pointed mustache, scowling, red face
+    PORTRAITS['enzo'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#e8a878', '#d32f2f');
+        // Tall chef hat (taller than Luigi's)
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(14, 0, 36, 16);
+        cx.fillRect(10, 14, 44, 6);
+        cx.fillStyle = '#eeeeee';
+        cx.fillRect(18, 2, 10, 10);
+        cx.fillStyle = '#dddddd';
+        cx.fillRect(30, 4, 8, 8);
+        // Angry eyebrows (V-shaped)
+        cx.fillStyle = '#2a1005';
+        cx.fillRect(18, 28, 10, 3);
+        cx.fillRect(36, 28, 10, 3);
+        // Slant them inward
+        cx.fillRect(26, 27, 4, 2);
+        cx.fillRect(34, 27, 4, 2);
+        // Pointed mustache
+        cx.fillStyle = '#1a0800';
+        cx.beginPath();
+        cx.moveTo(20, 42); cx.lineTo(28, 38); cx.lineTo(32, 42);
+        cx.lineTo(36, 38); cx.lineTo(44, 42);
+        cx.lineWidth = 2.5; cx.strokeStyle = '#1a0800'; cx.stroke();
+        // Scowling mouth
+        cx.strokeStyle = '#a04030';
+        cx.lineWidth = 2;
+        cx.beginPath(); cx.arc(32, 48, 6, Math.PI + 0.3, -0.3); cx.stroke();
+        // Red cheeks (angry flush)
+        cx.fillStyle = 'rgba(220,50,50,0.25)';
+        cx.beginPath(); cx.arc(18, 38, 5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(46, 38, 5, 0, Math.PI * 2); cx.fill();
+    });
+
+    // Waiter Marco Jr. — young, nervous, bowtie, slicked hair
+    PORTRAITS['pizzeria_waiter1'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#ffcc99', '#f5f5f5');
+        // Slicked-back dark hair
+        cx.fillStyle = '#2a1a0a';
+        cx.fillRect(14, 6, 36, 12);
+        cx.fillStyle = '#3a2a1a';
+        cx.fillRect(16, 4, 32, 8);
+        // Hair shine
+        cx.fillStyle = 'rgba(255,255,255,0.15)';
+        cx.fillRect(20, 6, 14, 3);
+        // Nervous eyes (slightly wide)
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(20, 30, 8, 6);
+        cx.fillRect(36, 30, 8, 6);
+        cx.fillStyle = '#3a2010';
+        cx.fillRect(23, 31, 4, 4);
+        cx.fillRect(39, 31, 4, 4);
+        cx.fillStyle = '#000';
+        cx.fillRect(24, 32, 2, 2);
+        cx.fillRect(40, 32, 2, 2);
+        // Bowtie
+        cx.fillStyle = '#d32f2f';
+        cx.beginPath();
+        cx.moveTo(32, 54); cx.lineTo(24, 50); cx.lineTo(24, 58); cx.closePath(); cx.fill();
+        cx.beginPath();
+        cx.moveTo(32, 54); cx.lineTo(40, 50); cx.lineTo(40, 58); cx.closePath(); cx.fill();
+        cx.fillStyle = '#b71c1c';
+        cx.fillRect(30, 52, 4, 4);
+        // Small worried mouth
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 1.5;
+        cx.beginPath(); cx.arc(32, 46, 4, 0.2, Math.PI - 0.2); cx.stroke();
+    });
+
+    // Waitress Sofia — ponytail, exasperated smile, apron
+    PORTRAITS['pizzeria_waiter2'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5cc99', '#fff9c4');
+        // Brown hair with ponytail
+        cx.fillStyle = '#5a3020';
+        cx.fillRect(12, 4, 40, 14);
+        cx.fillRect(10, 10, 44, 6);
+        // Ponytail to the side
+        cx.fillStyle = '#5a3020';
+        cx.fillRect(46, 12, 8, 20);
+        cx.fillRect(48, 28, 6, 8);
+        // Hair tie
+        cx.fillStyle = '#ff7043';
+        cx.fillRect(46, 12, 8, 3);
+        // Eyes with slight exasperation
+        cx.fillStyle = '#ffffff';
+        cx.fillRect(20, 30, 8, 5);
+        cx.fillRect(36, 30, 8, 5);
+        cx.fillStyle = '#3a6040';
+        cx.fillRect(23, 31, 4, 3);
+        cx.fillRect(39, 31, 4, 3);
+        cx.fillStyle = '#000';
+        cx.fillRect(24, 31, 2, 2);
+        cx.fillRect(40, 31, 2, 2);
+        // One raised eyebrow
+        cx.fillStyle = '#4a2a10';
+        cx.fillRect(20, 28, 8, 2);
+        cx.fillRect(37, 27, 8, 2); // raised higher
+        // Wry smile
+        cx.strokeStyle = '#c06050';
+        cx.lineWidth = 1.5;
+        cx.beginPath(); cx.arc(34, 44, 5, 0.1, Math.PI - 0.5); cx.stroke();
+        // Apron strap visible
+        cx.fillStyle = '#fff9c4';
+        cx.fillRect(24, 52, 4, 12);
+        cx.fillRect(36, 52, 4, 12);
     });
 }
 

@@ -864,8 +864,11 @@ const ZONES = {
             { col: 23, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
             { col: 24, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
             { col: 25, row: 0, target: 'gym', spawnX: 14, spawnY: 20 },
-            // East exit → Zone 6 (Enzo's Pizzeria) — only accessible after build puzzle
-            // Transitions added dynamically when puzzle is complete
+            // East exit → Zone 6 (Enzo's Pizzeria) — tiles become walkable after build puzzle
+            { col: 29, row: 10, target: 'pizzeria', spawnX: 1, spawnY: 10 },
+            { col: 29, row: 11, target: 'pizzeria', spawnX: 1, spawnY: 10 },
+            { col: 29, row: 12, target: 'pizzeria', spawnX: 1, spawnY: 11 },
+            { col: 29, row: 13, target: 'pizzeria', spawnX: 1, spawnY: 11 },
         ],
         npcs: [
             {
@@ -952,6 +955,145 @@ const ZONES = {
         powerups: [
             { id: 'piazza_water', type: 'water', col: 14, row: 4 },
             { id: 'piazza_gouda', type: 'gouda_cheese', col: 3, row: 15 },
+        ],
+    },
+
+    // ================================================================
+    // Zone 6 — Enzo's Pizzeria: dining area, kitchen, sauce machine room.
+    // Player enters from west (Piazza east passage). Sauce machine room
+    // locked behind a door until boss is defeated (Stage 7-5).
+    // 28 columns × 20 rows
+    // ================================================================
+    pizzeria: {
+        id: 'pizzeria',
+        name: "Enzo's Pizzeria",
+        // 28 columns x 20 rows
+        map: [
+        //   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W], // 0  north wall
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  H,  H,  H,  H,  W], // 1  dining | kitchen | sauce room
+            [W, _CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK, W,  F,  F,  C,  C,  C,  F,  F,  F,  W, _SM,_SM,_SM,_SM, W], // 2  tables | counters | machines
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W, _SM,_SM,_SM,_SM, W], // 3
+            [W, _CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  H,  F,  F,  H,  W], // 4  tables | open area | shelves
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 5
+            [W, _CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK, W,  F, _OV,_OV,_OV, F,  S,  S,  F,  W,  F,  F,  F,  F,  W], // 6  tables | ovens + stoves | room
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 7
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, C,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 8  counter above passage
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, D,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 9  passage dining↔kitchen + sauce room wall
+            [D,  D, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, D,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 10 west entrance + passage + sauce room wall
+            [D,  D, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, D,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 11 passage
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  F,  F,  F,  F,  W], // 12
+            [W, _CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  H,  H,  H,  H,  W], // 13 tables | kitchen
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  C,  C,  C,  C,  F,  F,  W,  W,  W,  W,  W,  W], // 14
+            [W, _CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK,_CK,_DI,_DI,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  W,  W,  W,  W,  W], // 15 tables
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F, _OV,_OV,_OV, F,  S,  S,  F,  W,  W,  W,  W,  W,  W], // 16 ovens + stoves
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  W,  W,  W,  W,  W], // 17
+            [W, _CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK,_CK, W,  F,  F,  F,  F,  F,  F,  F,  F,  W,  W,  W,  W,  W,  W], // 18
+            [W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W,  W], // 19 south wall
+        ],
+        spawnX: 1,
+        spawnY: 10,
+        transitions: [
+            // West exit → back to Piazza (east passage)
+            { col: 0, row: 10, target: 'piazza', spawnX: 24, spawnY: 11 },
+            { col: 0, row: 11, target: 'piazza', spawnX: 24, spawnY: 12 },
+        ],
+        npcs: [
+            {
+                id: 'enzo',
+                name: 'Enzo',
+                col: 17, row: 9,
+                color: '#d32f2f',
+                idle: { type: 'cook', interval: 2.0, walkPath: [{col:17,row:9},{col:19,row:9},{col:19,row:12},{col:17,row:12}], walkSpeed: 30 },
+                getLines: function(flags) {
+                    if (flags.enzo_boss_defeated) {
+                        var postBoss = [
+                            ["You... you actually beat me?! How?!", "Fine. The sauce machine is in the back room. Take it."],
+                            ["I can't believe I lost to a CHILD.", "Your Mama would be proud. Mine is... disappointed. As usual."],
+                        ];
+                        var pick = Math.floor(Math.random() * postBoss.length);
+                        return { lines: postBoss[pick] };
+                    }
+                    if (flags.talked_to_enzo) {
+                        var returning = [
+                            ["Back again? My pizza is STILL better than your Mama's sauce!", "...probably. Maybe. Don't tell her I said that."],
+                            ["You want to see my sauce machine? HA!", "Only the GREATEST chef in town gets to use it. That's ME."],
+                            ["I know you're after the recipe fragment.", "It's IN the sauce machine. And you'll NEVER get past me!"],
+                        ];
+                        var pick2 = Math.floor(Math.random() * returning.length);
+                        return { lines: returning[pick2] };
+                    }
+                    return {
+                        lines: [
+                            "Well, well, well... look who wandered into MY pizzeria!",
+                            "I'm ENZO! The greatest pizza chef this city has EVER seen!",
+                            "I heard you're looking for Mama Rosa's sauce recipe.",
+                            "Bad news, ragazza — I have a piece of it. In MY sauce machine.",
+                            "You want it? You'll have to get through ME first!",
+                            "But first... take a look around. Admire my MASTERPIECE of a kitchen.",
+                        ],
+                        onComplete: function() { setFlag('talked_to_enzo', true); },
+                    };
+                },
+            },
+            {
+                id: 'pizzeria_waiter1',
+                name: 'Waiter Marco Jr.',
+                col: 6, row: 5,
+                color: '#f5f5f5',
+                idle: { type: 'arrange', interval: 2.5, walkPath: [{col:6,row:5},{col:6,row:9},{col:10,row:9},{col:10,row:5}], walkSpeed: 35 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["*whispering* Don't make eye contact with Enzo.", "He's been in a mood ever since someone said his crust was 'okay.'"],
+                        ["Table for one? Two? A whole search party?", "Just kidding. Enzo doesn't let customers eat anymore. Too 'distracting.'"],
+                        ["I've been carrying this pizza for 20 minutes.", "Enzo keeps changing his mind about the presentation."],
+                        ["*sighs* He made me iron the napkins. IRON them.", "They're PAPER napkins."],
+                    ];
+                    var pick = Math.floor(Math.random() * lines.length);
+                    return { lines: lines[pick] };
+                },
+            },
+            {
+                id: 'pizzeria_waiter2',
+                name: 'Waitress Sofia',
+                col: 3, row: 14,
+                color: '#fff9c4',
+                idle: { type: 'arrange', interval: 3.0, walkPath: [{col:3,row:14},{col:3,row:10},{col:9,row:10},{col:9,row:14}], walkSpeed: 30 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["Enzo thinks he's a genius.", "He put pineapple on a pizza once and CRIED for three days."],
+                        ["The sauce machine in the back? Oh, Enzo guards that with his LIFE.", "He sleeps next to it on Tuesdays."],
+                        ["Welcome to Enzo's! Where the pizza is... fine.", "*mouths* Help me."],
+                        ["Enzo's motto: 'If it's not perfect, throw it at someone.'", "I have been hit by a LOT of pizza."],
+                    ];
+                    var pick = Math.floor(Math.random() * lines.length);
+                    return { lines: lines[pick] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'sauce_machine_door',
+                name: 'Sauce Machine Room',
+                col: 22, row: 10,
+                color: '#999999',
+                onInteract: function() {
+                    if (getFlag('enzo_boss_defeated')) {
+                        startDialogue({
+                            id: 'sauce_machine_door', name: 'Door',
+                            getLines: function() { return { lines: ["The door to the sauce machine room is open. The machine hums inside."] }; },
+                        });
+                    } else {
+                        startDialogue({
+                            id: 'sauce_machine_door', name: 'Locked Door',
+                            getLines: function() { return { lines: ["The door is locked tight. You can hear machinery humming behind it.", "You'll need to deal with Enzo first..."] }; },
+                        });
+                    }
+                },
+            },
+        ],
+        powerups: [
+            { id: 'pizzeria_deli', type: 'deli_meat', col: 18, row: 4 },
         ],
     },
 };
@@ -1062,6 +1204,10 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     // Restore piazza path if puzzle already completed
     if (zoneId === 'piazza') {
         restorePiazzaState();
+    }
+    // Restore pizzeria sauce room door if boss defeated
+    if (zoneId === 'pizzeria') {
+        restoreSauceRoomDoor();
     }
 
     // Snap camera instantly to player (no lerp on zone load)
@@ -1618,6 +1764,14 @@ function completePiazzaPath() {
 function restorePiazzaState() {
     if (!getFlag('piazza_puzzle_complete')) return;
     completePiazzaPath();
+}
+
+/** Opens the sauce machine room door in Enzo's Pizzeria if boss is defeated. */
+function restoreSauceRoomDoor() {
+    if (!getFlag('enzo_boss_defeated')) return;
+    var map = ZONES.pizzeria.map;
+    map[9][22] = D;
+    map[10][22] = D;
 }
 
 /** Renders pulsing target markers on Piazza fill target tiles. */

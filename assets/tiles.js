@@ -27,6 +27,10 @@ const TILES = {
     FOUNTAIN: { id: 20, color: '#6eb5d6', solid: true,  label: 'fountain' },
     COBBLE:   { id: 21, color: '#9e9484', solid: false, label: 'cobble' },
     FILLTARGET:{ id: 22, color: '#b8a080', solid: false, label: 'filltarget' },
+    OVEN:     { id: 23, color: '#cc4422', solid: true,  label: 'oven' },
+    DINING:   { id: 24, color: '#b08050', solid: true,  label: 'dining' },
+    SAUCEMACH:{ id: 25, color: '#cc6633', solid: true,  label: 'saucemach' },
+    CHECKERED:{ id: 26, color: '#e8dcc8', solid: false, label: 'checkered' },
 };
 
 // Reverse lookup: id → tile definition
@@ -61,3 +65,8 @@ var _MR = TILES.MIRROR.id;
 var _FN = TILES.FOUNTAIN.id;
 var _CB = TILES.COBBLE.id;
 var _FT = TILES.FILLTARGET.id;
+// Pizzeria tile shorthands
+var _OV = TILES.OVEN.id;
+var _DI = TILES.DINING.id;
+var _SM = TILES.SAUCEMACH.id;
+var _CK = TILES.CHECKERED.id;
