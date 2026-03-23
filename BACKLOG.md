@@ -507,7 +507,7 @@
   - [ ] Zone is inaccessible until Piazza puzzle is solved
   - [ ] Sauce machine room is visible but locked until boss is defeated
 
-### Stage 7-5: Enzo boss fight `[ ]`
+### Stage 7-5: Enzo boss fight `[x] 2026-03-23`
 - Boss fight arena: confined kitchen area
 - Enzo attack patterns: throws pizza dough (projectile), charges, summons waiter enemies
 - 3-phase fight (each phase faster/more complex)

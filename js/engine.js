@@ -497,6 +497,9 @@ function update(dt) {
     // Library broom mini-boss
     updateLibraryBroom(dt);
 
+    // Enzo boss fight
+    updateEnzoBoss(dt);
+
     // Generic enemies
     updateEnemies(dt);
 
@@ -572,6 +575,10 @@ function render(ctx) {
     // Render generic enemies
     renderEnemies(ctx, game.cameraX, game.cameraY);
 
+    // Render Enzo boss
+    renderEnzoBoss(ctx, game.cameraX, game.cameraY);
+    renderBossProjectiles(ctx, game.cameraX, game.cameraY);
+
     // Render Brodo (dog companion)
     renderBrodo(ctx, game.cameraX, game.cameraY);
 
@@ -618,6 +625,9 @@ function render(ctx) {
     renderBuffHUD(ctx);
     renderHealthHUD(ctx);
     renderPapaHintHUD(ctx);
+
+    // Boss HP bar (on top of other HUD)
+    renderBossHPBar(ctx);
 
     // Damage flash overlay
     renderDamageFlash(ctx);

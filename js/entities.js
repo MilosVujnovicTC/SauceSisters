@@ -186,15 +186,21 @@ function resurrectPlayer() {
     player.damageFlash = 0;
 }
 
-/** Restarts from the very beginning (all lives spent). */
+/** Restarts from the very beginning (all lives spent). During boss: respawn at zone entrance for retry. */
 function restartZone() {
     player.lives = 3;
     player.hp = player.maxHp;
     player.dead = false;
     player.invulnTimer = 2.0;
     player.damageFlash = 0;
-    // Back to La Cucina — start from scratch
-    loadZone('la_cucina');
+    if (enzoBoss.active) {
+        // Reset boss fight and respawn at pizzeria entrance
+        resetEnzoBoss();
+        loadZone('pizzeria');
+    } else {
+        // Back to La Cucina — start from scratch
+        loadZone('la_cucina');
+    }
 }
 
 /** Updates invulnerability and damage flash timers. */
@@ -1261,6 +1267,851 @@ function renderEnemies(ctx, cameraX, cameraY) {
         ctx.textAlign = 'center';
         ctx.fillText(e.name, sx + e.w / 2, sy - 10);
     }
+}
+
+// ============================================================
+// Enzo Boss Fight
+// ============================================================
+
+/** Enzo boss state. Active only during the boss fight in the pizzeria. */
+var enzoBoss = {
+    active: false,
+    // Position and size (larger than regular enemies)
+    x: 0, y: 0, w: 32, h: 32,
+    facing: 'down',
+    // Stats
+    hp: 18,
+    maxHp: 18,
+    speed: 70,
+    chargeSpeed: 220,
+    damage: 1,
+    // Phase: 1 (throws dough), 2 (charge + dough), 3 (summons + all attacks)
+    phase: 1,
+    // AI state: 'idle' | 'throwing' | 'charging' | 'charge_windup' | 'summoning' | 'stunned' | 'defeated' | 'wander'
+    state: 'idle',
+    stateTimer: 0,
+    // Attack cooldowns
+    throwCooldown: 0,
+    chargeCooldown: 0,
+    summonCooldown: 0,
+    // Charge attack
+    chargeDir: { x: 0, y: 0 },
+    chargeTimer: 0,
+    chargeWindupTimer: 0,
+    // Stun
+    stunTimer: 0,
+    // Wander
+    wanderTarget: { x: 0, y: 0 },
+    wanderTimer: 0,
+    // Visual
+    flashTimer: 0,
+    animTimer: 0,
+    // Arena bounds (kitchen area: cols 14-21, rows 1-18)
+    arenaLeft: 14 * 32,
+    arenaRight: 22 * 32,
+    arenaTop: 1 * 32,
+    arenaBottom: 19 * 32,
+    // Intro dialogue done
+    introDone: false,
+    // Defeat sequence
+    defeatTimer: 0,
+    // Summoned waiter count (phase 3)
+    summonCount: 0,
+    maxSummons: 3,
+};
+
+/** Boss projectiles (pizza dough). Separate from weapon projectiles. */
+var bossProjectiles = [];
+
+/** Initializes the Enzo boss fight. Called when the fight begins. */
+function startEnzoBoss() {
+    var ts = CONFIG.TILE_SIZE;
+    enzoBoss.active = true;
+    enzoBoss.hp = 18;
+    enzoBoss.maxHp = 18;
+    enzoBoss.phase = 1;
+    enzoBoss.state = 'idle';
+    enzoBoss.stateTimer = 1.5; // brief pause before first attack
+    enzoBoss.throwCooldown = 0;
+    enzoBoss.chargeCooldown = 0;
+    enzoBoss.summonCooldown = 0;
+    enzoBoss.stunTimer = 0;
+    enzoBoss.flashTimer = 0;
+    enzoBoss.animTimer = 0;
+    enzoBoss.introDone = false;
+    enzoBoss.defeatTimer = 0;
+    enzoBoss.summonCount = 0;
+    enzoBoss.facing = 'left';
+    bossProjectiles = [];
+    // Position Enzo in the kitchen center
+    enzoBoss.x = 18 * ts;
+    enzoBoss.y = 6 * ts;
+    // Arena bounds
+    enzoBoss.arenaLeft = 14 * ts;
+    enzoBoss.arenaRight = 22 * ts - enzoBoss.w;
+    enzoBoss.arenaTop = 1 * ts;
+    enzoBoss.arenaBottom = 18 * ts - enzoBoss.h;
+    // Remove Enzo NPC from the zone so there's no duplicate
+    hideNPCDuringBoss('enzo');
+    // Clear any existing enemies so we start clean
+    enemies = [];
+    // Boss intro dialogue
+    startDialogue({
+        id: 'enzo_boss_intro', name: 'Enzo',
+        getLines: function() {
+            return {
+                lines: [
+                    "You want Mama's recipe? COME AND GET IT!",
+                    "I'll show you what a REAL chef can do!",
+                    "Prepare yourself, ragazza — PIZZA TIME!",
+                ],
+                onComplete: function() {
+                    enzoBoss.introDone = true;
+                },
+            };
+        },
+    });
+}
+
+/** Hides an NPC by id during the boss fight (moves offscreen). */
+function hideNPCDuringBoss(npcId) {
+    var zone = game.currentZone;
+    if (!zone || !zone.npcs) return;
+    var ts = CONFIG.TILE_SIZE;
+    for (var i = 0; i < zone.npcs.length; i++) {
+        var npc = zone.npcs[i];
+        if (npc.id === npcId) {
+            npc._bossHiddenCol = npc.col;
+            npc._bossHiddenRow = npc.row;
+            npc._bossHiddenPx = npc._x;
+            npc._bossHiddenPy = npc._y;
+            npc.col = -99;
+            npc.row = -99;
+            if (npc._x !== undefined) { npc._x = -9999; npc._y = -9999; }
+            break;
+        }
+    }
+}
+
+/** Restores a hidden NPC after boss fight. */
+function restoreNPCAfterBoss(npcId) {
+    var zone = game.currentZone;
+    if (!zone || !zone.npcs) return;
+    var ts = CONFIG.TILE_SIZE;
+    for (var i = 0; i < zone.npcs.length; i++) {
+        var npc = zone.npcs[i];
+        if (npc.id === npcId && npc._bossHiddenCol !== undefined) {
+            npc.col = npc._bossHiddenCol;
+            npc.row = npc._bossHiddenRow;
+            if (npc._bossHiddenPx !== undefined) {
+                npc._x = npc._bossHiddenPx;
+                npc._y = npc._bossHiddenPy;
+            }
+            delete npc._bossHiddenCol;
+            delete npc._bossHiddenRow;
+            delete npc._bossHiddenPx;
+            delete npc._bossHiddenPy;
+            break;
+        }
+    }
+}
+
+/** Updates the Enzo boss fight. Called from engine.js update. */
+function updateEnzoBoss(dt) {
+    if (!enzoBoss.active) return;
+    if (enzoBoss.state === 'defeated') {
+        updateEnzoBossDefeat(dt);
+        return;
+    }
+    if (!enzoBoss.introDone) return; // wait for intro dialogue
+
+    enzoBoss.animTimer += dt;
+    if (enzoBoss.flashTimer > 0) enzoBoss.flashTimer -= dt;
+    if (bossPhaseText.timer > 0) bossPhaseText.timer -= dt;
+
+    // Cooldown ticks
+    if (enzoBoss.throwCooldown > 0) enzoBoss.throwCooldown -= dt;
+    if (enzoBoss.chargeCooldown > 0) enzoBoss.chargeCooldown -= dt;
+    if (enzoBoss.summonCooldown > 0) enzoBoss.summonCooldown -= dt;
+
+    // Update boss projectiles
+    updateBossProjectiles(dt);
+
+    // Phase transitions based on HP
+    var hpPct = enzoBoss.hp / enzoBoss.maxHp;
+    if (hpPct <= 0.33 && enzoBoss.phase < 3) {
+        enzoBoss.phase = 3;
+        showBossPhaseText("ENZO IS FURIOUS!");
+    } else if (hpPct <= 0.66 && enzoBoss.phase < 2) {
+        enzoBoss.phase = 2;
+        showBossPhaseText("Enzo charges up!");
+    }
+
+    // Contact damage
+    if (enzoBoss.state !== 'stunned') {
+        if (rectsOverlap(enzoBoss.x, enzoBoss.y, enzoBoss.w, enzoBoss.h,
+            player.x, player.y, player.w, player.h)) {
+            damagePlayer(enzoBoss.damage);
+        }
+    }
+
+    // State machine
+    switch (enzoBoss.state) {
+        case 'idle':
+            updateEnzoBossIdle(dt);
+            break;
+        case 'wander':
+            updateEnzoBossWander(dt);
+            break;
+        case 'throwing':
+            updateEnzoBossThrowing(dt);
+            break;
+        case 'charge_windup':
+            updateEnzoBossChargeWindup(dt);
+            break;
+        case 'charging':
+            updateEnzoBossCharging(dt);
+            break;
+        case 'summoning':
+            updateEnzoBossSummoning(dt);
+            break;
+        case 'stunned':
+            updateEnzoBossStunned(dt);
+            break;
+    }
+
+    // Face the player (except during charge)
+    if (enzoBoss.state !== 'charging' && enzoBoss.state !== 'charge_windup') {
+        var dx = player.x - enzoBoss.x;
+        var dy = player.y - enzoBoss.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            enzoBoss.facing = dx > 0 ? 'right' : 'left';
+        } else {
+            enzoBoss.facing = dy > 0 ? 'down' : 'up';
+        }
+    }
+}
+
+/** Boss idle state — decides next attack. */
+function updateEnzoBossIdle(dt) {
+    enzoBoss.stateTimer -= dt;
+    if (enzoBoss.stateTimer > 0) return;
+
+    // Pick next attack based on phase
+    var actions = [];
+    if (enzoBoss.throwCooldown <= 0) actions.push('throw');
+    if (enzoBoss.phase >= 2 && enzoBoss.chargeCooldown <= 0) actions.push('charge');
+    if (enzoBoss.phase >= 3 && enzoBoss.summonCooldown <= 0 && enzoBoss.summonCount < enzoBoss.maxSummons) actions.push('summon');
+
+    if (actions.length === 0) {
+        // All on cooldown — wander toward player
+        enzoBoss.state = 'wander';
+        pickBossWanderTarget();
+        enzoBoss.wanderTimer = 1.5;
+        return;
+    }
+
+    var pick = actions[Math.floor(Math.random() * actions.length)];
+    switch (pick) {
+        case 'throw':
+            enzoBoss.state = 'throwing';
+            enzoBoss.stateTimer = 0.5; // wind-up time
+            break;
+        case 'charge':
+            enzoBoss.state = 'charge_windup';
+            enzoBoss.chargeWindupTimer = 0.8;
+            // Lock charge direction toward player
+            var dx = player.x - enzoBoss.x;
+            var dy = player.y - enzoBoss.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                enzoBoss.chargeDir = { x: dx / dist, y: dy / dist };
+            }
+            break;
+        case 'summon':
+            enzoBoss.state = 'summoning';
+            enzoBoss.stateTimer = 1.0;
+            break;
+    }
+}
+
+/** Boss wander — move toward a point in the arena. */
+function updateEnzoBossWander(dt) {
+    enzoBoss.wanderTimer -= dt;
+    var dx = enzoBoss.wanderTarget.x - enzoBoss.x;
+    var dy = enzoBoss.wanderTarget.y - enzoBoss.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 4 && enzoBoss.wanderTimer > 0) {
+        var speed = enzoBoss.speed * dt;
+        var mx = (dx / dist) * speed;
+        var my = (dy / dist) * speed;
+        moveBossWithCollision(mx, my);
+    } else {
+        enzoBoss.state = 'idle';
+        enzoBoss.stateTimer = 0.3;
+    }
+}
+
+/** Picks a wander target point between boss and player. */
+function pickBossWanderTarget() {
+    // Move toward player but stop at ~120px
+    var dx = player.x - enzoBoss.x;
+    var dy = player.y - enzoBoss.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 120) {
+        enzoBoss.wanderTarget.x = enzoBoss.x + (dx / dist) * (dist - 100);
+        enzoBoss.wanderTarget.y = enzoBoss.y + (dy / dist) * (dist - 100);
+    } else {
+        // Pick a random point in the arena
+        enzoBoss.wanderTarget.x = enzoBoss.arenaLeft + Math.random() * (enzoBoss.arenaRight - enzoBoss.arenaLeft);
+        enzoBoss.wanderTarget.y = enzoBoss.arenaTop + Math.random() * (enzoBoss.arenaBottom - enzoBoss.arenaTop);
+    }
+    // Clamp to arena
+    enzoBoss.wanderTarget.x = Math.max(enzoBoss.arenaLeft, Math.min(enzoBoss.wanderTarget.x, enzoBoss.arenaRight));
+    enzoBoss.wanderTarget.y = Math.max(enzoBoss.arenaTop, Math.min(enzoBoss.wanderTarget.y, enzoBoss.arenaBottom));
+}
+
+/** Boss throwing state — throws pizza dough at player. */
+function updateEnzoBossThrowing(dt) {
+    enzoBoss.stateTimer -= dt;
+    if (enzoBoss.stateTimer <= 0) {
+        fireBossProjectile();
+        // In phase 3, throw a spread of 3
+        if (enzoBoss.phase >= 3) {
+            fireBossProjectile(-0.3);
+            fireBossProjectile(0.3);
+        }
+        enzoBoss.throwCooldown = enzoBoss.phase >= 2 ? 1.8 : 2.5;
+        enzoBoss.state = 'idle';
+        enzoBoss.stateTimer = 0.5;
+    }
+}
+
+/** Fires a single boss projectile toward the player. angleOffset rotates the direction. */
+function fireBossProjectile(angleOffset) {
+    var bcx = enzoBoss.x + enzoBoss.w / 2;
+    var bcy = enzoBoss.y + enzoBoss.h / 2;
+    var pcx = player.x + player.w / 2;
+    var pcy = player.y + player.h / 2;
+    var dx = pcx - bcx;
+    var dy = pcy - bcy;
+    var angle = Math.atan2(dy, dx) + (angleOffset || 0);
+    var speed = 180;
+    bossProjectiles.push({
+        x: bcx - 6, y: bcy - 6, w: 12, h: 12,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        traveled: 0,
+        maxDist: 300,
+        splat: false,
+        splatTimer: 0,
+    });
+    playTomatoSplat(); // reuse SFX
+}
+
+/** Boss charge windup — flash red, telegraph direction. */
+function updateEnzoBossChargeWindup(dt) {
+    enzoBoss.chargeWindupTimer -= dt;
+    enzoBoss.flashTimer = 0.1; // constant flash during windup
+    if (enzoBoss.chargeWindupTimer <= 0) {
+        enzoBoss.state = 'charging';
+        enzoBoss.chargeTimer = 0.6; // charge duration
+    }
+}
+
+/** Boss charging — dash across the arena. */
+function updateEnzoBossCharging(dt) {
+    enzoBoss.chargeTimer -= dt;
+    var speed = enzoBoss.chargeSpeed * dt;
+    var mx = enzoBoss.chargeDir.x * speed;
+    var my = enzoBoss.chargeDir.y * speed;
+
+    var prevX = enzoBoss.x;
+    var prevY = enzoBoss.y;
+    moveBossWithCollision(mx, my);
+
+    // If boss hit a wall (didn't move), stun briefly
+    var moved = Math.abs(enzoBoss.x - prevX) + Math.abs(enzoBoss.y - prevY);
+    if (moved < speed * 0.3 || enzoBoss.chargeTimer <= 0) {
+        if (moved < speed * 0.3) {
+            // Wall hit — stunned!
+            enzoBoss.state = 'stunned';
+            enzoBoss.stunTimer = 1.5;
+        } else {
+            enzoBoss.state = 'idle';
+            enzoBoss.stateTimer = 0.8;
+        }
+        enzoBoss.chargeCooldown = 4.0;
+    }
+
+    // Contact damage during charge (higher)
+    if (rectsOverlap(enzoBoss.x, enzoBoss.y, enzoBoss.w, enzoBoss.h,
+        player.x, player.y, player.w, player.h)) {
+        damagePlayer(2); // charge does 2 damage
+    }
+}
+
+/** Boss summoning — spawns waiter enemies. */
+function updateEnzoBossSummoning(dt) {
+    enzoBoss.stateTimer -= dt;
+    if (enzoBoss.stateTimer <= 0) {
+        spawnBossWaiter();
+        enzoBoss.summonCount++;
+        enzoBoss.summonCooldown = 8.0;
+        enzoBoss.state = 'idle';
+        enzoBoss.stateTimer = 0.6;
+    }
+}
+
+/** Spawns a waiter enemy near the boss. */
+function spawnBossWaiter() {
+    var ts = CONFIG.TILE_SIZE;
+    // Spawn at a random kitchen position
+    var spawnCol = 15 + Math.floor(Math.random() * 5);
+    var spawnRow = 3 + Math.floor(Math.random() * 12);
+    // Make sure it's not on a solid tile
+    if (getTile(game.currentMap, spawnCol, spawnRow).solid) {
+        spawnCol = 17;
+        spawnRow = 5;
+    }
+    enemies.push({
+        id: 'boss_waiter_' + enzoBoss.summonCount,
+        name: 'Waiter',
+        x: spawnCol * ts, y: spawnRow * ts,
+        w: 24, h: 24,
+        color: '#f5f5f5',
+        hp: 2,
+        maxHp: 2,
+        speed: 55,
+        chaseSpeed: 90,
+        sightRange: 200,
+        loseRange: 300,
+        damage: 1,
+        state: 'chase', // immediately chase player
+        waypoints: [{ x: spawnCol * ts, y: spawnRow * ts }],
+        waypointIndex: 0,
+        waypointDir: 1,
+        facing: 'down',
+        effectTimer: 0,
+        effectType: '',
+        knockX: 0, knockY: 0, knockTimer: 0,
+        flashTimer: 0,
+        animTimer: 0,
+        drop: 'tomato', // drop ammo
+    });
+}
+
+/** Boss stunned — vulnerable, takes extra damage. */
+function updateEnzoBossStunned(dt) {
+    enzoBoss.stunTimer -= dt;
+    if (enzoBoss.stunTimer <= 0) {
+        enzoBoss.state = 'idle';
+        enzoBoss.stateTimer = 0.5;
+    }
+}
+
+/** Moves the boss with wall collision, clamped to arena. */
+function moveBossWithCollision(mx, my) {
+    var newX = enzoBoss.x + mx;
+    if (!collidesWithMap(game.currentMap, newX, enzoBoss.y, enzoBoss.w, enzoBoss.h)) {
+        enzoBoss.x = newX;
+    }
+    var newY = enzoBoss.y + my;
+    if (!collidesWithMap(game.currentMap, enzoBoss.x, newY, enzoBoss.w, enzoBoss.h)) {
+        enzoBoss.y = newY;
+    }
+    // Clamp to arena
+    enzoBoss.x = Math.max(enzoBoss.arenaLeft, Math.min(enzoBoss.x, enzoBoss.arenaRight));
+    enzoBoss.y = Math.max(enzoBoss.arenaTop, Math.min(enzoBoss.y, enzoBoss.arenaBottom));
+}
+
+/** Damages the boss. Called from weapon hits. */
+function hitBoss(weapon) {
+    if (!enzoBoss.active || enzoBoss.state === 'defeated') return;
+    var dmg = weapon.damage || 1;
+    // Stunned boss takes double damage
+    if (enzoBoss.state === 'stunned') dmg *= 2;
+    enzoBoss.hp -= dmg;
+    enzoBoss.flashTimer = 0.2;
+    playEnemyHit();
+
+    // Knockback (slight)
+    var dx = enzoBoss.x - player.x;
+    var dy = enzoBoss.y - player.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0) {
+        var kb = 20;
+        moveBossWithCollision((dx / dist) * kb, (dy / dist) * kb);
+    }
+
+    // Check defeat
+    if (enzoBoss.hp <= 0) {
+        enzoBoss.hp = 0;
+        enzoBoss.state = 'defeated';
+        enzoBoss.defeatTimer = 2.0;
+        bossProjectiles = [];
+        // Kill all summoned enemies
+        for (var i = 0; i < enemies.length; i++) {
+            enemies[i].state = 'dead';
+        }
+    }
+}
+
+/** Updates boss defeat sequence. */
+function updateEnzoBossDefeat(dt) {
+    var wasPositive = enzoBoss.defeatTimer > 0;
+    enzoBoss.defeatTimer -= dt;
+    enzoBoss.animTimer += dt;
+    if (wasPositive && enzoBoss.defeatTimer <= 0) {
+        // Defeat complete — set flag, open door, spawn recipe, show dialogue
+        setFlag('enzo_boss_defeated', true);
+        restoreSauceRoomDoor();
+        // Spawn recipe #4 in sauce machine room (col 25, row 8 — open floor)
+        spawnWorldItem('recipe_4_sauce', 25, 8, 'recipe_4');
+        // Restore Enzo NPC for post-boss dialogue
+        restoreNPCAfterBoss('enzo');
+        enzoBoss.active = false;
+        // Victory dialogue
+        startDialogue({
+            id: 'enzo_boss_victory', name: 'Enzo',
+            getLines: function() {
+                return {
+                    lines: [
+                        "*panting* I... I can't believe it...",
+                        "You beat me! ME! The great ENZO!",
+                        "Fine. The sauce machine room is open. Go get your recipe.",
+                        "But don't think this means your Mama's sauce is better than my pizza!",
+                        "...it probably is though. Don't tell anyone I said that.",
+                    ],
+                };
+            },
+        });
+    }
+}
+
+/** Updates boss projectiles (pizza dough). */
+function updateBossProjectiles(dt) {
+    for (var i = bossProjectiles.length - 1; i >= 0; i--) {
+        var p = bossProjectiles[i];
+
+        if (p.splat) {
+            p.splatTimer -= dt;
+            if (p.splatTimer <= 0) {
+                bossProjectiles.splice(i, 1);
+            }
+            continue;
+        }
+
+        // Move
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.traveled += Math.sqrt(p.vx * p.vx + p.vy * p.vy) * dt;
+
+        // Wall collision
+        var col = Math.floor((p.x + p.w / 2) / CONFIG.TILE_SIZE);
+        var row = Math.floor((p.y + p.h / 2) / CONFIG.TILE_SIZE);
+        if (getTile(game.currentMap, col, row).solid) {
+            p.splat = true;
+            p.splatTimer = 0.3;
+            continue;
+        }
+
+        // Max distance
+        if (p.traveled >= p.maxDist) {
+            p.splat = true;
+            p.splatTimer = 0.3;
+            continue;
+        }
+
+        // Hit player
+        if (rectsOverlap(p.x, p.y, p.w, p.h, player.x, player.y, player.w, player.h)) {
+            damagePlayer(1);
+            p.splat = true;
+            p.splatTimer = 0.3;
+        }
+    }
+}
+
+/** Boss phase transition text overlay. */
+var bossPhaseText = { text: '', timer: 0 };
+
+/** Shows a boss phase transition text. */
+function showBossPhaseText(text) {
+    bossPhaseText.text = text;
+    bossPhaseText.timer = 2.0;
+}
+
+/** Renders the Enzo boss. */
+function renderEnzoBoss(ctx, cameraX, cameraY) {
+    if (!enzoBoss.active) return;
+    var sx = enzoBoss.x - cameraX;
+    var sy = enzoBoss.y - cameraY;
+    var t = enzoBoss.animTimer;
+
+    // Defeated — shrink and fade
+    if (enzoBoss.state === 'defeated') {
+        var defProgress = 1 - (enzoBoss.defeatTimer / 2.0);
+        ctx.globalAlpha = Math.max(0, 1 - defProgress);
+        var scale = Math.max(0.1, 1 - defProgress * 0.5);
+        var ccx = sx + enzoBoss.w / 2;
+        var ccy = sy + enzoBoss.h / 2;
+        ctx.save();
+        ctx.translate(ccx, ccy);
+        ctx.scale(scale, scale);
+        ctx.translate(-ccx, -ccy);
+        drawEnzoBossSprite(ctx, sx, sy, t);
+        // Stars circling
+        ctx.fillStyle = '#ffeb3b';
+        ctx.font = '10px monospace';
+        for (var s = 0; s < 4; s++) {
+            var angle = t * 3 + s * Math.PI / 2;
+            var srx = ccx + Math.cos(angle) * 22;
+            var sry = ccy - 14 + Math.sin(angle) * 8;
+            ctx.fillText('*', srx, sry);
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        return;
+    }
+
+    // Flash on hit
+    if (enzoBoss.flashTimer > 0 && Math.floor(t * 16) % 2 === 0) {
+        ctx.globalAlpha = 0.4;
+    }
+
+    // Charge windup — pulsing red glow
+    if (enzoBoss.state === 'charge_windup') {
+        var pulse = 0.3 + Math.sin(t * 12) * 0.2;
+        ctx.fillStyle = 'rgba(255, 0, 0, ' + pulse + ')';
+        ctx.beginPath();
+        ctx.arc(sx + enzoBoss.w / 2, sy + enzoBoss.h / 2, 24, 0, Math.PI * 2);
+        ctx.fill();
+        // Draw charge direction indicator
+        var dirLen = 40;
+        ctx.strokeStyle = 'rgba(255, 100, 0, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(sx + enzoBoss.w / 2, sy + enzoBoss.h / 2);
+        ctx.lineTo(sx + enzoBoss.w / 2 + enzoBoss.chargeDir.x * dirLen,
+                   sy + enzoBoss.h / 2 + enzoBoss.chargeDir.y * dirLen);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Charging — motion blur trail
+    if (enzoBoss.state === 'charging') {
+        ctx.globalAlpha = 0.3;
+        drawEnzoBossSprite(ctx, sx - enzoBoss.chargeDir.x * 12, sy - enzoBoss.chargeDir.y * 12, t);
+        ctx.globalAlpha = 0.15;
+        drawEnzoBossSprite(ctx, sx - enzoBoss.chargeDir.x * 24, sy - enzoBoss.chargeDir.y * 24, t);
+        ctx.globalAlpha = 1;
+    }
+
+    // Stunned — shake and stars
+    var drawX = sx;
+    var drawY = sy;
+    if (enzoBoss.state === 'stunned') {
+        drawX += Math.sin(t * 20) * 2;
+        ctx.fillStyle = '#ffeb3b';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('* * *', sx + enzoBoss.w / 2, sy - 8 + Math.sin(t * 3) * 2);
+    }
+
+    // Draw boss sprite
+    drawEnzoBossSprite(ctx, drawX, drawY, t);
+
+    ctx.globalAlpha = 1;
+
+    // Throwing wind-up indicator
+    if (enzoBoss.state === 'throwing' && enzoBoss.stateTimer > 0) {
+        ctx.fillStyle = 'rgba(255, 200, 100, 0.5)';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', sx + enzoBoss.w / 2, sy - 10 + Math.sin(t * 8) * 2);
+    }
+
+    // Summoning indicator
+    if (enzoBoss.state === 'summoning') {
+        ctx.fillStyle = 'rgba(200, 100, 255, ' + (0.3 + Math.sin(t * 6) * 0.2) + ')';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('CALLING BACKUP!', sx + enzoBoss.w / 2, sy - 14);
+    }
+
+    // Name + Phase indicator
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ENZO', sx + enzoBoss.w / 2, sy - 16);
+}
+
+/** Draws the Enzo boss sprite body. */
+function drawEnzoBossSprite(ctx, sx, sy, t) {
+    var w = enzoBoss.w;
+    var h = enzoBoss.h;
+    var cx = sx + w / 2;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(cx, sy + h, 14, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Chef hat (tall, white)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 8, sy - 6, 16, 10);
+    ctx.fillRect(cx - 10, sy + 2, 20, 4);
+    ctx.fillStyle = '#eeeeee';
+    ctx.fillRect(cx - 6, sy - 4, 5, 6);
+
+    // Face (reddish — angry)
+    ctx.fillStyle = enzoBoss.state === 'stunned' ? '#ccbb99' : '#e8a878';
+    ctx.fillRect(cx - 7, sy + 6, 14, 10);
+
+    // Angry eyes
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 5, sy + 8, 4, 4);
+    ctx.fillRect(cx + 1, sy + 8, 4, 4);
+    ctx.fillStyle = enzoBoss.state === 'charging' ? '#ff0000' : '#1a0800';
+    ctx.fillRect(cx - 4, sy + 9, 2, 2);
+    ctx.fillRect(cx + 2, sy + 9, 2, 2);
+    // Angry brows
+    ctx.fillStyle = '#1a0800';
+    ctx.fillRect(cx - 5, sy + 7, 4, 1);
+    ctx.fillRect(cx + 1, sy + 7, 4, 1);
+    // Inward slant
+    ctx.fillRect(cx - 2, sy + 6, 2, 1);
+    ctx.fillRect(cx + 1, sy + 6, 2, 1);
+
+    // Mustache
+    ctx.fillStyle = '#1a0800';
+    ctx.fillRect(cx - 6, sy + 13, 5, 2);
+    ctx.fillRect(cx + 1, sy + 13, 5, 2);
+
+    // Body (red chef jacket — larger than NPC)
+    ctx.fillStyle = '#d32f2f';
+    ctx.fillRect(cx - 10, sy + 16, 20, 10);
+    // White apron
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 6, sy + 17, 12, 8);
+
+    // Legs
+    var legBob = enzoBoss.state === 'wander' || enzoBoss.state === 'charging' ?
+        Math.sin(t * 10) * 2 : 0;
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(cx - 6, sy + 26, 4, 5 + legBob);
+    ctx.fillRect(cx + 2, sy + 26, 4, 5 - legBob);
+
+    // Shoes
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(cx - 7, sy + 30 + legBob, 5, 2);
+    ctx.fillRect(cx + 2, sy + 30 - legBob, 5, 2);
+}
+
+/** Renders boss projectiles (pizza dough). */
+function renderBossProjectiles(ctx, cameraX, cameraY) {
+    for (var i = 0; i < bossProjectiles.length; i++) {
+        var p = bossProjectiles[i];
+        var sx = p.x - cameraX;
+        var sy = p.y - cameraY;
+
+        if (p.splat) {
+            var progress = 1 - (p.splatTimer / 0.3);
+            var alpha = 0.6 * (1 - progress);
+            ctx.fillStyle = 'rgba(230, 200, 140, ' + alpha + ')';
+            ctx.beginPath();
+            ctx.arc(sx + p.w / 2, sy + p.h / 2, 8 + progress * 10, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Pizza dough ball — spinning
+            var spin = game.time * 8;
+            ctx.save();
+            ctx.translate(sx + p.w / 2, sy + p.h / 2);
+            ctx.rotate(spin);
+            // Dough circle
+            ctx.fillStyle = '#e8d5a8';
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fill();
+            // Sauce spot
+            ctx.fillStyle = '#cc3300';
+            ctx.beginPath();
+            ctx.arc(-2, -1, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Cheese drip
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(1, -2, 3, 2);
+            ctx.restore();
+        }
+    }
+}
+
+/** Renders the boss HP bar at the top of the screen. */
+function renderBossHPBar(ctx) {
+    if (!enzoBoss.active) return;
+
+    var barW = 300;
+    var barH = 16;
+    var barX = (CONFIG.CANVAS_W - barW) / 2;
+    var barY = 40;
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(barX - 4, barY - 20, barW + 8, barH + 28);
+    ctx.strokeStyle = '#d32f2f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX - 4, barY - 20, barW + 8, barH + 28);
+
+    // Boss name
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ENZO — Phase ' + enzoBoss.phase + '/3', CONFIG.CANVAS_W / 2, barY - 6);
+
+    // HP bar background
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // HP bar fill
+    var hpPct = enzoBoss.hp / enzoBoss.maxHp;
+    var barColor = hpPct > 0.66 ? '#44cc44' : (hpPct > 0.33 ? '#cccc44' : '#cc4444');
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+    // HP text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(enzoBoss.hp + ' / ' + enzoBoss.maxHp, CONFIG.CANVAS_W / 2, barY + 12);
+
+    // Phase text overlay
+    if (bossPhaseText.timer > 0) {
+        var alpha = Math.min(bossPhaseText.timer / 0.5, 1);
+        ctx.fillStyle = 'rgba(255, 100, 50, ' + alpha + ')';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(bossPhaseText.text, CONFIG.CANVAS_W / 2, barY + 44);
+    }
+}
+
+/** Checks if a weapon hit overlaps the Enzo boss. Called from weapon systems. */
+function checkBossHit(hbx, hby, hbw, hbh, weapon) {
+    if (!enzoBoss.active || enzoBoss.state === 'defeated') return false;
+    if (rectsOverlap(hbx, hby, hbw, hbh, enzoBoss.x, enzoBoss.y, enzoBoss.w, enzoBoss.h)) {
+        hitBoss(weapon);
+        return true;
+    }
+    return false;
+}
+
+/** Resets the boss fight for retry (player died). */
+function resetEnzoBoss() {
+    enzoBoss.active = false;
+    bossProjectiles = [];
+    enemies = [];
+    restoreNPCAfterBoss('enzo');
 }
 
 // ============================================================

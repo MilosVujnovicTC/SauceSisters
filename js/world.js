@@ -1015,13 +1015,14 @@ const ZONES = {
                         return { lines: postBoss[pick] };
                     }
                     if (flags.talked_to_enzo) {
-                        var returning = [
-                            ["Back again? My pizza is STILL better than your Mama's sauce!", "...probably. Maybe. Don't tell her I said that."],
-                            ["You want to see my sauce machine? HA!", "Only the GREATEST chef in town gets to use it. That's ME."],
-                            ["I know you're after the recipe fragment.", "It's IN the sauce machine. And you'll NEVER get past me!"],
-                        ];
-                        var pick2 = Math.floor(Math.random() * returning.length);
-                        return { lines: returning[pick2] };
+                        return {
+                            lines: [
+                                "You came BACK?! You actually want to challenge me?",
+                                "Fine! Let's settle this in MY kitchen!",
+                                "PIZZA TIME!",
+                            ],
+                            onComplete: function() { startEnzoBoss(); },
+                        };
                     }
                     return {
                         lines: [
@@ -1081,7 +1082,12 @@ const ZONES = {
                     if (getFlag('enzo_boss_defeated')) {
                         startDialogue({
                             id: 'sauce_machine_door', name: 'Door',
-                            getLines: function() { return { lines: ["The door to the sauce machine room is open. The machine hums inside."] }; },
+                            getLines: function() {
+                                if (getFlag('recipe_4_found')) {
+                                    return { lines: ["The sauce machine room. You already got the recipe fragment from here."] };
+                                }
+                                return { lines: ["The door to the sauce machine room is open. The machine hums inside.", "The recipe fragment should be in there!"] };
+                            },
                         });
                     } else {
                         startDialogue({
@@ -1158,6 +1164,8 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     projectiles = []; // clear projectiles on zone change
     traps = [];       // clear traps on zone change
     areaEffects = []; // clear area effects on zone change
+    bossProjectiles = []; // clear boss projectiles on zone change
+    if (enzoBoss.active) enzoBoss.active = false; // deactivate boss on zone change
 
     // Reset pushable positions for unsolved puzzles (prevents softlocks)
     if (zoneId === 'market' && !getFlag('recipe_1_found') && zone.pushables) {
@@ -1251,6 +1259,8 @@ function loadZone(zoneId, spawnCol, spawnRow) {
 function checkTransitions() {
     const zone = game.currentZone;
     if (!zone || !zone.transitions) return;
+    // Block transitions during boss fight
+    if (enzoBoss.active) return;
     // Cooldown: skip check for a few frames after a zone load
     if (game.transitionCooldown > 0) {
         game.transitionCooldown--;

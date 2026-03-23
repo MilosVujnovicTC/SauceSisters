@@ -207,14 +207,16 @@ function advanceDialogue() {
 
 /** Closes the dialogue box and runs onComplete callback if set. */
 function closeDialogue() {
-    if (dialogue.onComplete) {
-        dialogue.onComplete();
-    }
+    var callback = dialogue.onComplete;
     dialogue.active = false;
     unduckMusic();
     dialogue.npcId = null;
     dialogue.npcObj = null;
     dialogue.onComplete = null;
+    // Run callback AFTER dialogue state is fully reset (callback may start new dialogue)
+    if (callback) {
+        callback();
+    }
 }
 
 /** Updates the character-by-character text reveal with NPC voice blips. */

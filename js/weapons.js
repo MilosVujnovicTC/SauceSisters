@@ -258,6 +258,9 @@ function checkMeleeHits(weapon) {
             hitEnemy(e, weapon);
         }
     }
+
+    // Check Enzo boss
+    checkBossHit(hb.x, hb.y, hb.w, hb.h, weapon);
 }
 
 /** Returns true if two rectangles overlap. */
@@ -363,6 +366,13 @@ function updateProjectiles(dt) {
             }
         }
         if (hitSomething) continue;
+
+        // Boss hit check
+        if (checkBossHit(p.x, p.y, p.w, p.h, WEAPONS[p.weaponId] || { damage: 1 })) {
+            p.splat = true;
+            p.splatTimer = 0.3;
+            continue;
+        }
     }
 }
 
@@ -474,6 +484,13 @@ function updateTraps(dt) {
                 break;
             }
         }
+
+        // Check Enzo boss
+        if (!trap.triggered && checkBossHit(trap.x, trap.y, ts, ts,
+            WEAPONS[trap.weaponId] || { damage: 0, effect: trap.effect, effectDuration: trap.effectDuration || 0 })) {
+            trap.triggered = true;
+            trap.triggerTimer = 0.5;
+        }
     }
 }
 
@@ -552,6 +569,15 @@ function startAreaAttack(weapon) {
         var edy = (e.y + e.h / 2) - pcy;
         if (edx * edx + edy * edy <= radius * radius) {
             hitEnemy(e, weapon);
+        }
+    }
+
+    // Hit Enzo boss in radius
+    if (enzoBoss.active && enzoBoss.state !== 'defeated') {
+        var bdx = (enzoBoss.x + enzoBoss.w / 2) - pcx;
+        var bdy = (enzoBoss.y + enzoBoss.h / 2) - pcy;
+        if (bdx * bdx + bdy * bdy <= radius * radius) {
+            hitBoss(weapon);
         }
     }
 
