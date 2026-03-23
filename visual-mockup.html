@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sauce Sisters — Visual Approach Mockups</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+h1 { color: #ffd54f; margin-bottom: 4px; font-size: 24px; }
+.subtitle { color: #888; margin-bottom: 24px; font-size: 14px; }
+.options {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.option {
+    background: #16213e;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: border-color 0.3s;
+}
+.option:hover { border-color: #ffd54f; }
+.option h2 { color: #ffd54f; font-size: 16px; margin-bottom: 4px; }
+.option p { color: #aaa; font-size: 12px; margin-bottom: 12px; max-width: 320px; }
+canvas { border-radius: 6px; image-rendering: pixelated; }
+.current-label {
+    background: #333;
+    color: #888;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    text-align: center;
+    font-size: 13px;
+}
+.current-label canvas { margin-top: 8px; }
+.legend {
+    margin-top: 16px;
+    color: #888;
+    font-size: 12px;
+    max-width: 900px;
+    text-align: center;
+    line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<h1>Stage V-1: Visual Approach Mockups</h1>
+<p class="subtitle">Each panel shows the same scene rendered in a different style. Open in browser and compare.</p>
+
+<div class="current-label">
+    <strong>CURRENT</strong> — Flat colored rectangles (what the game looks like now)
+    <br><canvas id="cvsCurrent" width="320" height="224"></canvas>
+</div>
+
+<div class="options">
+    <div class="option">
+        <h2>Option A: Enhanced Canvas 2D</h2>
+        <p>Textured tiles, detailed shapes, no new dependencies. Simple but charming.</p>
+        <canvas id="cvsA" width="320" height="224"></canvas>
+    </div>
+    <div class="option">
+        <h2>Option B: Pixi.js WebGL</h2>
+        <p>Same sprites + glow, particles, bloom, dynamic lighting. Richest visuals.</p>
+        <canvas id="cvsB" width="320" height="224"></canvas>
+    </div>
+    <div class="option">
+        <h2>Option C: ALTTP-Style Hybrid</h2>
+        <p>Auto-tiled edges, pixel-perfect sprites, drop shadows, dithered lighting. Purist SNES feel.</p>
+        <canvas id="cvsC" width="320" height="224"></canvas>
+    </div>
+</div>
+
+<p class="legend">
+    Scene: Market zone snippet — grass, path, wall building, water canal, market stall, crate, NPC, Brodo, Giulia, enemy, power-up, recipe item.<br>
+    All rendered at 2x pixel scale (16px base tile = 32px on screen) for clarity.
+</p>
+
+<script>
+// ============================================================
+// SHARED CONSTANTS
+// ============================================================
+const T = 32; // tile size on screen (16px art × 2)
+const COLS = 10, ROWS = 7;
+// Simple scene tilemap: 0=grass, 1=path, 2=wall, 3=water, 4=stall, 5=floor, 6=door, 7=barrel, 8=flower
+const MAP = [
+    [0,0,0,2,2,2,2,0,0,0],
+    [0,0,1,2,5,5,2,1,0,0],
+    [0,0,1,2,5,5,6,1,0,0],
+    [1,1,1,1,1,1,1,1,1,3],
+    [0,4,0,0,7,0,8,0,0,3],
+    [0,0,0,0,0,0,0,0,0,3],
+    [0,0,8,0,0,0,0,0,0,3],
+];
+
+// Entity positions (in tile coords)
+const GIULIA = { x: 4, y: 4, facing: 'down' };
+const BRODO = { x: 3.2, y: 4.6 };
+const NPC = { x: 1, y: 4 }; // vendor at stall
+const ENEMY = { x: 7, y: 5 };
+const CRATE = { x: 5, y: 5 };
+const POWERUP = { x: 2, y: 6 };
+const RECIPE = { x: 8, y: 2 };
+
+const time = performance.now() / 1000;
+
+// ============================================================
+// CURRENT STYLE (flat rectangles)
+// ============================================================
+function drawCurrent(ctx) {
+    const colors = { 0:'#4a8c3f', 1:'#b8a080', 2:'#5a4a3a', 3:'#3a7ecf', 4:'#c4782e', 5:'#c8a96e', 6:'#d4a03c', 7:'#7a5c3a', 8:'#d65d8c' };
+    // tiles
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        ctx.fillStyle = colors[MAP[r][c]];
+        ctx.fillRect(c*T, r*T, T, T);
+    }
+    // crate
+    ctx.fillStyle = '#b5651d';
+    ctx.fillRect(CRATE.x*T+1, CRATE.y*T+1, T-2, T-2);
+    ctx.strokeStyle = '#8b4513'; ctx.lineWidth = 2;
+    ctx.strokeRect(CRATE.x*T+1, CRATE.y*T+1, T-2, T-2);
+    // NPC
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillRect(NPC.x*T+2, NPC.y*T+2, T-4, T-4);
+    // Enemy
+    ctx.fillStyle = '#cc4444';
+    ctx.fillRect(ENEMY.x*T+4, ENEMY.y*T+4, T-8, T-8);
+    // Brodo
+    ctx.fillStyle = '#c4956a';
+    ctx.fillRect(BRODO.x*T+5, BRODO.y*T+7, 22, 18);
+    // Giulia
+    ctx.fillStyle = '#e94560';
+    ctx.fillRect(GIULIA.x*T+2, GIULIA.y*T+2, T-4, T-4);
+    // facing triangle
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    const cx = GIULIA.x*T+T/2, cy = GIULIA.y*T+T/2;
+    ctx.moveTo(cx-4, cy+6); ctx.lineTo(cx+4, cy+6); ctx.lineTo(cx, cy+12);
+    ctx.fill();
+    // Power-up
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(POWERUP.x*T+8, POWERUP.y*T+8, 16, 16);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.strokeRect(POWERUP.x*T+8, POWERUP.y*T+8, 16, 16);
+    // Recipe
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillRect(RECIPE.x*T+10, RECIPE.y*T+10, 12, 12);
+}
+
+// ============================================================
+// OPTION A: Enhanced Canvas 2D (textured tiles, detailed shapes)
+// ============================================================
+function drawOptionA(ctx) {
+    // --- Tiles with texture ---
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        const t = MAP[r][c];
+        const x = c*T, y = r*T;
+        if (t === 0) drawGrassA(ctx, x, y);
+        else if (t === 1) drawPathA(ctx, x, y);
+        else if (t === 2) drawWallA(ctx, x, y);
+        else if (t === 3) drawWaterA(ctx, x, y, c, r);
+        else if (t === 4) drawStallA(ctx, x, y);
+        else if (t === 5) drawFloorA(ctx, x, y);
+        else if (t === 6) drawDoorA(ctx, x, y);
+        else if (t === 7) drawBarrelA(ctx, x, y);
+        else if (t === 8) drawFlowerA(ctx, x, y);
+    }
+    // Crate
+    drawCrateA(ctx, CRATE.x*T, CRATE.y*T);
+    // NPC (vendor)
+    drawNpcA(ctx, NPC.x*T, NPC.y*T, '#4fc3f7', 'Betta');
+    // Enemy
+    drawEnemyA(ctx, ENEMY.x*T, ENEMY.y*T);
+    // Brodo
+    drawBrodoA(ctx, BRODO.x*T, BRODO.y*T);
+    // Giulia
+    drawGiuliaA(ctx, GIULIA.x*T, GIULIA.y*T);
+    // Power-up
+    drawPowerupA(ctx, POWERUP.x*T, POWERUP.y*T);
+    // Recipe
+    drawRecipeA(ctx, RECIPE.x*T, RECIPE.y*T);
+}
+
+function drawGrassA(ctx, x, y) {
+    ctx.fillStyle = '#4a8c3f'; ctx.fillRect(x, y, T, T);
+    // grass tufts
+    ctx.fillStyle = '#5a9e4f';
+    const seed = (x*7+y*13)%17;
+    for (let i = 0; i < 3; i++) {
+        const gx = x + ((seed+i*5)%28)+2, gy = y + ((seed+i*7)%24)+4;
+        ctx.fillRect(gx, gy, 2, 4);
+        ctx.fillRect(gx-1, gy+1, 1, 3);
+    }
+    // occasional dark patch
+    if (seed % 5 === 0) { ctx.fillStyle = '#3e7a35'; ctx.fillRect(x+10, y+14, 6, 4); }
+}
+function drawPathA(ctx, x, y) {
+    ctx.fillStyle = '#b8a080'; ctx.fillRect(x, y, T, T);
+    // gravel dots
+    ctx.fillStyle = '#a89070';
+    const seed = (x*3+y*11)%13;
+    for (let i = 0; i < 4; i++) {
+        ctx.fillRect(x+((seed+i*8)%28)+2, y+((seed+i*6)%28)+2, 2, 2);
+    }
+    // subtle edge lines
+    ctx.fillStyle = '#c8b090';
+    ctx.fillRect(x, y, T, 1);
+}
+function drawWallA(ctx, x, y) {
+    ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x, y, T, T);
+    // brick pattern
+    ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 1;
+    for (let row = 0; row < 4; row++) {
+        const by = y + row * 8;
+        ctx.strokeRect(x, by, T, 8);
+        const offset = (row % 2) * 16;
+        ctx.beginPath(); ctx.moveTo(x+offset+16, by); ctx.lineTo(x+offset+16, by+8); ctx.stroke();
+    }
+    // highlight top edge
+    ctx.fillStyle = '#6a5a4a'; ctx.fillRect(x, y, T, 2);
+}
+function drawWaterA(ctx, x, y, c, r) {
+    const wave = Math.sin(time*2 + c*0.8 + r*0.5);
+    const b = Math.floor(207 + wave*20);
+    const g = Math.floor(126 + wave*10);
+    ctx.fillStyle = `rgb(58,${g},${b})`; ctx.fillRect(x, y, T, T);
+    // ripple lines
+    ctx.strokeStyle = `rgba(100,180,255,${0.3+wave*0.15})`; ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+        const ry = y + 6 + i*10 + Math.sin(time*3+c+i)*2;
+        ctx.beginPath(); ctx.moveTo(x+2, ry); ctx.quadraticCurveTo(x+T/2, ry+3*wave, x+T-2, ry); ctx.stroke();
+    }
+    // highlight specks
+    ctx.fillStyle = 'rgba(200,230,255,0.4)';
+    ctx.fillRect(x+8+wave*3, y+4, 3, 2);
+    ctx.fillRect(x+20-wave*2, y+18, 2, 2);
+}
+function drawStallA(ctx, x, y) {
+    ctx.fillStyle = '#c4782e'; ctx.fillRect(x, y, T, T);
+    // awning stripes
+    ctx.fillStyle = '#d4883e';
+    for (let i = 0; i < 4; i++) ctx.fillRect(x, y+i*8, T, 4);
+    // posts
+    ctx.fillStyle = '#8b5e2e'; ctx.fillRect(x, y, 3, T); ctx.fillRect(x+T-3, y, 3, T);
+}
+function drawFloorA(ctx, x, y) {
+    ctx.fillStyle = '#c8a96e'; ctx.fillRect(x, y, T, T);
+    // tile pattern
+    ctx.strokeStyle = '#b89860'; ctx.lineWidth = 1;
+    ctx.strokeRect(x+1, y+1, T-2, T-2);
+    ctx.beginPath(); ctx.moveTo(x+T/2, y); ctx.lineTo(x+T/2, y+T); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y+T/2); ctx.lineTo(x+T, y+T/2); ctx.stroke();
+}
+function drawDoorA(ctx, x, y) {
+    ctx.fillStyle = '#4a3a2a'; ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = '#d4a03c'; ctx.fillRect(x+4, y+2, T-8, T-2);
+    // door knob
+    ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(x+T-10, y+T/2+2, 3, 0, Math.PI*2); ctx.fill();
+    // arch top
+    ctx.fillStyle = '#5a4a3a'; ctx.fillRect(x, y, T, 4);
+    ctx.fillStyle = '#6a5a4a'; ctx.fillRect(x+2, y, T-4, 2);
+}
+function drawBarrelA(ctx, x, y) {
+    ctx.fillStyle = '#4a8c3f'; ctx.fillRect(x, y, T, T); // grass under
+    ctx.fillStyle = '#7a5c3a';
+    ctx.beginPath();
+    ctx.ellipse(x+T/2, y+T/2+2, 12, 14, 0, 0, Math.PI*2); ctx.fill();
+    // bands
+    ctx.strokeStyle = '#5a3c1a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x+T/2, y+T/2-4, 11, 3, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x+T/2, y+T/2+8, 11, 3, 0, 0, Math.PI*2); ctx.stroke();
+    // highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(x+8, y+6, 4, 16);
+}
+function drawFlowerA(ctx, x, y) {
+    ctx.fillStyle = '#4a8c3f'; ctx.fillRect(x, y, T, T); // grass under
+    // stem
+    ctx.strokeStyle = '#2d6a2d'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x+T/2, y+T); ctx.lineTo(x+T/2, y+10); ctx.stroke();
+    // petals
+    const colors = ['#d65d8c','#e87da0','#ff9dba','#d65d8c','#c84d7c'];
+    for (let i = 0; i < 5; i++) {
+        const a = (i/5)*Math.PI*2 - Math.PI/2;
+        ctx.fillStyle = colors[i];
+        ctx.beginPath(); ctx.arc(x+T/2+Math.cos(a)*6, y+10+Math.sin(a)*6, 4, 0, Math.PI*2); ctx.fill();
+    }
+    // center
+    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(x+T/2, y+10, 3, 0, Math.PI*2); ctx.fill();
+}
+
+function drawCrateA(ctx, x, y) {
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x+3, y+3, T-2, T-2);
+    // body
+    ctx.fillStyle = '#b5651d'; ctx.fillRect(x+1, y+1, T-3, T-3);
+    // planks
+    ctx.strokeStyle = '#8b4513'; ctx.lineWidth = 1;
+    ctx.strokeRect(x+1, y+1, T-3, T-3);
+    ctx.beginPath(); ctx.moveTo(x+T/2, y+1); ctx.lineTo(x+T/2, y+T-2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+1, y+T/2); ctx.lineTo(x+T-2, y+T/2); ctx.stroke();
+    // corner nails
+    ctx.fillStyle = '#d4a03c';
+    ctx.fillRect(x+3, y+3, 2, 2); ctx.fillRect(x+T-6, y+3, 2, 2);
+    ctx.fillRect(x+3, y+T-6, 2, 2); ctx.fillRect(x+T-6, y+T-6, 2, 2);
+}
+
+function drawGiuliaA(ctx, x, y) {
+    const cx = x+T/2, cy = y+T/2;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(cx, y+T-2, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle = '#e94560'; ctx.fillRect(cx-7, cy-2, 14, 14);
+    // head
+    ctx.fillStyle = '#ffcc99'; ctx.fillRect(cx-6, cy-12, 12, 11);
+    // hair
+    ctx.fillStyle = '#4a2c0a';
+    ctx.fillRect(cx-7, cy-14, 14, 5);
+    ctx.fillRect(cx-7, cy-12, 3, 10); // left bangs
+    ctx.fillRect(cx+5, cy-12, 3, 10); // right bangs
+    // eyes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx-4, cy-8, 3, 3); ctx.fillRect(cx+1, cy-8, 3, 3);
+    // eye whites
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cx-3, cy-7, 1, 1); ctx.fillRect(cx+2, cy-7, 1, 1);
+    // mouth
+    ctx.fillStyle = '#d4756b'; ctx.fillRect(cx-2, cy-3, 4, 2);
+    // skirt
+    ctx.fillStyle = '#c83050';
+    ctx.fillRect(cx-8, cy+10, 16, 5);
+    // legs
+    ctx.fillStyle = '#ffcc99';
+    ctx.fillRect(cx-5, cy+14, 4, 6); ctx.fillRect(cx+1, cy+14, 4, 6);
+    // shoes
+    ctx.fillStyle = '#5a3a2a';
+    ctx.fillRect(cx-6, cy+18, 5, 4); ctx.fillRect(cx+1, cy+18, 5, 4);
+}
+
+function drawBrodoA(ctx, x, y) {
+    const cx = x+11, cy = y+14;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.ellipse(cx+5, cy+10, 12, 4, 0, 0, Math.PI*2); ctx.fill();
+    // body (long basset hound)
+    ctx.fillStyle = '#c4956a';
+    ctx.fillRect(cx-4, cy-2, 22, 10);
+    // belly (lighter)
+    ctx.fillStyle = '#dbb68a';
+    ctx.fillRect(cx-2, cy+4, 18, 4);
+    // head
+    ctx.fillStyle = '#c4956a';
+    ctx.fillRect(cx+16, cy-6, 10, 12);
+    // ears (floppy!)
+    ctx.fillStyle = '#a07050';
+    ctx.fillRect(cx+14, cy-4, 4, 14);
+    ctx.fillRect(cx+24, cy-4, 4, 14);
+    // snout
+    ctx.fillStyle = '#dbb68a';
+    ctx.fillRect(cx+20, cy-2, 6, 6);
+    // nose
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx+24, cy-1, 3, 3);
+    // eye
+    ctx.fillStyle = '#333'; ctx.fillRect(cx+19, cy-4, 3, 3);
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx+20, cy-3, 1, 1);
+    // legs
+    ctx.fillStyle = '#b08060';
+    ctx.fillRect(cx-2, cy+8, 4, 5);
+    ctx.fillRect(cx+4, cy+8, 4, 5);
+    ctx.fillRect(cx+12, cy+8, 4, 5);
+    ctx.fillRect(cx+18, cy+8, 4, 5);
+    // tail (up)
+    ctx.strokeStyle = '#c4956a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx-2, cy); ctx.quadraticCurveTo(cx-8, cy-8, cx-6, cy-12); ctx.stroke();
+}
+
+function drawNpcA(ctx, x, y, color, name) {
+    const cx = x+T/2, cy = y+T/2;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(cx, y+T-2, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+    // body (apron)
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx-7, cy, 14, 12);
+    ctx.fillStyle = color; ctx.fillRect(cx-8, cy-2, 16, 10);
+    // head
+    ctx.fillStyle = '#ffcc99'; ctx.fillRect(cx-6, cy-12, 12, 11);
+    // headscarf
+    ctx.fillStyle = '#e8c840';
+    ctx.fillRect(cx-7, cy-14, 14, 5);
+    ctx.fillRect(cx-8, cy-10, 2, 4);
+    ctx.fillRect(cx+6, cy-10, 2, 4);
+    // eyes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx-4, cy-8, 2, 3); ctx.fillRect(cx+2, cy-8, 2, 3);
+    // smile
+    ctx.fillStyle = '#d4756b'; ctx.fillRect(cx-2, cy-4, 4, 1);
+    // legs
+    ctx.fillStyle = '#5a4a3a';
+    ctx.fillRect(cx-4, cy+12, 4, 6); ctx.fillRect(cx+1, cy+12, 4, 6);
+    // name
+    ctx.fillStyle = '#fff'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(name, cx, cy-18);
+}
+
+function drawEnemyA(ctx, x, y) {
+    const cx = x+T/2, cy = y+T/2;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.ellipse(cx, y+T-2, 8, 3, 0, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle = '#884444'; ctx.fillRect(cx-8, cy-4, 16, 16);
+    // head
+    ctx.fillStyle = '#aa5555'; ctx.fillRect(cx-6, cy-12, 12, 10);
+    // angry eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cx-5, cy-10, 4, 4); ctx.fillRect(cx+1, cy-10, 4, 4);
+    ctx.fillStyle = '#c00';
+    ctx.fillRect(cx-4, cy-9, 2, 2); ctx.fillRect(cx+2, cy-9, 2, 2);
+    // angry brows
+    ctx.fillStyle = '#333';
+    ctx.fillRect(cx-5, cy-11, 4, 1); ctx.fillRect(cx+1, cy-11, 4, 1);
+    // legs
+    ctx.fillStyle = '#663333';
+    ctx.fillRect(cx-5, cy+12, 4, 5); ctx.fillRect(cx+1, cy+12, 4, 5);
+}
+
+function drawPowerupA(ctx, x, y) {
+    const cx = x+T/2, cy = y+T/2;
+    // glow
+    ctx.fillStyle = 'rgba(76,175,80,0.2)';
+    ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI*2); ctx.fill();
+    // broccoli shape
+    ctx.fillStyle = '#2e7d32';
+    ctx.beginPath(); ctx.arc(cx-4, cy-4, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx+4, cy-4, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy-7, 5, 0, Math.PI*2); ctx.fill();
+    // stem
+    ctx.fillStyle = '#66bb6a'; ctx.fillRect(cx-2, cy+1, 4, 8);
+}
+
+function drawRecipeA(ctx, x, y) {
+    const cx = x+T/2, cy = y+T/2;
+    // golden glow
+    ctx.fillStyle = 'rgba(255,213,79,0.3)';
+    ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI*2); ctx.fill();
+    // scroll shape
+    ctx.fillStyle = '#f5e6c8'; ctx.fillRect(cx-8, cy-10, 16, 20);
+    // scroll rolls
+    ctx.fillStyle = '#dcc8a0';
+    ctx.beginPath(); ctx.ellipse(cx, cy-10, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, cy+10, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+    // writing lines
+    ctx.fillStyle = '#8b6914';
+    ctx.fillRect(cx-5, cy-5, 10, 1);
+    ctx.fillRect(cx-5, cy-1, 8, 1);
+    ctx.fillRect(cx-5, cy+3, 10, 1);
+    // star sparkle
+    ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('✦', cx+10, cy-6);
+}
+
+// ============================================================
+// OPTION B: Pixi.js style (same sprites + glow/bloom/particles)
+// ============================================================
+function drawOptionB(ctx) {
+    // Draw same as A but with extra effects layered on
+    drawOptionA(ctx);
+
+    // Simulate bloom/glow overlay on light sources
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    // Warm ambient light overlay from door
+    const doorX = 6*T+T/2, doorY = 2*T+T/2;
+    const grad1 = ctx.createRadialGradient(doorX, doorY, 4, doorX, doorY, T*2.5);
+    grad1.addColorStop(0, 'rgba(255,200,100,0.35)');
+    grad1.addColorStop(1, 'rgba(255,200,100,0)');
+    ctx.fillStyle = grad1; ctx.fillRect(0, 0, COLS*T, ROWS*T);
+
+    // Recipe bloom
+    const rx = RECIPE.x*T+T/2, ry = RECIPE.y*T+T/2;
+    const grad2 = ctx.createRadialGradient(rx, ry, 2, rx, ry, T*1.8);
+    grad2.addColorStop(0, 'rgba(255,215,80,0.5)');
+    grad2.addColorStop(0.4, 'rgba(255,215,80,0.15)');
+    grad2.addColorStop(1, 'rgba(255,215,80,0)');
+    ctx.fillStyle = grad2; ctx.fillRect(0, 0, COLS*T, ROWS*T);
+
+    // Power-up bloom
+    const px = POWERUP.x*T+T/2, py = POWERUP.y*T+T/2;
+    const grad3 = ctx.createRadialGradient(px, py, 2, px, py, T*1.2);
+    grad3.addColorStop(0, 'rgba(100,255,100,0.3)');
+    grad3.addColorStop(1, 'rgba(100,255,100,0)');
+    ctx.fillStyle = grad3; ctx.fillRect(0, 0, COLS*T, ROWS*T);
+
+    ctx.restore();
+
+    // Particles (dust motes floating in light)
+    ctx.save();
+    for (let i = 0; i < 12; i++) {
+        const seed = i*137.5;
+        const px2 = (seed*3.7)%(COLS*T);
+        const py2 = (seed*2.3)%(ROWS*T);
+        const alpha = 0.15 + Math.sin(time*1.5+i)*0.1;
+        const size = 1.5 + Math.sin(time+i*0.7)*0.5;
+        ctx.fillStyle = `rgba(255,240,200,${alpha})`;
+        ctx.beginPath(); ctx.arc(px2, py2, size, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Water reflection/shimmer
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        if (MAP[r][c] === 3) {
+            const shimmer = Math.sin(time*3+c*2+r)*0.12;
+            ctx.fillStyle = `rgba(180,220,255,${0.1+shimmer})`;
+            ctx.fillRect(c*T, r*T, T, T);
+        }
+    }
+    ctx.restore();
+
+    // Vignette
+    ctx.save();
+    const vg = ctx.createRadialGradient(COLS*T/2, ROWS*T/2, COLS*T*0.3, COLS*T/2, ROWS*T/2, COLS*T*0.7);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, COLS*T, ROWS*T);
+    ctx.restore();
+
+    // Player glow (buff active simulation)
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const gx = GIULIA.x*T+T/2, gy = GIULIA.y*T+T/2;
+    const gg = ctx.createRadialGradient(gx, gy, 2, gx, gy, 22);
+    gg.addColorStop(0, 'rgba(255,100,120,0.2)');
+    gg.addColorStop(1, 'rgba(255,100,120,0)');
+    ctx.fillStyle = gg; ctx.fillRect(gx-24, gy-24, 48, 48);
+    ctx.restore();
+}
+
+// ============================================================
+// OPTION C: ALTTP-style (auto-tiled edges, shadows, dithering)
+// ============================================================
+function drawOptionC(ctx) {
+    // --- Auto-tiled terrain with edge blending ---
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        const t = MAP[r][c];
+        const x = c*T, y = r*T;
+
+        // Base tile (same as A)
+        if (t === 0) drawGrassA(ctx, x, y);
+        else if (t === 1) drawPathA(ctx, x, y);
+        else if (t === 2) drawWallC(ctx, x, y, c, r);
+        else if (t === 3) drawWaterC(ctx, x, y, c, r);
+        else if (t === 4) drawStallA(ctx, x, y);
+        else if (t === 5) drawFloorA(ctx, x, y);
+        else if (t === 6) drawDoorA(ctx, x, y);
+        else if (t === 7) drawBarrelA(ctx, x, y);
+        else if (t === 8) drawFlowerA(ctx, x, y);
+
+        // Auto-tile edge blending: grass↔path transitions
+        if (t === 0) {
+            // Check neighbors for path
+            const above = r > 0 ? MAP[r-1][c] : -1;
+            const below = r < ROWS-1 ? MAP[r+1][c] : -1;
+            const left = c > 0 ? MAP[r][c-1] : -1;
+            const right = c < COLS-1 ? MAP[r][c+1] : -1;
+            // Dithered edge blend toward path
+            if (above === 1) ditherEdge(ctx, x, y, 'top', '#b8a080');
+            if (below === 1) ditherEdge(ctx, x, y, 'bottom', '#b8a080');
+            if (left === 1) ditherEdge(ctx, x, y, 'left', '#b8a080');
+            if (right === 1) ditherEdge(ctx, x, y, 'right', '#b8a080');
+        }
+        // Grass↔water transitions
+        if (t === 0) {
+            const right = c < COLS-1 ? MAP[r][c+1] : -1;
+            if (right === 3) {
+                // dark bank edge
+                ctx.fillStyle = '#3a6a2f';
+                ctx.fillRect(x+T-4, y, 4, T);
+                ctx.fillStyle = '#5a3a20';
+                ctx.fillRect(x+T-2, y, 2, T);
+            }
+        }
+    }
+
+    // --- Entities with drop shadows + ALTTP-style outlines ---
+    // Crate
+    drawCrateA(ctx, CRATE.x*T, CRATE.y*T);
+
+    // NPC with ALTTP 1px dark outline
+    drawNpcC(ctx, NPC.x*T, NPC.y*T, '#4fc3f7', 'Betta');
+    // Enemy
+    drawEnemyC(ctx, ENEMY.x*T, ENEMY.y*T);
+    // Brodo
+    drawBrodoC(ctx, BRODO.x*T, BRODO.y*T);
+    // Giulia
+    drawGiuliaC(ctx, GIULIA.x*T, GIULIA.y*T);
+    // Power-up
+    drawPowerupA(ctx, POWERUP.x*T, POWERUP.y*T);
+    // Recipe
+    drawRecipeA(ctx, RECIPE.x*T, RECIPE.y*T);
+
+    // --- Dithered shadow overlay on walls ---
+    ctx.save();
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        if (MAP[r][c] === 2) {
+            const below = r < ROWS-1 ? MAP[r+1][c] : -1;
+            if (below !== 2) {
+                // cast shadow below wall
+                ditherShadow(ctx, c*T, (r+1)*T, T, 8);
+            }
+        }
+    }
+    ctx.restore();
+}
+
+function drawWallC(ctx, x, y, c, r) {
+    drawWallA(ctx, x, y);
+    // ALTTP-style: darker bottom edge for depth
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x, y+T-2, T, 2);
+    // lighter left edge
+    ctx.fillStyle = '#7a6a5a'; ctx.fillRect(x, y, 1, T);
+}
+
+function drawWaterC(ctx, x, y, c, r) {
+    drawWaterA(ctx, x, y, c, r);
+    // ALTTP water has subtle tile borders
+    ctx.strokeStyle = 'rgba(0,40,80,0.3)'; ctx.lineWidth = 1;
+    ctx.strokeRect(x+0.5, y+0.5, T-1, T-1);
+}
+
+function ditherEdge(ctx, x, y, side, color) {
+    ctx.fillStyle = color;
+    const density = 6;
+    for (let i = 0; i < density; i++) {
+        for (let j = 0; j < T/2; j += 2) {
+            let px, py;
+            const fade = j / (T/2); // 0..1 distance from edge
+            if (Math.random() > fade) {
+                if (side === 'top') { px = x + (i*(T/density)) + (j%3); py = y + j; }
+                else if (side === 'bottom') { px = x + (i*(T/density)) + (j%3); py = y + T - j - 2; }
+                else if (side === 'left') { px = x + j; py = y + (i*(T/density)) + (j%3); }
+                else { px = x + T - j - 2; py = y + (i*(T/density)) + (j%3); }
+                ctx.fillRect(px, py, 2, 2);
+            }
+        }
+    }
+}
+
+function ditherShadow(ctx, x, y, w, h) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    for (let py = 0; py < h; py += 2) {
+        for (let px = 0; px < w; px += 2) {
+            if ((px + py) % 4 === 0) {
+                ctx.fillRect(x + px, y + py, 2, 2);
+            }
+        }
+    }
+}
+
+// ALTTP-style sprites: same as A but with 1px dark outline
+function drawWithOutline(ctx, drawFn, x, y) {
+    // Draw dark silhouette offset in 4 directions (1px outline)
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    // We simulate by drawing slightly offset in dark color
+    // This is a simplified approach — full outline would use offscreen canvas
+    drawFn(ctx, x, y);
+    ctx.restore();
+}
+
+function drawGiuliaC(ctx, x, y) {
+    // 1px black outline (draw black silhouette in 4 offsets)
+    ctx.save();
+    ctx.globalAlpha = 1;
+    // Outline pass: dark version shifted
+    for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        drawGiuliaOutline(ctx, x+ox, y+oy);
+        ctx.restore();
+    }
+    ctx.restore();
+    // Main sprite
+    drawGiuliaA(ctx, x, y);
+}
+
+function drawGiuliaOutline(ctx, x, y) {
+    const cx = x+T/2, cy = y+T/2;
+    ctx.fillStyle = '#1a1a2e';
+    // head
+    ctx.fillRect(cx-7, cy-14, 14, 5);
+    ctx.fillRect(cx-6, cy-12, 12, 11);
+    // body
+    ctx.fillRect(cx-8, cy-2, 16, 14);
+    ctx.fillRect(cx-8, cy+10, 16, 5);
+    // legs
+    ctx.fillRect(cx-6, cy+14, 5, 8);
+    ctx.fillRect(cx+1, cy+14, 5, 8);
+}
+
+function drawNpcC(ctx, x, y, color, name) {
+    // Outline
+    for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const cx = x+ox+T/2, cy = y+oy+T/2;
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(cx-7, cy-14, 14, 5);
+        ctx.fillRect(cx-6, cy-12, 12, 11);
+        ctx.fillRect(cx-8, cy-2, 16, 14);
+        ctx.fillRect(cx-4, cy+12, 4, 6);
+        ctx.fillRect(cx+1, cy+12, 4, 6);
+    }
+    drawNpcA(ctx, x, y, color, name);
+}
+
+function drawEnemyC(ctx, x, y) {
+    // Outline
+    for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const cx = x+ox+T/2, cy = y+oy+T/2;
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(cx-9, cy-13, 14, 11);
+        ctx.fillRect(cx-9, cy-4, 18, 18);
+        ctx.fillRect(cx-5, cy+12, 4, 5);
+        ctx.fillRect(cx+1, cy+12, 4, 5);
+    }
+    drawEnemyA(ctx, x, y);
+}
+
+function drawBrodoC(ctx, x, y) {
+    // Outline
+    const cx = x+11, cy = y+14;
+    for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(cx-4+ox, cy-2+oy, 22, 10);
+        ctx.fillRect(cx+16+ox, cy-6+oy, 10, 12);
+        ctx.fillRect(cx+14+ox, cy-4+oy, 4, 14);
+        ctx.fillRect(cx+24+ox, cy-4+oy, 4, 14);
+        ctx.fillRect(cx+20+ox, cy-2+oy, 6, 6);
+    }
+    drawBrodoA(ctx, x, y);
+}
+
+// ============================================================
+// ANIMATE
+// ============================================================
+function renderAll() {
+    const ctxCur = document.getElementById('cvsCurrent').getContext('2d');
+    const ctxA = document.getElementById('cvsA').getContext('2d');
+    const ctxB = document.getElementById('cvsB').getContext('2d');
+    const ctxC = document.getElementById('cvsC').getContext('2d');
+
+    [ctxCur, ctxA, ctxB, ctxC].forEach(c => {
+        c.clearRect(0, 0, COLS*T, ROWS*T);
+        c.imageSmoothingEnabled = false;
+    });
+
+    drawCurrent(ctxCur);
+    drawOptionA(ctxA);
+    drawOptionB(ctxB);
+    drawOptionC(ctxC);
+
+    requestAnimationFrame(renderAll);
+}
+
+renderAll();
+</script>
+</body>
+</html>
