@@ -651,7 +651,7 @@
   - [ ] Title screen shows saved game with details
   - [ ] Corrupt/missing save handled gracefully (start new game)
 
-### Stage 9-2: Title screen + pause menu `[ ]`
+### Stage 9-2: Title screen + pause menu `[x] 2026-03-25`
 - Title screen: game logo (canvas-drawn text), "New Game" / "Continue" / "Settings"
 - Settings: music volume, SFX volume, API key input
 - Pause menu (Escape): resume, save, settings, quit to title

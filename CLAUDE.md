@@ -294,7 +294,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** Stage 9-2 (Title screen + pause menu).
+**Current stage:** Stage 9-3 (Sound tuning pass).
 
 ---
 
@@ -421,6 +421,7 @@ Before writing any code, Claude must confirm:
 
 | 18 | 2026-03-24 | 8-5 | Stage deferred — Pepe companion (chihuahua, gap squeeze, dog throws) implemented then disabled per user request. May return behind sister/player selection screen. Pepe Dash interlude (Stage 8-1) untouched. |
 | 18 | 2026-03-24 | 9-1 | Save/load system: saveGame()/loadSavedGame() in save.js — serializes zone, position, inventory, quest flags, weapon state, HP/lives, playtime to localStorage. Auto-save on every zone transition with "Saved" indicator. Title screen on page load: starfield background, animated title, Continue (with save info) / New Game options. Pause menu (Esc): Resume / Save Game / Quit to Title with save confirmation. formatPlaytime() helper. Cache-busting ?v=24. |
+| 19 | 2026-03-25 | 9-2 | Settings screen: accessible from title screen + pause menu. Music/SFX volume sliders (left/right arrows, 10% steps, visual bars). API key text input (masked display, Enter to confirm). All settings persist in localStorage (sauce_sisters_settings). loadSettings() on boot restores saved volumes. Cache-busting ?v=25. |
 
 ---
 

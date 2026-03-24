@@ -1229,7 +1229,7 @@ var titleScreen = {
 function initTitleScreen() {
     titleScreen.active = true;
     titleScreen.selectedIndex = 0;
-    titleScreen.options = hasSavedGame() ? ['Continue', 'New Game'] : ['New Game'];
+    titleScreen.options = hasSavedGame() ? ['Continue', 'New Game', 'Settings'] : ['New Game', 'Settings'];
     titleScreen.animTimer = 0;
 }
 
@@ -1237,6 +1237,12 @@ function initTitleScreen() {
 function updateTitleScreen(dt) {
     if (!titleScreen.active) return;
     titleScreen.animTimer += dt;
+
+    // Settings overlay intercepts input when open
+    if (settingsUI.open) {
+        updateSettings(dt);
+        return;
+    }
 
     if (actionJustPressed('move_up') || isJustPressed('ArrowUp')) {
         titleScreen.selectedIndex = (titleScreen.selectedIndex - 1 + titleScreen.options.length) % titleScreen.options.length;
@@ -1263,6 +1269,8 @@ function updateTitleScreen(dt) {
             game.time = 0;
             deleteSave();
             loadZone('la_cucina');
+        } else if (choice === 'Settings') {
+            openSettings('title');
         }
     }
 }
@@ -1347,6 +1355,9 @@ function renderTitleScreen(ctx) {
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('\u2191\u2193 Select  |  Z/Space/Enter = Confirm', W / 2, H - 30);
+
+    // Settings overlay on top of title screen
+    renderSettings(ctx);
 }
 
 // ============================================================
@@ -1356,7 +1367,7 @@ function renderTitleScreen(ctx) {
 var pauseMenu = {
     open: false,
     selectedIndex: 0,
-    options: ['Resume', 'Save Game', 'Quit to Title'],
+    options: ['Resume', 'Save Game', 'Settings', 'Quit to Title'],
     saveMsg: '',         // 'Game saved!' or ''
     saveMsgTimer: 0,
 };
@@ -1378,6 +1389,12 @@ function closePauseMenu() {
 function updatePauseMenu(dt) {
     if (!pauseMenu.open) return;
     if (pauseMenu.saveMsgTimer > 0) pauseMenu.saveMsgTimer -= dt;
+
+    // Settings overlay intercepts input when open
+    if (settingsUI.open) {
+        updateSettings(dt);
+        return;
+    }
 
     if (actionJustPressed('pause') || isJustPressed('Escape')) {
         closePauseMenu();
@@ -1402,6 +1419,8 @@ function updatePauseMenu(dt) {
                 pauseMenu.saveMsg = 'Save failed!';
             }
             pauseMenu.saveMsgTimer = 2.0;
+        } else if (choice === 'Settings') {
+            openSettings('pause');
         } else if (choice === 'Quit to Title') {
             closePauseMenu();
             // Save before quitting
@@ -1472,6 +1491,9 @@ function renderPauseMenu(ctx) {
     ctx.textAlign = 'center';
     var zName = game.currentZone ? game.currentZone.name : '';
     ctx.fillText(zName + '  |  ' + formatPlaytime(game.time) + '  |  ' + countRecipes() + '/5 recipes', W / 2, py + panelH - 6);
+
+    // Settings overlay on top of pause menu
+    renderSettings(ctx);
 }
 
 // ============================================================
@@ -1493,4 +1515,261 @@ function renderSaveIndicator(ctx) {
     ctx.font = '10px monospace';
     ctx.textAlign = 'right';
     ctx.fillText('Saved', CONFIG.CANVAS_W - 12, CONFIG.CANVAS_H - 12);
+}
+
+// ============================================================
+// Settings screen (volume + API key)
+// ============================================================
+
+var SETTINGS_STORAGE_KEY = 'sauce_sisters_settings';
+
+var settingsUI = {
+    open: false,
+    returnTo: 'title',   // 'title' or 'pause'
+    selectedIndex: 0,
+    items: [
+        { id: 'music',  label: 'Music Volume',  type: 'slider' },
+        { id: 'sfx',    label: 'SFX Volume',    type: 'slider' },
+        { id: 'apikey', label: 'API Key',        type: 'text' },
+        { id: 'back',   label: 'Back',           type: 'action' },
+    ],
+    apiKeyInput: '',         // current text being typed
+    apiKeyEditing: false,    // true when typing into API key field
+};
+
+/** Opens the settings screen. source = 'title' or 'pause'. */
+function openSettings(source) {
+    settingsUI.open = true;
+    settingsUI.returnTo = source;
+    settingsUI.selectedIndex = 0;
+    settingsUI.apiKeyEditing = false;
+    // Load stored API key
+    settingsUI.apiKeyInput = getStoredApiKey();
+}
+
+/** Closes the settings screen. */
+function closeSettings() {
+    settingsUI.open = false;
+    settingsUI.apiKeyEditing = false;
+    saveSettings();
+}
+
+/** Updates settings screen input. */
+function updateSettings(dt) {
+    if (!settingsUI.open) return;
+
+    // API key text editing mode
+    if (settingsUI.apiKeyEditing) {
+        // Escape exits editing
+        if (isJustPressed('Escape') || isJustPressed('Enter')) {
+            settingsUI.apiKeyEditing = false;
+            setStoredApiKey(settingsUI.apiKeyInput);
+            saveSettings();
+            return;
+        }
+        // Backspace
+        if (isJustPressed('Backspace') && settingsUI.apiKeyInput.length > 0) {
+            settingsUI.apiKeyInput = settingsUI.apiKeyInput.slice(0, -1);
+            return;
+        }
+        // Capture typed characters (printable keys)
+        for (var code in input.justPressed) {
+            if (!input.justPressed[code]) continue;
+            if (code === 'Escape' || code === 'Enter' || code === 'Backspace') continue;
+            if (code.startsWith('Key')) {
+                settingsUI.apiKeyInput += code.slice(3).toLowerCase();
+            } else if (code.startsWith('Digit')) {
+                settingsUI.apiKeyInput += code.slice(5);
+            } else if (code === 'Minus') {
+                settingsUI.apiKeyInput += '-';
+            } else if (code === 'Period') {
+                settingsUI.apiKeyInput += '.';
+            }
+        }
+        return;
+    }
+
+    // Escape or Backspace closes settings
+    if (isJustPressed('Escape') || isJustPressed('Backspace')) {
+        closeSettings();
+        return;
+    }
+
+    // Navigation
+    if (actionJustPressed('move_up') || isJustPressed('ArrowUp')) {
+        settingsUI.selectedIndex = (settingsUI.selectedIndex - 1 + settingsUI.items.length) % settingsUI.items.length;
+    }
+    if (actionJustPressed('move_down') || isJustPressed('ArrowDown')) {
+        settingsUI.selectedIndex = (settingsUI.selectedIndex + 1) % settingsUI.items.length;
+    }
+
+    var item = settingsUI.items[settingsUI.selectedIndex];
+
+    // Slider adjustments with left/right
+    if (item.type === 'slider') {
+        var step = 0.1;
+        if (actionJustPressed('move_left') || isJustPressed('ArrowLeft')) {
+            if (item.id === 'music') setMusicVolume(audio.musicVolume - step);
+            if (item.id === 'sfx') setSfxVolume(audio.sfxVolume - step);
+            saveSettings();
+        }
+        if (actionJustPressed('move_right') || isJustPressed('ArrowRight')) {
+            if (item.id === 'music') setMusicVolume(audio.musicVolume + step);
+            if (item.id === 'sfx') setSfxVolume(audio.sfxVolume + step);
+            saveSettings();
+        }
+    }
+
+    // Confirm action
+    if (actionJustPressed('interact') || isJustPressed('Enter')) {
+        if (item.id === 'back') {
+            closeSettings();
+        } else if (item.id === 'apikey') {
+            settingsUI.apiKeyEditing = true;
+        }
+    }
+}
+
+/** Renders the settings screen overlay. */
+function renderSettings(ctx) {
+    if (!settingsUI.open) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+
+    // Dim background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Panel
+    var panelW = 360;
+    var panelH = 260;
+    var px = (W - panelW) / 2;
+    var py = (H - panelH) / 2;
+    ctx.fillStyle = 'rgba(30, 30, 50, 0.95)';
+    ctx.fillRect(px, py, panelW, panelH);
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, py, panelW, panelH);
+
+    // Title
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SETTINGS', W / 2, py + 28);
+
+    // Items
+    var itemStartY = py + 56;
+    for (var i = 0; i < settingsUI.items.length; i++) {
+        var item = settingsUI.items[i];
+        var selected = (i === settingsUI.selectedIndex);
+        var iy = itemStartY + i * 44;
+
+        // Highlight
+        if (selected) {
+            ctx.fillStyle = 'rgba(255, 213, 79, 0.1)';
+            ctx.fillRect(px + 16, iy - 14, panelW - 32, 36);
+        }
+
+        // Label
+        ctx.fillStyle = selected ? '#ffd54f' : '#aaaaaa';
+        ctx.font = (selected ? 'bold ' : '') + '13px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(item.label, px + 24, iy + 4);
+
+        // Value
+        if (item.type === 'slider') {
+            var val = item.id === 'music' ? audio.musicVolume : audio.sfxVolume;
+            var barX = px + 180;
+            var barW = 140;
+            var barH = 10;
+            var barY = iy - 2;
+
+            // Bar background
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(barX, barY, barW, barH);
+            // Fill
+            ctx.fillStyle = selected ? '#ffd54f' : '#888888';
+            ctx.fillRect(barX, barY, barW * val, barH);
+            // Border
+            ctx.strokeStyle = selected ? '#ffd54f' : '#555555';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, barY, barW, barH);
+            // Percentage
+            ctx.fillStyle = selected ? '#ffffff' : '#aaaaaa';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(val * 100) + '%', px + panelW - 20, iy + 4);
+
+            if (selected) {
+                ctx.fillStyle = '#888888';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('\u2190 \u2192 adjust', barX + barW / 2, iy + 16);
+            }
+        } else if (item.type === 'text') {
+            var key = settingsUI.apiKeyInput;
+            var display = key ? key.slice(0, 8) + '...' + key.slice(-4) : '(not set)';
+            if (settingsUI.apiKeyEditing) {
+                display = key + '_';
+            }
+            ctx.fillStyle = settingsUI.apiKeyEditing ? '#ffffff' : (key ? '#88cc88' : '#666666');
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText(display, px + panelW - 20, iy + 4);
+
+            if (selected && !settingsUI.apiKeyEditing) {
+                ctx.fillStyle = '#888888';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'right';
+                ctx.fillText('Z/Enter to edit', px + panelW - 20, iy + 16);
+            }
+        } else if (item.type === 'action') {
+            if (selected) {
+                ctx.fillStyle = '#ffd54f';
+                ctx.font = 'bold 13px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('\u25B6 ' + item.label, W / 2, iy + 4);
+            }
+        }
+    }
+
+    // Footer hint
+    ctx.fillStyle = '#555555';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Esc = Back', W / 2, py + panelH - 10);
+}
+
+/** Saves volume + API key to localStorage. */
+function saveSettings() {
+    try {
+        var data = {
+            musicVolume: audio.musicVolume,
+            sfxVolume: audio.sfxVolume,
+            apiKey: settingsUI.apiKeyInput || '',
+        };
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+}
+
+/** Loads settings from localStorage. Called on boot. */
+function loadSettings() {
+    try {
+        var raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (data.musicVolume !== undefined) setMusicVolume(data.musicVolume);
+        if (data.sfxVolume !== undefined) setSfxVolume(data.sfxVolume);
+        if (data.apiKey) settingsUI.apiKeyInput = data.apiKey;
+    } catch (e) {}
+}
+
+/** Returns the stored API key, or empty string. */
+function getStoredApiKey() {
+    return settingsUI.apiKeyInput || '';
+}
+
+/** Sets the stored API key. */
+function setStoredApiKey(key) {
+    settingsUI.apiKeyInput = key || '';
 }
