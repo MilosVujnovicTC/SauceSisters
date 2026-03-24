@@ -1442,6 +1442,21 @@ function setSfxVolume(vol) {
     // Howler volumes are applied per-play in playSample()
 }
 
+/** Increases music tempo for boss fights (20-30% bump). */
+function startBossTempo() {
+    if (!music.currentZone || !music.zones[music.currentZone]) return;
+    var baseTempo = music.zones[music.currentZone].tempo || 100;
+    var bossTempo = Math.round(baseTempo * 1.25); // 25% increase
+    Tone.Transport.bpm.rampTo(bossTempo, 1.0); // ramp over 1 second
+}
+
+/** Restores music tempo after boss fight. */
+function endBossTempo() {
+    if (!music.currentZone || !music.zones[music.currentZone]) return;
+    var baseTempo = music.zones[music.currentZone].tempo || 100;
+    Tone.Transport.bpm.rampTo(baseTempo, 0.5); // ramp back over 0.5 second
+}
+
 /** Plays a test tone at the given note. Debug use. */
 function playTestTone(note) {
     if (!audio.unlocked || !audio.testSynth) return;

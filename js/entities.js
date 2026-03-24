@@ -1371,6 +1371,7 @@ function startEnzoBoss() {
                 ],
                 onComplete: function() {
                     enzoBoss.introDone = true;
+                    startBossTempo();
                 },
             };
         },
@@ -1776,6 +1777,7 @@ function updateEnzoBossDefeat(dt) {
         // Restore Enzo NPC for post-boss dialogue
         restoreNPCAfterBoss('enzo');
         enzoBoss.active = false;
+        endBossTempo();
         // Victory dialogue
         startDialogue({
             id: 'enzo_boss_victory', name: 'Enzo',
@@ -2117,6 +2119,7 @@ function resetEnzoBoss() {
     bossProjectiles = [];
     enemies = [];
     restoreNPCAfterBoss('enzo');
+    endBossTempo();
 }
 
 // ============================================================
@@ -2205,7 +2208,7 @@ function startWeddingBoss() {
                     "The schedule is RUINED! The flowers are WRONG! And now I have to deal with CHILDREN?!",
                     "I'll show you what STRESS looks like!",
                 ],
-                onComplete: function() { weddingBoss.introDone = true; },
+                onComplete: function() { weddingBoss.introDone = true; startBossTempo(); },
             };
         },
     });
@@ -2560,6 +2563,7 @@ function updateWeddingBossDefeat(dt) {
     if (weddingBoss.defeatTimer <= 0 && weddingBoss.active) {
         setFlag('wedding_boss_defeated', true);
         weddingBoss.active = false;
+        endBossTempo();
         restoreNPCAfterBoss('mama_rosa');
 
         startDialogue({
@@ -2589,6 +2593,7 @@ function resetWeddingBoss() {
     stressClouds = [];
     enemies = [];
     restoreNPCAfterBoss('mama_rosa');
+    endBossTempo();
 }
 
 /** Checks if all 5 recipe fragments are found. If so, starts the finale. */

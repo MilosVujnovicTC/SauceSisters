@@ -662,7 +662,7 @@
   - [ ] Escape opens pause menu mid-game
   - [ ] Settings changes persist in localStorage
 
-### Stage 9-3: Sound tuning pass `[ ]`
+### Stage 9-3: Sound tuning pass `[x] 2026-03-25`
 - Unique music loop per zone (all 7 zones)
 - Boss fight tempo increase (20-30% BPM bump)
 - Ambient layer per zone (water, crowd, clocks, etc.)
