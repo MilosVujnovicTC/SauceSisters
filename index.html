@@ -29,21 +29,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 
 <!-- Load order matters: each file depends on the ones above it -->
-<script src="assets/tiles.js?v=21"></script>  <!-- Tile definitions, shorthand constants -->
-<script src="js/engine.js?v=21"></script>     <!-- CONFIG, canvas, input, bindings, camera, game state, core loop -->
-<script src="js/sprites.js?v=21"></script>    <!-- Enhanced pixel art sprite generator -->
-<script src="js/save.js?v=21"></script>       <!-- Quest flags, items, inventory -->
-<script src="js/audio.js?v=21"></script>      <!-- Audio manager, unlock, music + SFX -->
-<script src="js/puzzles.js?v=21"></script>    <!-- BMX mini-game, puzzle mechanics -->
-<script src="js/entities.js?v=21"></script>   <!-- Player, NPCs, dogs, collision -->
-<script src="js/weapons.js?v=21"></script>    <!-- Weapon system, equip, hitboxes, attack -->
-<script src="js/world.js?v=21"></script>      <!-- Zones, tile rendering, pushables, world items -->
-<script src="js/ui.js?v=21"></script>         <!-- Remap overlay, dialogue, HUD, item flash -->
+<script src="assets/tiles.js?v=24"></script>  <!-- Tile definitions, shorthand constants -->
+<script src="js/engine.js?v=24"></script>     <!-- CONFIG, canvas, input, bindings, camera, game state, core loop -->
+<script src="js/sprites.js?v=24"></script>    <!-- Enhanced pixel art sprite generator -->
+<script src="js/save.js?v=24"></script>       <!-- Quest flags, items, inventory -->
+<script src="js/audio.js?v=24"></script>      <!-- Audio manager, unlock, music + SFX -->
+<script src="js/puzzles.js?v=24"></script>    <!-- BMX mini-game, puzzle mechanics -->
+<script src="js/entities.js?v=24"></script>   <!-- Player, NPCs, dogs, collision -->
+<script src="js/weapons.js?v=24"></script>    <!-- Weapon system, equip, hitboxes, attack -->
+<script src="js/world.js?v=24"></script>      <!-- Zones, tile rendering, pushables, world items -->
+<script src="js/ui.js?v=24"></script>         <!-- Remap overlay, dialogue, HUD, item flash -->
 
 <!-- Boot -->
 <script>
 generateAllSprites();
-loadZone('la_cucina');
+loadZone('la_cucina');  // load default zone (title screen will override on Continue)
+initTitleScreen();
 startGame();
 </script>
 </body>

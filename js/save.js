@@ -75,3 +75,132 @@ function getFirstPlank() {
     }
     return null;
 }
+
+// ============================================================
+// Save / Load system — localStorage persistence
+// ============================================================
+
+var SAVE_KEY = 'sauce_sisters_save';
+
+/** Counts collected recipe fragments based on quest flags. */
+function countRecipes() {
+    var n = 0;
+    for (var i = 1; i <= 5; i++) {
+        if (getFlag('recipe_' + i + '_found')) n++;
+    }
+    return n;
+}
+
+/** Builds a save data object from current game state. */
+function buildSaveData() {
+    var ts = CONFIG.TILE_SIZE;
+    return {
+        version: 1,
+        timestamp: Date.now(),
+        // Player
+        zone: game.currentZone ? game.currentZone.id : 'la_cucina',
+        playerCol: Math.floor((player.x + player.w / 2) / ts),
+        playerRow: Math.floor((player.y + player.h / 2) / ts),
+        facing: player.facing,
+        hp: player.hp,
+        lives: player.lives,
+        // Inventory + weapons
+        inventory: inventory.slice(),
+        equipped: weaponState.equipped,
+        ammo: JSON.parse(JSON.stringify(weaponState.ammo)),
+        // Quest state
+        flags: JSON.parse(JSON.stringify(questFlags)),
+        // Playtime
+        playtime: game.time,
+        // Summary (for display on load screen)
+        recipesFound: countRecipes(),
+        zoneName: game.currentZone ? game.currentZone.name : 'La Cucina',
+    };
+}
+
+/** Saves the current game state to localStorage. Returns true on success. */
+function saveGame() {
+    try {
+        var data = buildSaveData();
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Returns the saved game data object, or null if no save exists / corrupt. */
+function getSaveData() {
+    try {
+        var raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return null;
+        var data = JSON.parse(raw);
+        if (!data || !data.zone || !data.flags) return null;
+        return data;
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Returns true if a saved game exists. */
+function hasSavedGame() {
+    return getSaveData() !== null;
+}
+
+/** Loads game state from localStorage. Returns true on success. */
+function loadSavedGame() {
+    var data = getSaveData();
+    if (!data) return false;
+
+    // Restore quest flags
+    for (var key in questFlags) delete questFlags[key];
+    for (var key in data.flags) {
+        questFlags[key] = data.flags[key];
+    }
+
+    // Restore inventory
+    inventory.length = 0;
+    if (data.inventory) {
+        for (var i = 0; i < data.inventory.length; i++) {
+            inventory.push(data.inventory[i]);
+        }
+    }
+
+    // Restore weapon state
+    weaponState.equipped = data.equipped || null;
+    weaponState.ammo = data.ammo || {};
+    weaponState.cooldownTimer = 0;
+    weaponState.attacking = false;
+
+    // Restore player HP / lives
+    player.hp = data.hp !== undefined ? data.hp : 3;
+    player.lives = data.lives !== undefined ? data.lives : 3;
+    player.dead = false;
+    player.invulnTimer = 0;
+    player.damageFlash = 0;
+
+    // Restore playtime
+    game.time = data.playtime || 0;
+
+    // Load the saved zone at saved position
+    loadZone(data.zone, data.playerCol, data.playerRow);
+    if (data.facing) player.facing = data.facing;
+
+    return true;
+}
+
+/** Deletes the saved game from localStorage. */
+function deleteSave() {
+    localStorage.removeItem(SAVE_KEY);
+}
+
+/** Formats playtime seconds as "Xh Ym" or "Ym Zs". */
+function formatPlaytime(seconds) {
+    var s = Math.floor(seconds);
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+}

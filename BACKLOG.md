@@ -624,7 +624,7 @@
   - [ ] Solved state is saved
   - [ ] None of these break existing zone functionality
 
-### Stage 8-5: Pepe gap mechanic + dog throws `[ ]`
+### Stage 8-5: Pepe gap mechanic + dog throws `[deferred]`
 - Pepe auto-activates at 1-tile-wide gaps
 - Pepe squeezes through, triggers switch/collects item on other side
 - Both dogs can be "thrown" as gag weapons (bounce back unharmed)
@@ -638,7 +638,7 @@
 
 ## Phase 9: Polish
 
-### Stage 9-1: Save/load system `[ ]`
+### Stage 9-1: Save/load system `[x] 2026-03-24`
 - Save to localStorage: player position, zone, inventory, quest flags, puzzle states, recipe fragments
 - Auto-save on zone transition
 - Manual save from pause menu

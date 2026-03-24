@@ -782,7 +782,7 @@ const ZONES = {
             [W,_MR, F, F, F, F, F, F, F, F,_MT,_MT,_MT,_MT,_MT,_MT, F, F, F, F, F, F, F, F, F, F,_MR, W], // 9  mirrors + mat area
             [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 10
             [W, F, F, R, R, R, R, R, F, F, F, F, F, F, F, F, F, F, F, F, F, R, R, R, R, R, F, W], // 11 Papa's corner (left) + lounge (right)
-            [W, F, F, R, R, R, R, R, F, F, F, F, F, F, F, F, F, F, F, F, F, R, R, R, R, R, F, W], // 12
+            [W, F, F, R, R, R, R, R, F, F, F, F, F, F, F, F, F, F, F, F, F, R, R, R, R, R, F, W], // 12 lounge wall (Pepe squeezes through)
             [W, F, F, R, C, C, R, R, F, F, F, F, F, F, F, F, F, F, F, F, F, R, R, C, C, R, F, W], // 13 desk in Papa's corner + bench in lounge
             [W, F, F, R, R, R, R, R, F, F, F, F, F, F, F, F, F, F, F, F, F, R, R, R, R, R, F, W], // 14
             [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // 15
@@ -1661,6 +1661,9 @@ function checkTransitions() {
             setFlag('pepe_dash_cooldown', false);
 
             loadZone(t.target, t.spawnX, t.spawnY);
+            // Auto-save after zone load (state is fresh)
+            saveGame();
+            showSaveIndicator();
             return;
         }
     }

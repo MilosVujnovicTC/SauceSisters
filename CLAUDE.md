@@ -294,7 +294,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** Stage 8-5 (Pepe gap mechanic + dog throws).
+**Current stage:** Stage 9-2 (Title screen + pause menu).
 
 ---
 
@@ -418,6 +418,9 @@ Before writing any code, Claude must confirm:
 | 15 | 2026-03-23 | 8-2 | Tomato juggling interlude: 4-lane reflex catching game. Left/Right to move basket between lanes, catch falling tomatoes. 35s duration, 5 max misses, combo tracking. Golden tomatoes (12% chance after 8s) for bonus. Double-spawns after 15s (25% chance). Procedural wicker basket with rim detail. Tomato sprites with stems, highlights, rotation. Dark kitchen background with lane columns. Splat effects on missed tomatoes. Grading: S (>=90% catch + 8 combo, Brodo Boost), A (>=75%, Sugar Rush), B (>=50%, Tomato), C (no reward). Guaranteed trigger when leaving Market with recipe_1_found. juggling_completed flag prevents re-trigger. game.mode='juggling'. Cache-busting ?v=19. |
 | 16 | 2026-03-23 | 8-3 | Three remaining interludes: (1) Coco's Air Guitar (Canal, optional): arrow combo rhythm game, 7 chord patterns (2-4 key sequences), 30s duration, timed completion scoring, stage/spotlight background with Coco silhouette + guitar, game.mode='air_guitar'. (2) Signora Betta's Accordion (Market, optional): Simon Says memory game, 8 rounds of growing arrow sequences, 3 mistakes max, 4 colored directional buttons with flash feedback, game.mode='accordion'. (3) Mama's Sewing Rhythm (Sewing Shop, optional): precision beat-matching at 120 BPM, 25s duration, visual needle + fabric with stitch counter, pulsing beat ring indicator, game.mode='sewing_rhythm'. All three: interactable objects in zones, intro dialogue → mini-game → S/A/B/C grading with powerup/item rewards, Escape to skip, completion flags prevent re-trigger. Cache-busting ?v=20. |
 | 17 | 2026-03-24 | 8-4 | Six remaining millennial puzzles: (1) Red Rotary Phone #1 (Market 3,24): dial 392-4477 with animated dial rotation, opens storeroom shortcut. (2) Pager/Beeper (Market 28,24): type 07734 → upside-down "hELLO" on green LCD, rewards shortcut key. (3) VHS Tape (Library 20,5): hold Space to rewind, release to lower tension, random danger zones increase tension rate, tape snaps at 100% (rewinds back), reveals Mama's cooking video. (4) CD-ROM (Library 17,13): 12-sector disc, arrow keys rotate selector, Space scrubs sector clean, rewards CD-ROM Disc weapon (ranged 2dmg stun, 1 use). (5) Piazza Payphone (Piazza 2,4): watch Morse code dots/dashes pattern, decode and dial number (392), R to replay. (6) Tamagotchi (Gym 23,13): memorize 8-food sequence during intro, feed with keys 1-5, 15s timer, 3 mistakes max, rewards Dirty Sock weapon. All overlay-style puzzles with solved flags, intro dialogues, post-solve dialogue on revisit. CD-ROM Disc added to ITEMS + WEAPONS. Cache-busting ?v=21. |
+
+| 18 | 2026-03-24 | 8-5 | Stage deferred — Pepe companion (chihuahua, gap squeeze, dog throws) implemented then disabled per user request. May return behind sister/player selection screen. Pepe Dash interlude (Stage 8-1) untouched. |
+| 18 | 2026-03-24 | 9-1 | Save/load system: saveGame()/loadSavedGame() in save.js — serializes zone, position, inventory, quest flags, weapon state, HP/lives, playtime to localStorage. Auto-save on every zone transition with "Saved" indicator. Title screen on page load: starfield background, animated title, Continue (with save info) / New Game options. Pause menu (Esc): Resume / Save Game / Quit to Title with save confirmation. formatPlaytime() helper. Cache-busting ?v=24. |
 
 ---
 

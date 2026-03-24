@@ -380,8 +380,33 @@ const game = {
 
 /** Updates all game logic. dt = delta time in seconds. No drawing here. */
 function update(dt) {
-    game.time += dt;
     inputUpdate();
+
+    // Title screen intercepts everything
+    if (titleScreen.active) {
+        updateTitleScreen(dt);
+        return;
+    }
+
+    game.time += dt;
+
+    // Save indicator countdown
+    if (saveIndicator.timer > 0) saveIndicator.timer -= dt;
+
+    // Pause menu intercepts when open
+    if (pauseMenu.open) {
+        updatePauseMenu(dt);
+        return;
+    }
+
+    // Escape opens pause menu (overworld only, not during overlays/dialogues)
+    if ((actionJustPressed('pause') || isJustPressed('Escape')) && game.mode === 'overworld'
+        && !dialogue.active && !remapUI.open && !nokia.active && !cartridge.active
+        && !printer.active && !rotary1.active && !pager.active && !vhs.active
+        && !cdrom.active && !morse.active && !tama.active && !game.showScrollOverlay) {
+        openPauseMenu();
+        return;
+    }
 
     // Audio system always updates (initialization, music fade, debug keys)
     updateAudio(dt);
@@ -601,6 +626,12 @@ function update(dt) {
 
 /** Renders all visuals to the canvas. No logic here. */
 function render(ctx) {
+    // Title screen (drawn over everything)
+    if (titleScreen.active) {
+        renderTitleScreen(ctx);
+        return;
+    }
+
     // Mini-game modes — delegate to their own render
     if (game.mode === 'bmx') {
         renderBMX(ctx);
@@ -827,8 +858,14 @@ function render(ctx) {
 
         // Controls hint
         ctx.fillStyle = '#555555';
-        ctx.fillText('Tab = Controls | M = Test tone', 8, CONFIG.CANVAS_H - 8);
+        ctx.fillText('Tab = Controls | M = Test tone | Esc = Pause', 8, CONFIG.CANVAS_H - 8);
     }
+
+    // Save indicator (small "Saved" text in corner)
+    renderSaveIndicator(ctx);
+
+    // Pause menu (on top of everything except title)
+    renderPauseMenu(ctx);
 }
 
 /** Main game loop. Called by requestAnimationFrame. */

@@ -1213,3 +1213,284 @@ function renderItemFlash(ctx) {
         ctx.fillText('A piece of Mama\'s secret sauce recipe!', CONFIG.CANVAS_W / 2, CONFIG.CANVAS_H / 2 - 10);
     }
 }
+
+// ============================================================
+// Title screen
+// ============================================================
+
+var titleScreen = {
+    active: true,           // shown on page load
+    selectedIndex: 0,       // 0 = New Game, 1 = Continue
+    options: ['New Game'],  // populated on init
+    animTimer: 0,
+};
+
+/** Initializes title screen options based on save state. */
+function initTitleScreen() {
+    titleScreen.active = true;
+    titleScreen.selectedIndex = 0;
+    titleScreen.options = hasSavedGame() ? ['Continue', 'New Game'] : ['New Game'];
+    titleScreen.animTimer = 0;
+}
+
+/** Updates title screen input. */
+function updateTitleScreen(dt) {
+    if (!titleScreen.active) return;
+    titleScreen.animTimer += dt;
+
+    if (actionJustPressed('move_up') || isJustPressed('ArrowUp')) {
+        titleScreen.selectedIndex = (titleScreen.selectedIndex - 1 + titleScreen.options.length) % titleScreen.options.length;
+    }
+    if (actionJustPressed('move_down') || isJustPressed('ArrowDown')) {
+        titleScreen.selectedIndex = (titleScreen.selectedIndex + 1) % titleScreen.options.length;
+    }
+
+    if (actionJustPressed('interact') || isJustPressed('Enter')) {
+        var choice = titleScreen.options[titleScreen.selectedIndex];
+        if (choice === 'Continue') {
+            titleScreen.active = false;
+            loadSavedGame();
+        } else if (choice === 'New Game') {
+            titleScreen.active = false;
+            // Reset all state for fresh start
+            for (var key in questFlags) delete questFlags[key];
+            inventory.length = 0;
+            weaponState.equipped = null;
+            weaponState.ammo = {};
+            player.hp = 3;
+            player.lives = 3;
+            player.dead = false;
+            game.time = 0;
+            deleteSave();
+            loadZone('la_cucina');
+        }
+    }
+}
+
+/** Renders the title screen. */
+function renderTitleScreen(ctx) {
+    if (!titleScreen.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var t = titleScreen.animTimer;
+
+    // Background — dark with gradient
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, W, H);
+
+    // Animated stars
+    for (var i = 0; i < 40; i++) {
+        var sx = ((i * 137 + Math.sin(t * 0.3 + i) * 20) % W + W) % W;
+        var sy = ((i * 89 + Math.cos(t * 0.2 + i * 0.7) * 15) % H + H) % H;
+        var sa = 0.3 + Math.sin(t * 2 + i) * 0.3;
+        ctx.fillStyle = 'rgba(255, 255, 200, ' + sa + ')';
+        ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    // Title
+    var titleY = H * 0.25 + Math.sin(t * 1.5) * 4;
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('The Sauce Sisters', W / 2, titleY);
+
+    // Subtitle
+    ctx.fillStyle = '#ff8a65';
+    ctx.font = '14px monospace';
+    ctx.fillText("Mama's Secret Recipe", W / 2, titleY + 30);
+
+    // Decorative tomato
+    ctx.fillStyle = '#e53935';
+    ctx.beginPath();
+    ctx.arc(W / 2, titleY + 60, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(W / 2 - 3, titleY + 46, 6, 6);
+
+    // Menu options
+    var menuY = H * 0.55;
+    for (var i = 0; i < titleScreen.options.length; i++) {
+        var selected = (i === titleScreen.selectedIndex);
+        var optY = menuY + i * 36;
+
+        if (selected) {
+            // Selection highlight
+            ctx.fillStyle = 'rgba(255, 213, 79, 0.15)';
+            ctx.fillRect(W / 2 - 120, optY - 16, 240, 28);
+            ctx.fillStyle = '#ffd54f';
+            ctx.font = 'bold 18px monospace';
+            // Arrow indicator
+            var arrowBob = Math.sin(t * 4) * 3;
+            ctx.fillText('\u25B6', W / 2 - 100 + arrowBob, optY + 2);
+        } else {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '16px monospace';
+        }
+        ctx.textAlign = 'center';
+        ctx.fillText(titleScreen.options[i], W / 2, optY + 2);
+    }
+
+    // Save info (if continue available)
+    if (titleScreen.options[0] === 'Continue') {
+        var save = getSaveData();
+        if (save) {
+            ctx.fillStyle = '#666666';
+            ctx.font = '11px monospace';
+            ctx.textAlign = 'center';
+            var info = save.zoneName + '  |  ' + save.recipesFound + '/5 recipes  |  ' + formatPlaytime(save.playtime);
+            ctx.fillText(info, W / 2, menuY - 20);
+        }
+    }
+
+    // Controls hint
+    ctx.fillStyle = '#555555';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u2191\u2193 Select  |  Z/Space/Enter = Confirm', W / 2, H - 30);
+}
+
+// ============================================================
+// Pause menu
+// ============================================================
+
+var pauseMenu = {
+    open: false,
+    selectedIndex: 0,
+    options: ['Resume', 'Save Game', 'Quit to Title'],
+    saveMsg: '',         // 'Game saved!' or ''
+    saveMsgTimer: 0,
+};
+
+/** Opens the pause menu. */
+function openPauseMenu() {
+    pauseMenu.open = true;
+    pauseMenu.selectedIndex = 0;
+    pauseMenu.saveMsg = '';
+    pauseMenu.saveMsgTimer = 0;
+}
+
+/** Closes the pause menu. */
+function closePauseMenu() {
+    pauseMenu.open = false;
+}
+
+/** Updates pause menu input. */
+function updatePauseMenu(dt) {
+    if (!pauseMenu.open) return;
+    if (pauseMenu.saveMsgTimer > 0) pauseMenu.saveMsgTimer -= dt;
+
+    if (actionJustPressed('pause') || isJustPressed('Escape')) {
+        closePauseMenu();
+        return;
+    }
+
+    if (actionJustPressed('move_up') || isJustPressed('ArrowUp')) {
+        pauseMenu.selectedIndex = (pauseMenu.selectedIndex - 1 + pauseMenu.options.length) % pauseMenu.options.length;
+    }
+    if (actionJustPressed('move_down') || isJustPressed('ArrowDown')) {
+        pauseMenu.selectedIndex = (pauseMenu.selectedIndex + 1) % pauseMenu.options.length;
+    }
+
+    if (actionJustPressed('interact') || isJustPressed('Enter')) {
+        var choice = pauseMenu.options[pauseMenu.selectedIndex];
+        if (choice === 'Resume') {
+            closePauseMenu();
+        } else if (choice === 'Save Game') {
+            if (saveGame()) {
+                pauseMenu.saveMsg = 'Game saved!';
+            } else {
+                pauseMenu.saveMsg = 'Save failed!';
+            }
+            pauseMenu.saveMsgTimer = 2.0;
+        } else if (choice === 'Quit to Title') {
+            closePauseMenu();
+            // Save before quitting
+            saveGame();
+            initTitleScreen();
+        }
+    }
+}
+
+/** Renders the pause menu overlay. */
+function renderPauseMenu(ctx) {
+    if (!pauseMenu.open) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+
+    // Dim background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Panel
+    var panelW = 280;
+    var panelH = 200;
+    var px = (W - panelW) / 2;
+    var py = (H - panelH) / 2;
+    ctx.fillStyle = 'rgba(30, 30, 50, 0.95)';
+    ctx.fillRect(px, py, panelW, panelH);
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, py, panelW, panelH);
+
+    // Title
+    ctx.fillStyle = '#ffd54f';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', W / 2, py + 30);
+
+    // Options
+    var optStartY = py + 60;
+    for (var i = 0; i < pauseMenu.options.length; i++) {
+        var selected = (i === pauseMenu.selectedIndex);
+        var optY = optStartY + i * 32;
+
+        if (selected) {
+            ctx.fillStyle = 'rgba(255, 213, 79, 0.15)';
+            ctx.fillRect(px + 20, optY - 12, panelW - 40, 24);
+            ctx.fillStyle = '#ffd54f';
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText('\u25B6 ' + pauseMenu.options[i], W / 2, optY + 2);
+        } else {
+            ctx.fillStyle = '#aaaaaa';
+            ctx.font = '14px monospace';
+            ctx.fillText(pauseMenu.options[i], W / 2, optY + 2);
+        }
+    }
+
+    // Save confirmation message
+    if (pauseMenu.saveMsgTimer > 0 && pauseMenu.saveMsg) {
+        var msgAlpha = Math.min(pauseMenu.saveMsgTimer / 0.5, 1);
+        ctx.fillStyle = 'rgba(76, 175, 80, ' + msgAlpha + ')';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(pauseMenu.saveMsg, W / 2, py + panelH - 20);
+    }
+
+    // Playtime + zone
+    ctx.fillStyle = '#666666';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    var zName = game.currentZone ? game.currentZone.name : '';
+    ctx.fillText(zName + '  |  ' + formatPlaytime(game.time) + '  |  ' + countRecipes() + '/5 recipes', W / 2, py + panelH - 6);
+}
+
+// ============================================================
+// Save indicator (brief flash on auto-save)
+// ============================================================
+
+var saveIndicator = { timer: 0 };
+
+/** Shows a brief save indicator. Called after auto-save. */
+function showSaveIndicator() {
+    saveIndicator.timer = 1.5;
+}
+
+/** Renders the save indicator in the corner. */
+function renderSaveIndicator(ctx) {
+    if (saveIndicator.timer <= 0) return;
+    var alpha = Math.min(saveIndicator.timer / 0.5, 1);
+    ctx.fillStyle = 'rgba(100, 200, 100, ' + alpha + ')';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Saved', CONFIG.CANVAS_W - 12, CONFIG.CANVAS_H - 12);
+}
