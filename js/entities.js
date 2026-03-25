@@ -1200,6 +1200,10 @@ function hitEnemy(e, weapon) {
             var row = Math.floor((e.y + e.h / 2) / ts);
             spawnWorldItem(e.id + '_drop', col, row, e.drop);
         }
+        // Award coins
+        var coinAmount = (e.id && e.id.indexOf('boss_waiter') === 0)
+            ? COIN_REWARDS.BOSS_WAITER_KILL : COIN_REWARDS.ENEMY_KILL;
+        addScore(coinAmount, e.x + e.w / 2, e.y);
     }
 
     playEnemyHit();
@@ -1770,6 +1774,7 @@ function updateEnzoBossDefeat(dt) {
     if (wasPositive && enzoBoss.defeatTimer <= 0) {
         // Defeat complete — set flag, open door, spawn recipe, show dialogue
         setFlag('enzo_boss_defeated', true);
+        addScore(COIN_REWARDS.ENZO_DEFEAT, enzoBoss.x + enzoBoss.w / 2, enzoBoss.y);
         restoreSauceRoomDoor();
         restoreSewingShopDoor();
         // Spawn recipe #4 in sauce machine room (col 25, row 8 — open floor)
@@ -2562,6 +2567,7 @@ function updateWeddingBossDefeat(dt) {
     weddingBoss.defeatTimer -= dt;
     if (weddingBoss.defeatTimer <= 0 && weddingBoss.active) {
         setFlag('wedding_boss_defeated', true);
+        addScore(COIN_REWARDS.WEDDING_DEFEAT, weddingBoss.x + weddingBoss.w / 2, weddingBoss.y);
         weddingBoss.active = false;
         endBossTempo();
         restoreNPCAfterBoss('mama_rosa');

@@ -372,6 +372,8 @@ const game = {
     mode: 'overworld',   // 'overworld', 'bmx', 'drum', 'cooking', 'finale', 'pepe_dash', 'juggling' — controls update/render routing
     showScrollOverlay: false,  // true when scroll pattern overlay is visible
     scrollOverlayTimer: 0,     // auto-dismiss countdown (first show only)
+    score: 0,                  // coins earned from enemies, interludes, pickups
+    scorePopups: [],           // floating "+N" text popups [{x,y,amount,timer}]
 };
 
 // ============================================================
@@ -617,6 +619,13 @@ function update(dt) {
     // Item flash timer
     if (game.itemFlash > 0) game.itemFlash -= dt;
 
+    // Score popups
+    for (var si = game.scorePopups.length - 1; si >= 0; si--) {
+        game.scorePopups[si].timer -= dt;
+        game.scorePopups[si].y -= 30 * dt; // float upward
+        if (game.scorePopups[si].timer <= 0) game.scorePopups.splice(si, 1);
+    }
+
     // Check zone transitions
     checkTransitions();
 
@@ -756,12 +765,16 @@ function render(ctx) {
     // Dialogue box (on top of game world, below overlays)
     renderDialogue(ctx);
 
-    // HUD: inventory bar + weapon slot + buff + health
+    // HUD: inventory bar + weapon slot + buff + health + score
     renderHUD(ctx);
     renderWeaponHUD(ctx);
     renderBuffHUD(ctx);
     renderHealthHUD(ctx);
     renderPapaHintHUD(ctx);
+    renderScoreHUD(ctx);
+
+    // Score popups (floating "+N" in world)
+    renderScorePopups(ctx, game.cameraX, game.cameraY);
 
     // Boss HP bar (on top of other HUD)
     renderBossHPBar(ctx);

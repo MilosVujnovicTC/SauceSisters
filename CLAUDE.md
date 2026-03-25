@@ -294,7 +294,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** Stage 9-4 (Score, rewards, and balancing).
+**Current stage:** Stage 9-5 (Full playtest + bug fix pass).
 
 ---
 
@@ -423,6 +423,7 @@ Before writing any code, Claude must confirm:
 | 18 | 2026-03-24 | 9-1 | Save/load system: saveGame()/loadSavedGame() in save.js — serializes zone, position, inventory, quest flags, weapon state, HP/lives, playtime to localStorage. Auto-save on every zone transition with "Saved" indicator. Title screen on page load: starfield background, animated title, Continue (with save info) / New Game options. Pause menu (Esc): Resume / Save Game / Quit to Title with save confirmation. formatPlaytime() helper. Cache-busting ?v=24. |
 | 19 | 2026-03-25 | 9-2 | Settings screen: accessible from title screen + pause menu. Music/SFX volume sliders (left/right arrows, 10% steps, visual bars). API key text input (masked display, Enter to confirm). All settings persist in localStorage (sauce_sisters_settings). loadSettings() on boot restores saved volumes. Cache-busting ?v=25. |
 | 19 | 2026-03-25 | 9-3 | Sound tuning pass: boss fight tempo increase — startBossTempo()/endBossTempo() in audio.js (25% BPM ramp via Tone.Transport.bpm.rampTo). Hooked into Enzo boss (startEnzoBoss onComplete, defeat, resetEnzoBoss) and Wedding Planner boss (startWeddingBoss onComplete, defeat, resetWeddingBoss). All 8 zones already had unique music + ambient from A-1. Volume balancing verified consistent (-8 to -22 dB range). Cache-busting ?v=26. |
+| 20 | 2026-03-25 | 9-4 | Score/coin system + balancing: COIN_REWARDS constants + addScore() + getInterludeCoins() in save.js. game.score + game.scorePopups in engine.js. Coins from: enemy kills (10), boss waiters (5), broom defeat (15), Enzo/Wedding boss defeat (50 each), recipe fragments (20), all 6 interludes (S=40/A=25/B=15/C=5). Score HUD (gold coin icon + counter, top-right) + floating "+N" world popups in ui.js. Coin amounts shown on all interlude result screens. Score persists in save/load, resets on New Game. Weapon ammo balancing: added Tomato Crate pickup in Piazza (10,18) and Flour Bag pickup in Gym (9,18) — both reuse existing sprites, hidden when item in inventory. Health/damage values reviewed and confirmed balanced (Enzo 18HP, Wedding 14HP, player 3HP+3 lives). Pepe obstacle dash disabled (random trigger commented out). Cache-busting ?v=27. |
 
 ---
 

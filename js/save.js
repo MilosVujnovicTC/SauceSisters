@@ -82,6 +82,41 @@ function getFirstPlank() {
 
 var SAVE_KEY = 'sauce_sisters_save';
 
+// ============================================================
+// Score / coin constants
+// ============================================================
+
+/** Coin rewards for various actions. */
+var COIN_REWARDS = {
+    ENEMY_KILL: 10,        // coins per generic enemy killed
+    BOSS_WAITER_KILL: 5,   // coins per boss-summoned waiter killed
+    BROOM_DEFEAT: 15,      // coins for defeating library broom
+    ENZO_DEFEAT: 50,       // coins for defeating Enzo boss
+    WEDDING_DEFEAT: 50,    // coins for defeating Wedding Planner boss
+    INTERLUDE_C: 5,        // coins for C-grade interlude
+    INTERLUDE_B: 15,       // coins for B-grade interlude
+    INTERLUDE_A: 25,       // coins for A-grade interlude
+    INTERLUDE_S: 40,       // coins for S-grade interlude
+    RECIPE_FOUND: 20,      // coins for finding a recipe fragment
+};
+
+/** Adds coins to the player's score with an optional popup at world position. */
+function addScore(amount, worldX, worldY) {
+    game.score += amount;
+    if (worldX !== undefined && worldY !== undefined) {
+        game.scorePopups.push({ x: worldX, y: worldY, amount: amount, timer: 1.2 });
+    }
+}
+
+/** Returns the coin bonus for an interlude grade. */
+function getInterludeCoins(grade) {
+    if (grade === 'S') return COIN_REWARDS.INTERLUDE_S;
+    if (grade === 'A') return COIN_REWARDS.INTERLUDE_A;
+    if (grade === 'B') return COIN_REWARDS.INTERLUDE_B;
+    if (grade === 'C') return COIN_REWARDS.INTERLUDE_C;
+    return 0;
+}
+
 /** Counts collected recipe fragments based on quest flags. */
 function countRecipes() {
     var n = 0;
@@ -110,8 +145,9 @@ function buildSaveData() {
         ammo: JSON.parse(JSON.stringify(weaponState.ammo)),
         // Quest state
         flags: JSON.parse(JSON.stringify(questFlags)),
-        // Playtime
+        // Playtime + score
         playtime: game.time,
+        score: game.score,
         // Summary (for display on load screen)
         recipesFound: countRecipes(),
         zoneName: game.currentZone ? game.currentZone.name : 'La Cucina',
@@ -179,8 +215,9 @@ function loadSavedGame() {
     player.invulnTimer = 0;
     player.damageFlash = 0;
 
-    // Restore playtime
+    // Restore playtime + score
     game.time = data.playtime || 0;
+    game.score = data.score || 0;
 
     // Load the saved zone at saved position
     loadZone(data.zone, data.playerCol, data.playerRow);

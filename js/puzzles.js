@@ -1184,6 +1184,7 @@ function updateLibraryBroom(dt) {
                 libraryBroom.state = 'defeated';
                 libraryBroom.active = false;
                 setFlag('broom_defeated', true);
+                addScore(COIN_REWARDS.BROOM_DEFEAT, libraryBroom.x + libraryBroom.w / 2, libraryBroom.y);
                 game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
                 game.itemFlashName = 'Cat Scared Away!';
             } else {
@@ -2091,7 +2092,14 @@ function renderDrumSolo(ctx) {
         if (drum.reward) {
             ctx.fillStyle = '#ffd54f';
             ctx.font = '14px monospace';
-            ctx.fillText('Reward: ' + drum.reward.name + '!', W / 2, H * 0.86);
+            ctx.fillText('Reward: ' + drum.reward.name + '!', W / 2, H * 0.84);
+        }
+        // Coins
+        var drumCoins = getInterludeCoins(drum.grade);
+        if (drumCoins > 0) {
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '12px monospace';
+            ctx.fillText('+' + drumCoins + ' coins', W / 2, H * 0.89);
         }
 
         // Continue prompt
@@ -2134,6 +2142,8 @@ function endDrumSolo() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = drum.reward.name;
     }
+    // Always grant coins based on grade
+    game.score += getInterludeCoins(drum.grade);
 
     // Set flag so it doesn't trigger again
     setFlag('drum_solo_completed', true);
@@ -3771,6 +3781,7 @@ function endPepeDash() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = pepeDash.reward.name;
     }
+    game.score += getInterludeCoins(pepeDash.grade);
 
     pepeDash.active = false;
     game.mode = 'overworld';
@@ -3975,11 +3986,11 @@ function renderPepeDash(ctx) {
             ctx.fillStyle = '#ffcc44';
             ctx.font = 'bold 14px monospace';
             ctx.fillText('Reward: ' + pepeDash.reward.name, W / 2, H / 2 + 80);
-        } else {
-            ctx.fillStyle = '#888888';
-            ctx.font = '12px monospace';
-            ctx.fillText('No reward this time.', W / 2, H / 2 + 80);
         }
+        var pepeCoins = getInterludeCoins(pepeDash.grade);
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '12px monospace';
+        ctx.fillText('+' + pepeCoins + ' coins', W / 2, H / 2 + 98);
 
         if (pepeDash.resultTimer <= 0 && Math.sin(t * 3) > 0) {
             ctx.fillStyle = '#aaaaaa';
@@ -4305,6 +4316,7 @@ function endJuggling() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = juggle.reward.name;
     }
+    game.score += getInterludeCoins(juggle.grade);
 
     setFlag('juggling_completed', true);
     setFlag('juggling_grade', juggle.grade);
@@ -4535,11 +4547,10 @@ function renderJuggling(ctx) {
             ctx.fillStyle = '#ffcc44';
             ctx.font = 'bold 14px monospace';
             ctx.fillText('Reward: ' + juggle.reward.name, W / 2, H / 2 + 60);
-        } else {
-            ctx.fillStyle = '#888888';
-            ctx.font = '12px monospace';
-            ctx.fillText('No reward this time.', W / 2, H / 2 + 60);
         }
+        var juggleCoins = getInterludeCoins(juggle.grade);
+        ctx.fillStyle = '#ffd700'; ctx.font = '12px monospace';
+        ctx.fillText('+' + juggleCoins + ' coins', W / 2, H / 2 + 78);
 
         if (juggle.resultTimer <= 0 && Math.sin(t * 3) > 0) {
             ctx.fillStyle = '#aaaaaa';
@@ -4679,6 +4690,7 @@ function endAirGuitar() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = guitar.reward.name;
     }
+    game.score += getInterludeCoins(guitar.grade);
     guitar.active = false; game.mode = 'overworld';
 }
 
@@ -4784,7 +4796,7 @@ function renderAirGuitar(ctx) {
         ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
         ctx.fillText('P:' + guitar.perfect + ' G:' + guitar.great + ' OK:' + guitar.ok + ' Miss:' + guitar.miss, W / 2, H / 2 + 30);
         if (guitar.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + guitar.reward.name, W / 2, H / 2 + 60); }
-        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        var gCoins = getInterludeCoins(guitar.grade); ctx.fillStyle = '#ffd700'; ctx.font = '12px monospace'; ctx.fillText('+' + gCoins + ' coins', W / 2, H / 2 + 78);
         if (guitar.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
     }
 }
@@ -4937,6 +4949,7 @@ function endAccordion() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = accordion.reward.name;
     }
+    game.score += getInterludeCoins(accordion.grade);
     accordion.active = false; game.mode = 'overworld';
 }
 
@@ -5028,7 +5041,7 @@ function renderAccordion(ctx) {
         ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
         ctx.fillText('Rounds: ' + accordion.correct + '/' + ACCORDION_CONFIG.ROUNDS + '  Mistakes: ' + accordion.wrong, W / 2, H / 2 + 30);
         if (accordion.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + accordion.reward.name, W / 2, H / 2 + 60); }
-        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        var accCoins = getInterludeCoins(accordion.grade); ctx.fillStyle = '#ffd700'; ctx.font = '12px monospace'; ctx.fillText('+' + accCoins + ' coins', W / 2, H / 2 + 78);
         if (accordion.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
     }
 }
@@ -5150,6 +5163,7 @@ function endSewingRhythm() {
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
         game.itemFlashName = sewing.reward.name;
     }
+    game.score += getInterludeCoins(sewing.grade);
     sewing.active = false; game.mode = 'overworld';
 }
 
@@ -5252,7 +5266,7 @@ function renderSewingRhythm(ctx) {
         ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
         ctx.fillText('P:' + sewing.perfect + ' G:' + sewing.great + ' OK:' + sewing.ok + ' Miss:' + sewing.miss, W / 2, H / 2 + 30);
         if (sewing.reward) { ctx.fillStyle = '#ffcc44'; ctx.font = 'bold 14px monospace'; ctx.fillText('Reward: ' + sewing.reward.name, W / 2, H / 2 + 60); }
-        else { ctx.fillStyle = '#888'; ctx.font = '12px monospace'; ctx.fillText('No reward.', W / 2, H / 2 + 60); }
+        var sewCoins = getInterludeCoins(sewing.grade); ctx.fillStyle = '#ffd700'; ctx.font = '12px monospace'; ctx.fillText('+' + sewCoins + ' coins', W / 2, H / 2 + 78);
         if (sewing.resultTimer <= 0 && Math.sin(t * 3) > 0) { ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.fillText('Press Space to continue', W / 2, H / 2 + 100); }
     }
 }

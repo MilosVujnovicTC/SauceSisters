@@ -620,6 +620,52 @@ function renderPapaHintHUD(ctx) {
     ctx.fillText('[P] Papa: ' + remaining + '/' + papaHints.maxPerZone, x, y + 8);
 }
 
+// ============================================================
+// Score HUD — coin counter
+// ============================================================
+
+/** Renders the score/coin counter in the HUD. */
+function renderScoreHUD(ctx) {
+    var x = CONFIG.CANVAS_W - 120;
+    var y = CONFIG.INV_MARGIN_TOP + CONFIG.INV_SLOT_SIZE + 16;
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(x, y, 96, 20);
+
+    // Coin icon (small yellow circle)
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(x + 12, y + 10, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b8860b';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('C', x + 12, y + 13);
+
+    // Score value
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('' + game.score, x + 22, y + 14);
+}
+
+/** Renders floating score popups in world space. */
+function renderScorePopups(ctx, cameraX, cameraY) {
+    for (var i = 0; i < game.scorePopups.length; i++) {
+        var pop = game.scorePopups[i];
+        var sx = pop.x - cameraX;
+        var sy = pop.y - cameraY;
+        var alpha = Math.min(pop.timer / 0.4, 1);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('+' + pop.amount, sx, sy);
+        ctx.globalAlpha = 1;
+    }
+}
+
 /** Renders the red damage flash overlay. */
 function renderDamageFlash(ctx) {
     if (!player.damageFlash || player.damageFlash <= 0) return;
@@ -1267,6 +1313,8 @@ function updateTitleScreen(dt) {
             player.lives = 3;
             player.dead = false;
             game.time = 0;
+            game.score = 0;
+            game.scorePopups = [];
             deleteSave();
             loadZone('la_cucina');
         } else if (choice === 'Settings') {

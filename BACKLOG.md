@@ -675,7 +675,7 @@
   - [ ] No SFX is missing from the spec
   - [ ] No audio is painfully loud or inaudible
 
-### Stage 9-4: Score, rewards, and balancing `[ ]`
+### Stage 9-4: Score, rewards, and balancing `[x] 2026-03-25`
 - Score system: coins from enemies, bonus from interludes
 - Interlude reward tiers: S/A/B/C grant different items
 - Weapon drop balancing: enough ammo without being trivial

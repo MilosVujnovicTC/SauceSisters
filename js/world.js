@@ -888,6 +888,7 @@ const ZONES = {
                     }
                     addToInventory('recipe_3');
                     setFlag('recipe_3_found', true);
+                    addScore(COIN_REWARDS.RECIPE_FOUND, player.x + player.w / 2, player.y);
                     game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
                     game.itemFlashName = 'Recipe Fragment #3';
                     playItemPickup();
@@ -899,6 +900,29 @@ const ZONES = {
                             "It's a piece of Mama's recipe! Fragment #3!",
                             "Papa must've used it as scratch paper. Classic Papa.",
                         ] }; },
+                    });
+                },
+            },
+            {
+                id: 'gym_flour',
+                name: 'Flour Bag',
+                col: 9, row: 18,
+                color: '#f5f5dc',
+                onInteract: function() {
+                    if (hasItem('flour')) {
+                        startDialogue({ id: 'gym_flour', name: 'Flour Bag',
+                            getLines: function() { return { lines: ["A bag of protein powder. Just kidding, it's flour."] }; },
+                        });
+                        return;
+                    }
+                    addToInventory('flour');
+                    equipWeapon('flour');
+                    weaponState.ammo['flour'] = WEAPONS.flour.ammo;
+                    game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+                    game.itemFlashName = 'Flour x3';
+                    playItemPickup();
+                    startDialogue({ id: 'gym_flour_got', name: 'Flour Bag',
+                        getLines: function() { return { lines: ["Flour! Coach Fabio uses it for his 'protein shakes'. Sure, Coach."] }; },
                     });
                 },
             },
@@ -1076,6 +1100,29 @@ const ZONES = {
             },
         ],
         objects: [
+            {
+                id: 'piazza_tomato',
+                name: 'Tomato Crate',
+                col: 10, row: 18,
+                color: '#e53935',
+                onInteract: function() {
+                    if (hasItem('tomato')) {
+                        startDialogue({ id: 'piazza_tomato', name: 'Tomato Crate',
+                            getLines: function() { return { lines: ["A crate of fresh tomatoes from Gianluca's stall."] }; },
+                        });
+                        return;
+                    }
+                    addToInventory('tomato');
+                    equipWeapon('tomato');
+                    weaponState.ammo['tomato'] = WEAPONS.tomato.ammo;
+                    game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
+                    game.itemFlashName = 'Tomato x3';
+                    playItemPickup();
+                    startDialogue({ id: 'piazza_tomato_got', name: 'Tomato Crate',
+                        getLines: function() { return { lines: ["Ripe Roma tomatoes! Perfect for... persuasion."] }; },
+                    });
+                },
+            },
             {
                 id: 'piazza_payphone',
                 name: 'Payphone',
@@ -1648,17 +1695,16 @@ function checkTransitions() {
                 return;
             }
 
-            // Random Pepe obstacle dash (~40% chance between zones)
-            if (!getFlag('pepe_dash_cooldown') && Math.random() < PEPE_CONFIG.TRIGGER_CHANCE) {
-                game.pepeReturnZone = t.target;
-                game.pepeReturnSpawnX = t.spawnX;
-                game.pepeReturnSpawnY = t.spawnY;
-                setFlag('pepe_dash_cooldown', true); // prevent immediate re-trigger
-                startPepeDash();
-                return;
-            }
-            // Clear cooldown on normal transition (so it can trigger next time)
-            setFlag('pepe_dash_cooldown', false);
+            // Random Pepe obstacle dash — DISABLED (deferred with Pepe companion)
+            // if (!getFlag('pepe_dash_cooldown') && Math.random() < PEPE_CONFIG.TRIGGER_CHANCE) {
+            //     game.pepeReturnZone = t.target;
+            //     game.pepeReturnSpawnX = t.spawnX;
+            //     game.pepeReturnSpawnY = t.spawnY;
+            //     setFlag('pepe_dash_cooldown', true);
+            //     startPepeDash();
+            //     return;
+            // }
+            // setFlag('pepe_dash_cooldown', false);
 
             loadZone(t.target, t.spawnX, t.spawnY);
             // Auto-save after zone load (state is fresh)
@@ -2238,6 +2284,8 @@ function findNearbyObject() {
         if (obj.id === 'kitchen_flour' && hasItem('flour')) continue;
         if (obj.id === 'market_tomato' && hasItem('tomato')) continue;
         if (obj.id === 'market_banana' && hasItem('banana')) continue;
+        if (obj.id === 'piazza_tomato' && hasItem('tomato')) continue;
+        if (obj.id === 'gym_flour' && hasItem('flour')) continue;
         if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) continue;
         var ocx = obj.col * ts + ts / 2;
         var ocy = obj.row * ts + ts / 2;
@@ -2265,6 +2313,8 @@ function renderObjects(ctx, cameraX, cameraY) {
         if (obj.id === 'kitchen_flour' && hasItem('flour')) continue;
         if (obj.id === 'market_tomato' && hasItem('tomato')) continue;
         if (obj.id === 'market_banana' && hasItem('banana')) continue;
+        if (obj.id === 'piazza_tomato' && hasItem('tomato')) continue;
+        if (obj.id === 'gym_flour' && hasItem('flour')) continue;
         if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) continue;
 
         var screenX = obj.col * ts - cameraX;
@@ -2283,6 +2333,8 @@ function renderObjects(ctx, cameraX, cameraY) {
         else if (obj.id === 'papa_competition_form') spriteKey = 'papa_form';
         else if (obj.id === 'gym_tamagotchi') spriteKey = 'tamagotchi';
         else if (obj.id === 'gym_punching_bag') spriteKey = 'punching_bag';
+        else if (obj.id === 'piazza_tomato') spriteKey = 'market_tomato';
+        else if (obj.id === 'gym_flour') spriteKey = 'kitchen_flour';
 
         if (spriteKey && SPRITES.objects[spriteKey]) {
             ctx.drawImage(SPRITES.objects[spriteKey], screenX, screenY);
@@ -2376,6 +2428,7 @@ function pickupItem(item) {
         // Set quest flag for recipe fragments
         if (item.itemId.startsWith('recipe_')) {
             setFlag(item.itemId + '_found', true);
+            addScore(COIN_REWARDS.RECIPE_FOUND, item.col * CONFIG.TILE_SIZE + CONFIG.TILE_SIZE / 2, item.row * CONFIG.TILE_SIZE);
         }
         // Trigger visual flash + pickup SFX
         game.itemFlash = CONFIG.ITEM_FLASH_DURATION;
