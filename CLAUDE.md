@@ -294,7 +294,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** All stages complete. Game is shippable.
+**Current stage:** Phase 10 (Post-launch features). Next: Stage 10-1 (Intro cutscene).
 
 ---
 

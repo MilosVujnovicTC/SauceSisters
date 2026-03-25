@@ -701,6 +701,118 @@
 
 ---
 
+## Phase 10: Post-Launch — New Features & Polish
+
+> Items sourced from IDEAS-CHANGES.md. Independent of each other unless noted.
+
+### Stage 10-1: Intro cutscene `[ ]`
+- Animated story intro explaining the premise (Mama's recipe, the wedding, the sisters)
+- Plays once on New Game before La Cucina
+- Skippable with Z/Space
+- Canvas-drawn scenes with text overlay and fade transitions
+- **Acceptance criteria:**
+  - [ ] Intro plays on New Game start
+  - [ ] Story setup is clear (who, what, why)
+  - [ ] Skippable at any point
+  - [ ] Transitions smoothly into La Cucina
+
+### Stage 10-2: Character customization `[ ]`
+- Selection screen after "New Game" — before intro cutscene
+- Customize: hair style (4+), hair color (6+), eye color (4+), clothing color (4+), glasses on/off
+- All choices apply to player sprite (procedural, update generatePlayerSprite)
+- Choices saved in localStorage alongside game save
+- **Acceptance criteria:**
+  - [ ] Customization screen appears on New Game
+  - [ ] All options visually preview in real-time
+  - [ ] Choices persist in save/load
+  - [ ] Player sprite reflects choices in-game
+
+### Stage 10-3: New Game+ mode `[ ]`
+- Unlocked after completing the finale (game_complete flag)
+- Title screen shows "New Game+" option
+- NG+ starts from La Cucina with: all weapons retained, enemies have +50% HP, bosses have +25% HP, score carries over
+- Visual indicator in HUD (star icon or "NG+" badge)
+- **Acceptance criteria:**
+  - [ ] NG+ option appears only after game completion
+  - [ ] Weapons carry over, enemies are harder
+  - [ ] HUD shows NG+ indicator
+  - [ ] Game is completable in NG+
+
+### Stage 10-4: BMX mini-game overhaul `[ ]`
+- Increase scroll speed and obstacle density
+- Add ducking mechanic (Down arrow — avoid overhead obstacles)
+- Add ramps/jumps for variety
+- Tighter timing, more exciting feel
+- **Acceptance criteria:**
+  - [ ] BMX feels faster and more exciting
+  - [ ] Duck mechanic works (Down key)
+  - [ ] Overhead obstacles require ducking
+  - [ ] Still completable without frustration
+
+### Stage 10-5: Zone detail pass `[ ]`
+- Add environmental detail to all 8 zones: trees, bushes, decorative tiles
+- La Cucina: more kitchen items (pots, pans, menu board, utensils)
+- Market: more stall variety, awnings, hanging goods
+- Canal: reeds, docked boats, lampposts
+- Library: more bookshelves, reading lamps, rugs
+- Gym: posters, dumbbells, towels
+- Piazza: statues, benches, street lamps, pigeons
+- Pizzeria: pizza ovens detail, menus, plates
+- Sewing Shop: thread spools, patterns, fabric swatches
+- **Acceptance criteria:**
+  - [ ] Each zone feels richer and more lived-in
+  - [ ] No collision or pathing regressions
+  - [ ] FPS stays above 55 in all zones
+
+### Stage 10-6: Connecting paths between zones `[ ]`
+- Add scrollable walking paths between major zones (woods, streets, alleys)
+- Each path is a small transitional zone (16x40+ tiles, vertically scrolling)
+- Optional: cycling/rollerblading mode on paths (auto-scroll with dodge)
+- Zelda-style overworld connectors that make the city feel larger
+- **Acceptance criteria:**
+  - [ ] At least 3 connecting paths exist between zones
+  - [ ] Paths have environmental detail (trees, lampposts, fences)
+  - [ ] Zone transitions flow through paths naturally
+  - [ ] No new softlocks introduced
+
+### Stage 10-7: Spaghetti catch mini-game `[ ]`
+- New interlude: store clerk throws spaghetti packs from above
+- Player slides left-right at bottom holding a shopping basket
+- Catch spaghetti packs, avoid rotten items
+- 30s duration, S/A/B/C grading with rewards
+- Trigger: optional interaction in Market zone
+- **Acceptance criteria:**
+  - [ ] Mini-game triggers from Market interaction
+  - [ ] Basket moves smoothly with left/right
+  - [ ] Spaghetti and rotten items fall at increasing speed
+  - [ ] Grading and rewards work correctly
+  - [ ] Skippable with Escape
+
+### Stage 10-8: ElevenLabs voice integration `[ ]`
+- API key input in Settings (alongside Anthropic key)
+- NPC dialogue triggers TTS via ElevenLabs API
+- Each NPC maps to a distinct voice ID
+- Audio plays alongside text reveal (text still shows)
+- Graceful fallback: if API unavailable, text-only (no error shown)
+- **Acceptance criteria:**
+  - [ ] API key configurable in Settings
+  - [ ] NPC dialogue plays voice audio
+  - [ ] Each NPC has a distinct voice
+  - [ ] Works without API key (silent fallback)
+
+### Stage 10-9: Freesound.org SFX upgrade `[ ]`
+- Replace procedural Tone.js SFX with higher-quality samples from Freesound.org
+- Use Freesound API for searching/downloading CC0 sounds
+- Target: footsteps, weapon impacts, environment ambience, UI clicks
+- Maintain Howler.js pipeline (already in place from A-1)
+- **Acceptance criteria:**
+  - [ ] Key SFX replaced with sample-based audio
+  - [ ] Sounds feel more organic and satisfying
+  - [ ] Fallback to procedural if samples fail to load
+  - [ ] All sounds are CC0 licensed
+
+---
+
 ## Stage dependency graph
 
 ```
@@ -745,7 +857,8 @@
 | 7 | 9 | Zones 4-7 + bosses + finale |
 | 8 | 5 | Bonus content (interludes + puzzles) |
 | 9 | 5 | Polish + ship |
-| **Total** | **51** | |
+| 10 | 9 | Post-launch features + polish |
+| **Total** | **60** | |
 
 ---
 
