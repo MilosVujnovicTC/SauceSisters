@@ -25,3 +25,5 @@ NPCs talking - can we connect to Elevenlabs.io API and have it create voiceovers
 Need more scrollable walking areas between main stages (throuhg the woods, etc.) like in Zelda. Perhaps a cycling path also, or rolleblades, where they would "drive" through the area.
 
 Mini game - store clerk is throwing sphagetti packs, player is at the bottom sliding left-right and holding a shopping basket trying to catch shpacgetti packs.
+
+Audio - https://freesound.org/help/developers/
