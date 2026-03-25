@@ -2423,6 +2423,11 @@ function checkItemPickup() {
 
 /** Picks up a world item: adds to inventory, sets quest flag, triggers flash. */
 function pickupItem(item) {
+    // Auto-hide duplicate recipe items (e.g., recipe_2 has two paths)
+    if (item.itemId.startsWith('recipe_') && hasItem(item.itemId)) {
+        item.collected = true;
+        return;
+    }
     if (addToInventory(item.itemId)) {
         item.collected = true;
         // Set quest flag for recipe fragments

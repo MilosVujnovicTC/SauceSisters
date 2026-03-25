@@ -686,7 +686,7 @@
   - [ ] Player has enough weapons to progress without grinding
   - [ ] Boss fights are challenging but fair (beatable in 2-3 attempts)
 
-### Stage 9-5: Full playtest + bug fix pass `[ ]`
+### Stage 9-5: Full playtest + bug fix pass `[x] 2026-03-25`
 - Play through entire game start to finish
 - Fix any softlocks, broken transitions, or missing states
 - Verify all 5 recipe fragments are collectible
