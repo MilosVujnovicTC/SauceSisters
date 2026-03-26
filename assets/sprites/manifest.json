@@ -1,0 +1,91 @@
+{
+  "basePath": "assets/sprites/",
+  "tiles": {
+    "GRASS":      { "sheet": "tiles/universal.png", "fx": 0, "fy": 0 },
+    "PATH":       { "sheet": "tiles/universal.png", "fx": 1, "fy": 0 },
+    "COBBLE":     { "sheet": "tiles/universal.png", "fx": 2, "fy": 0 },
+    "WOOD":       { "sheet": "tiles/universal.png", "fx": 3, "fy": 0 },
+    "FLOOR":      { "sheet": "tiles/universal.png", "fx": 4, "fy": 0 },
+    "WALL":       { "sheet": "tiles/universal.png", "fx": 0, "fy": 1 },
+    "WATER":      { "sheet": "tiles/universal.png", "fx": 1, "fy": 1, "frames": 4 },
+    "ROOF":       { "sheet": "tiles/universal.png", "fx": 2, "fy": 1 },
+    "COUNTER":    { "sheet": "tiles/universal.png", "fx": 3, "fy": 1 },
+    "CARPET":     { "sheet": "tiles/universal.png", "fx": 4, "fy": 1 },
+    "FABRIC":     { "sheet": "tiles/universal.png", "fx": 0, "fy": 2 },
+    "DOOR":       { "sheet": "tiles/universal.png", "fx": 1, "fy": 2 },
+    "STOVE":      { "sheet": "tiles/universal.png", "fx": 2, "fy": 2 },
+    "OVEN":       { "sheet": "tiles/universal.png", "fx": 3, "fy": 2 },
+    "FOUNTAIN":   { "sheet": "tiles/universal.png", "fx": 4, "fy": 2, "frames": 4 },
+    "COBBLE2":    { "sheet": "tiles/universal.png", "fx": 0, "fy": 3 },
+    "CHECKERED":  { "sheet": "tiles/universal.png", "fx": 1, "fy": 3 },
+    "DINING":     { "sheet": "tiles/universal.png", "fx": 2, "fy": 3 },
+    "SAUCEMACH":  { "sheet": "tiles/universal.png", "fx": 3, "fy": 3 },
+    "SEWMACH":    { "sheet": "tiles/universal.png", "fx": 4, "fy": 3 },
+    "MANNEQUIN":  { "sheet": "tiles/universal.png", "fx": 0, "fy": 4 },
+    "SHELF":      { "sheet": "tiles/universal.png", "fx": 1, "fy": 4 },
+    "BARREL":     { "sheet": "tiles/universal.png", "fx": 2, "fy": 4 },
+    "STALL":      { "sheet": "tiles/universal.png", "fx": 3, "fy": 4 },
+    "RUG":        { "sheet": "tiles/universal.png", "fx": 4, "fy": 4 },
+    "FLOWER":     { "sheet": "tiles/universal.png", "fx": 0, "fy": 5 },
+    "DOCK":       { "sheet": "tiles/universal.png", "fx": 1, "fy": 5 },
+    "PLANK":      { "sheet": "tiles/universal.png", "fx": 2, "fy": 5 },
+    "BRIDGEGAP":  { "sheet": "tiles/universal.png", "fx": 3, "fy": 5 },
+    "MAT":        { "sheet": "tiles/universal.png", "fx": 4, "fy": 5 },
+    "EQUIPMENT":  { "sheet": "tiles/universal.png", "fx": 0, "fy": 6 },
+    "JUICEBAR":   { "sheet": "tiles/universal.png", "fx": 1, "fy": 6 },
+    "MIRROR":     { "sheet": "tiles/universal.png", "fx": 2, "fy": 6 },
+    "FILLTARGET": { "sheet": "tiles/universal.png", "fx": 3, "fy": 6 }
+  },
+  "characters": {
+    "giulia": {
+      "sheet": "characters/giulia.png",
+      "frameW": 32, "frameH": 32,
+      "directions": { "down": 0, "left": 1, "right": 2, "up": 3 },
+      "walkFrames": 4
+    },
+    "brodo": {
+      "sheet": "characters/brodo.png",
+      "frameW": 32, "frameH": 32,
+      "states": { "follow": 0, "idle": 1, "sit": 2, "bark": 3, "sniff": 4 }
+    }
+  },
+  "npcs": {
+    "betta":      { "sheet": "characters/npc-betta.png",      "frameW": 32, "frameH": 32 },
+    "papa":       { "sheet": "characters/npc-papa.png",       "frameW": 32, "frameH": 32 },
+    "enzo":       { "sheet": "characters/npc-enzo.png",       "frameW": 32, "frameH": 32 },
+    "mama":       { "sheet": "characters/npc-mama-rosa.png",  "frameW": 32, "frameH": 32 },
+    "luigi":      { "sheet": "characters/npc-luigi.png",      "frameW": 32, "frameH": 32 },
+    "carmela":    { "sheet": "characters/npc-carmela.png",    "frameW": 32, "frameH": 32 },
+    "lucia":      { "sheet": "characters/npc-lucia.png",      "frameW": 32, "frameH": 32 },
+    "gatto":      { "sheet": "characters/npc-gatto.png",      "frameW": 32, "frameH": 32 },
+    "fabio":      { "sheet": "characters/npc-fabio.png",      "frameW": 32, "frameH": 32 },
+    "jenny":      { "sheet": "characters/npc-jenny.png",      "frameW": 32, "frameH": 32 },
+    "tony":       { "sheet": "characters/npc-tony.png",       "frameW": 32, "frameH": 32 },
+    "gianluca":   { "sheet": "characters/npc-gianluca.png",   "frameW": 32, "frameH": 32 },
+    "viola":      { "sheet": "characters/npc-viola.png",      "frameW": 32, "frameH": 32 },
+    "carlo":      { "sheet": "characters/npc-carlo.png",      "frameW": 32, "frameH": 32 },
+    "threads":    { "sheet": "characters/npc-threads.png",    "frameW": 32, "frameH": 32 },
+    "tomas":      { "sheet": "characters/npc-tomas.png",      "frameW": 32, "frameH": 32 },
+    "marco_jr":   { "sheet": "characters/npc-marco-jr.png",   "frameW": 32, "frameH": 32 },
+    "sofia":      { "sheet": "characters/npc-sofia.png",      "frameW": 32, "frameH": 32 }
+  },
+  "bosses": {
+    "enzo_boss":  { "sheet": "characters/boss-enzo.png",    "frameW": 32, "frameH": 32 },
+    "bridget":    { "sheet": "characters/boss-bridget.png", "frameW": 32, "frameH": 32 }
+  },
+  "enemies": {
+    "goon":  { "sheet": "characters/enemy-goon.png", "frameW": 32, "frameH": 32 },
+    "broom": { "sheet": "characters/broom.png",      "frameW": 32, "frameH": 32 }
+  },
+  "items": {
+    "weapons":  { "sheet": "items/weapons.png",  "frameW": 32, "frameH": 32, "count": 8 },
+    "powerups": { "sheet": "items/powerups.png", "frameW": 32, "frameH": 32, "count": 7 },
+    "recipes":  { "sheet": "items/recipes.png",  "frameW": 32, "frameH": 32, "count": 5 },
+    "objects":  { "sheet": "items/objects.png",   "frameW": 32, "frameH": 32, "count": 9 }
+  },
+  "ui": {
+    "hud":       { "sheet": "ui/hud.png",       "frameW": 32, "frameH": 32 },
+    "dialogue":  { "sheet": "ui/dialogue.png",  "width": 384, "height": 96 },
+    "portraits": { "sheet": "ui/portraits.png", "frameW": 64, "frameH": 64, "count": 17 }
+  }
+}

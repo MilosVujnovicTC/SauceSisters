@@ -101,12 +101,21 @@ function renderPlayer(ctx, cameraX, cameraY) {
         var scale = Math.max(0.01, 1 - deathProgress);
         var alpha = Math.max(0, 1 - deathProgress);
         ctx.globalAlpha = alpha;
-        var sprite = getPlayerSprite(player.facing, 0);
         var dcx = player.x + player.w / 2 - cameraX;
         var dcy = player.y + player.h / 2 - cameraY;
-        var sw = sprite.width * scale;
-        var sh = sprite.height * scale;
-        ctx.drawImage(sprite, dcx - sw / 2, dcy - sh / 2, sw, sh);
+        var T = CONFIG.TILE_SIZE;
+        var sw = T * scale;
+        var sh = T * scale;
+        var dirRow = { down: 0, left: 1, right: 2, up: 3 };
+        // Try image sprite for death frame, fallback to procedural
+        if (SpriteLoader.manifest && SpriteLoader.manifest.characters && SpriteLoader.manifest.characters.giulia && SpriteLoader.hasSheet(SpriteLoader.manifest.characters.giulia.sheet)) {
+            var def = SpriteLoader.manifest.characters.giulia;
+            var img = SpriteLoader.images[def.sheet];
+            ctx.drawImage(img, 0, (dirRow[player.facing] || 0) * def.frameH, def.frameW, def.frameH, dcx - sw / 2, dcy - sh / 2, sw, sh);
+        } else {
+            var sprite = getPlayerSprite(player.facing, 0);
+            ctx.drawImage(sprite, dcx - sprite.width * scale / 2, dcy - sprite.height * scale / 2, sprite.width * scale, sprite.height * scale);
+        }
         ctx.globalAlpha = 1;
         return;
     }
@@ -116,12 +125,16 @@ function renderPlayer(ctx, cameraX, cameraY) {
         return; // skip rendering every other frame = blink effect
     }
 
-    var sprite = getPlayerSprite(player.facing, player.animFrame);
-    // Sprite is slightly larger than hitbox (outlined sprite has +2 padding)
-    // Center sprite on the player hitbox
-    var screenX = player.x - cameraX - 2;
-    var screenY = player.y - cameraY - 4;
-    ctx.drawImage(sprite, screenX, screenY);
+    var screenX = player.x - cameraX;
+    var screenY = player.y - cameraY;
+
+    // Try image-based sprite: direction row (down=0,left=1,right=2,up=3), walk frame column
+    var dirRow = { down: 0, left: 1, right: 2, up: 3 };
+    if (!SpriteLoader.drawCharacter(ctx, 'giulia', player.animFrame, dirRow[player.facing] || 0, screenX, screenY)) {
+        // Procedural fallback (outlined sprite has +2 padding)
+        var sprite = getPlayerSprite(player.facing, player.animFrame);
+        ctx.drawImage(sprite, screenX - 2, screenY - 4);
+    }
 }
 
 // ============================================================
@@ -460,14 +473,18 @@ function renderBrodo(ctx, cameraX, cameraY) {
         else if (anim === 'nap') spriteKey = 'nap';
         else if (anim === 'ball') spriteKey = 'follow';
     }
-    var sprite = SPRITES.brodo[spriteKey];
-    if (sprite) {
-        var bodyOffY = 0;
-        if (isIdle && (anim === 'sit' || anim === 'nap')) {
-            bodyOffY = 2 + Math.sin(t * 1.5) * 0.5;
+    var bodyOffY = 0;
+    if (isIdle && (anim === 'sit' || anim === 'nap')) {
+        bodyOffY = 2 + Math.sin(t * 1.5) * 0.5;
+    }
+    // Try image-based sprite: state column (follow=0,idle=1,sit=2,bark=3,sniff=4)
+    var brodoStates = { follow: 0, idle: 1, sit: 2, bark: 3, sniff: 4, nap: 2 };
+    if (!SpriteLoader.drawCharacter(ctx, 'brodo', brodoStates[spriteKey] || 0, 0, sx, sy + bodyOffY)) {
+        // Procedural fallback (outlined sprite has +2 padding)
+        var sprite = SPRITES.brodo[spriteKey];
+        if (sprite) {
+            ctx.drawImage(sprite, sx - 3, sy - 2 + bodyOffY);
         }
-        // Outlined sprite has +2 padding (1px each side)
-        ctx.drawImage(sprite, sx - 3, sy - 2 + bodyOffY);
     }
 
     // Idle: ball animation
@@ -535,19 +552,11 @@ function renderBrodo(ctx, cameraX, cameraY) {
     // Name label
     var labelY = (brodo.bubbleTimer > 0) ? sy - 30 : sy - 4;
     if (isIdle) {
-        ctx.fillStyle = '#ffd54f';
-        ctx.font = '9px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Brodo', sx + w / 2, labelY);
         // [B] Call prompt
         ctx.fillStyle = '#aaaaaa';
         ctx.font = '8px monospace';
-        ctx.fillText('[B] Call', sx + w / 2, labelY + 10);
-    } else {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '9px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('Brodo', sx + w / 2, labelY);
+        ctx.fillText('[B] Call', sx + w / 2, labelY + 10);
     }
 }
 
@@ -813,14 +822,18 @@ function renderNPCs(ctx, cameraX, cameraY) {
             walkBob = Math.sin(game.time * 10) * 1.5;
         }
 
-        // Flip sprite horizontally when facing left
-        if (npcFacing === 'left') {
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(sprite, -(screenX + ts + 1), screenY - 1 + bobY + walkBob);
-            ctx.restore();
-        } else {
-            ctx.drawImage(sprite, screenX - 1, screenY - 1 + bobY + walkBob);
+        // Try image-based NPC sprite first, then procedural
+        var npcDrawY = screenY + bobY + walkBob;
+        if (!SpriteLoader.drawNPC(ctx, npc.id, screenX, npcDrawY, npcFacing === 'left')) {
+            // Procedural fallback — flip sprite horizontally when facing left
+            if (npcFacing === 'left') {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(sprite, -(screenX + ts + 1), screenY - 1 + bobY + walkBob);
+                ctx.restore();
+            } else {
+                ctx.drawImage(sprite, screenX - 1, screenY - 1 + bobY + walkBob);
+            }
         }
 
         // Idle visual effects — always visible when NPC has idle type
@@ -922,11 +935,7 @@ function renderNPCs(ctx, cameraX, cameraY) {
             }
         }
 
-        // NPC name label above
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(npc.name, screenX + ts / 2, screenY - 6);
+        // NPC name label removed for cleaner visuals
     }
 
     // Interaction prompt when near an NPC
@@ -1229,10 +1238,13 @@ function renderEnemies(ctx, cameraX, cameraY) {
             spriteState !== 'slowed' && spriteState !== 'retreat') {
             spriteState = 'patrol';
         }
-        var sprite = SPRITES.enemy[spriteState];
-        if (sprite) {
-            // Outlined sprite has +2 padding, enemy is 24x24
-            ctx.drawImage(sprite, sx - 1, sy - 1);
+        // Try image-based sprite first
+        if (!SpriteLoader.drawEnemy(ctx, 'goon', sx, sy)) {
+            var sprite = SPRITES.enemy[spriteState];
+            if (sprite) {
+                // Outlined sprite has +2 padding, enemy is 24x24
+                ctx.drawImage(sprite, sx - 1, sy - 1);
+            }
         }
 
         ctx.globalAlpha = 1;
@@ -1269,11 +1281,7 @@ function renderEnemies(ctx, cameraX, cameraY) {
             ctx.fillRect(barX, barY, barW * (e.hp / e.maxHp), barH);
         }
 
-        // Name
-        ctx.fillStyle = e.state === 'chase' ? '#ff4444' : '#cccccc';
-        ctx.font = '8px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(e.name, sx + e.w / 2, sy - 10);
+        // Enemy name label removed for cleaner visuals
     }
 }
 
@@ -1931,8 +1939,10 @@ function renderEnzoBoss(ctx, cameraX, cameraY) {
         ctx.fillText('* * *', sx + enzoBoss.w / 2, sy - 8 + Math.sin(t * 3) * 2);
     }
 
-    // Draw boss sprite
-    drawEnzoBossSprite(ctx, drawX, drawY, t);
+    // Draw boss sprite — try image first, then procedural
+    if (!SpriteLoader.drawBoss(ctx, 'enzo_boss', drawX, drawY)) {
+        drawEnzoBossSprite(ctx, drawX, drawY, t);
+    }
 
     ctx.globalAlpha = 1;
 
@@ -1952,11 +1962,7 @@ function renderEnzoBoss(ctx, cameraX, cameraY) {
         ctx.fillText('CALLING BACKUP!', sx + enzoBoss.w / 2, sy - 14);
     }
 
-    // Name + Phase indicator
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('ENZO', sx + enzoBoss.w / 2, sy - 16);
+    // Boss name label removed for cleaner visuals
 }
 
 /** Draws the Enzo boss sprite body. */
@@ -2678,7 +2684,10 @@ function renderWeddingBoss(ctx, cameraX, cameraY) {
         sx += Math.sin(t * 30) * 2;
     }
 
-    drawWeddingBossSprite(ctx, sx, sy, t);
+    // Draw boss sprite — try image first, then procedural
+    if (!SpriteLoader.drawBoss(ctx, 'bridget', sx, sy)) {
+        drawWeddingBossSprite(ctx, sx, sy, t);
+    }
     ctx.globalAlpha = 1;
 
     // Stunned stars
@@ -3084,11 +3093,7 @@ function renderPowerups(ctx, cameraX, cameraY) {
             ctx.fillRect(cx - 8, cy - 8, 16, 16);
         }
 
-        // Name label
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '8px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(def.name, cx, sy - 4 + bob);
+        // Power-up name label removed for cleaner visuals
     }
 }
 
@@ -3119,11 +3124,7 @@ function renderBuffHUD(ctx) {
     ctx.textAlign = 'center';
     ctx.fillText(def.icon, hx + 12, hy + 16);
 
-    // Name
-    ctx.fillStyle = def.color;
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(def.name, hx + 24, hy + 11);
+    // Buff name label removed for cleaner visuals
 
     // Timer bar
     var pct = activeBuff.timer / activeBuff.maxTimer;

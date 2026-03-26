@@ -93,12 +93,14 @@ const CONFIG = {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-/** Resizes canvas to fill the browser window. Updates CONFIG values. */
+/** Sets up canvas with dynamic width based on screen aspect ratio. Height stays fixed at 576. */
 function resizeCanvas() {
-    CONFIG.CANVAS_W = window.innerWidth;
-    CONFIG.CANVAS_H = window.innerHeight;
+    var screenAspect = window.innerWidth / window.innerHeight;
+    var minW = 768, maxW = 1344; // 4:3 minimum, ~21:9 maximum
+    CONFIG.CANVAS_W = Math.round(Math.max(minW, Math.min(maxW, CONFIG.CANVAS_H * screenAspect)));
     canvas.width = CONFIG.CANVAS_W;
     canvas.height = CONFIG.CANVAS_H;
+    ctx.imageSmoothingEnabled = false;
 }
 
 resizeCanvas();

@@ -1331,16 +1331,20 @@ function renderLibraryBroom(ctx, cameraX, cameraY) {
     if (libraryBroom.state === 'chase') spriteState = 'chase';
     else if (libraryBroom.state === 'stunned') spriteState = 'stunned';
 
-    var sprite = SPRITES.broom[spriteState];
-    if (sprite) {
-        // Flip horizontally if facing left (sprites are drawn facing right)
-        if (libraryBroom.facing === 'left') {
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(sprite, -(sx + w + 1), sy - 1);
-            ctx.restore();
-        } else {
-            ctx.drawImage(sprite, sx - 1, sy - 1);
+    // Try image-based sprite first
+    var broomDrawn = SpriteLoader.drawEnemy(ctx, 'broom', sx, sy);
+    if (!broomDrawn) {
+        var sprite = SPRITES.broom[spriteState];
+        if (sprite) {
+            // Flip horizontally if facing left (sprites are drawn facing right)
+            if (libraryBroom.facing === 'left') {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(sprite, -(sx + w + 1), sy - 1);
+                ctx.restore();
+            } else {
+                ctx.drawImage(sprite, sx - 1, sy - 1);
+            }
         }
     }
 

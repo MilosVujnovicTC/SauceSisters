@@ -898,7 +898,19 @@ function startZoneMusic(zoneId) {
         if (!music.initialized) return;
     }
 
-    if (music.currentZone === zoneId) return;
+    // Intermediary zones alias to adjacent main zone music
+    var musicAliases = {
+        'street_to_market': 'la_cucina',
+        'riverside_walk': 'canal',
+        'garden_path': 'canal',
+        'neighborhood': 'library',
+        'forest_trail': 'gym',
+        'back_alley': 'piazza',
+        'courtyard': 'sewing_shop',
+    };
+    var musicZoneId = musicAliases[zoneId] || zoneId;
+    if (music.currentZone === musicZoneId) return;
+    zoneId = musicZoneId;
 
     // Stop old zone music immediately
     var oldId = music.currentZone;
@@ -1158,6 +1170,18 @@ const NPC_BLIP_PROFILES = {
     shop_cat_lady:   { type: 'triangle', baseNote: 'A4',  pitchRange: 4, harmonicity: 1 },
     shop_assistant:  { type: 'sine',     baseNote: 'C5',  pitchRange: 6, harmonicity: 1 },
     wedding_planner: { type: 'fmsine',   baseNote: 'B4',  pitchRange: 7, harmonicity: 3 },
+    // Intermediary zone NPCs
+    street_nonna:    { type: 'sine',     baseNote: 'A3',  pitchRange: 3, harmonicity: 1 },
+    street_cat:      { type: 'triangle', baseNote: 'G5',  pitchRange: 8, harmonicity: 1 },
+    riverside_fisher:{ type: 'fmsine',   baseNote: 'D3',  pitchRange: 4, harmonicity: 2.5 },
+    garden_rosa:     { type: 'sine',     baseNote: 'E4',  pitchRange: 4, harmonicity: 1 },
+    garden_kid:      { type: 'triangle', baseNote: 'A4',  pitchRange: 6, harmonicity: 1 },
+    mail_paolo:      { type: 'fmsine',   baseNote: 'F3',  pitchRange: 4, harmonicity: 2 },
+    dog_walker:      { type: 'sine',     baseNote: 'C4',  pitchRange: 5, harmonicity: 1.5 },
+    hermit_giacomo:  { type: 'fmsine',   baseNote: 'B2',  pitchRange: 3, harmonicity: 3 },
+    street_artist:   { type: 'triangle', baseNote: 'G4',  pitchRange: 5, harmonicity: 1.5 },
+    alley_cat:       { type: 'triangle', baseNote: 'F5',  pitchRange: 8, harmonicity: 1 },
+    chess_old_man:   { type: 'fmsine',   baseNote: 'C3',  pitchRange: 3, harmonicity: 2 },
 };
 
 /** Creates SFX synths (for sounds that stay procedural). Called once after audio unlock. */

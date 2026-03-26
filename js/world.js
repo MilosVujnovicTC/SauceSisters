@@ -36,8 +36,8 @@ const ZONES = {
         spawnY: 8,  // tile row
         // Transitions: when player steps on these tiles, move to target zone
         transitions: [
-            { col: 11, row: 17, target: 'market', spawnX: 15, spawnY: 2 },
-            { col: 12, row: 17, target: 'market', spawnX: 16, spawnY: 2 },
+            { col: 11, row: 17, target: 'street_to_market', spawnX: 6, spawnY: 1 },
+            { col: 12, row: 17, target: 'street_to_market', spawnX: 7, spawnY: 1 },
         ],
         npcs: [
             {
@@ -114,10 +114,29 @@ const ZONES = {
                     });
                 },
             },
+            // Decorative objects — kitchen enrichment
+            { id: 'deco_plant_1', type: 'pot_plant', col: 2, row: 6 },
+            { id: 'deco_plant_2', type: 'pot_plant', col: 21, row: 6 },
+            { id: 'deco_chair_1', type: 'chair', col: 4, row: 8 },
+            { id: 'deco_chair_2', type: 'chair', col: 19, row: 8 },
+            { id: 'deco_table_1', type: 'table_small', col: 4, row: 12 },
+            { id: 'deco_table_2', type: 'table_small', col: 19, row: 12 },
+            { id: 'deco_lamp_k', type: 'lamp', col: 1, row: 15 },
+            {
+                id: 'recipe_board', name: 'Recipe Board', col: 12, row: 2, color: '#c4a46c',
+                onInteract: function() {
+                    startDialogue({ id: 'recipe_board', name: 'Recipe Board',
+                        getLines: function() { return { lines: [
+                            "A board covered in Mama's handwritten recipes...",
+                            "'Tomato sauce: love, patience, and a secret only the heart knows.'",
+                            "The last line is smudged. Typical Mama.",
+                        ] }; },
+                    });
+                },
+            },
         ],
         powerups: [
             { id: 'cucina_broccoli', type: 'broccoli', col: 15, row: 10 },
-            { id: 'cucina_milk', type: 'milk', col: 16, row: 6 },
         ],
     },
 
@@ -159,12 +178,12 @@ const ZONES = {
         spawnX: 15,
         spawnY: 3,
         transitions: [
-            { col: 14, row: 0, target: 'la_cucina', spawnX: 11, spawnY: 15 },
-            { col: 15, row: 0, target: 'la_cucina', spawnX: 11, spawnY: 15 },
-            { col: 16, row: 0, target: 'la_cucina', spawnX: 12, spawnY: 15 },
-            { col: 17, row: 0, target: 'la_cucina', spawnX: 12, spawnY: 15 },
-            { col: 30, row: 14, target: 'canal', spawnX: 3, spawnY: 7 },
-            { col: 31, row: 14, target: 'canal', spawnX: 3, spawnY: 7 },
+            { col: 14, row: 0, target: 'street_to_market', spawnX: 6, spawnY: 28 },
+            { col: 15, row: 0, target: 'street_to_market', spawnX: 6, spawnY: 28 },
+            { col: 16, row: 0, target: 'street_to_market', spawnX: 7, spawnY: 28 },
+            { col: 17, row: 0, target: 'street_to_market', spawnX: 7, spawnY: 28 },
+            { col: 30, row: 14, target: 'riverside_walk', spawnX: 1, spawnY: 5 },
+            { col: 31, row: 14, target: 'riverside_walk', spawnX: 1, spawnY: 6 },
         ],
         npcs: [
             {
@@ -325,47 +344,23 @@ const ZONES = {
                     });
                 },
             },
+            // Decorative objects — market enrichment
+            { id: 'mkt_barrel_1', type: 'rope_coil', col: 2, row: 4 },
+            { id: 'mkt_barrel_2', type: 'rope_coil', col: 29, row: 4 },
+            { id: 'mkt_plant_1', type: 'pot_plant', col: 4, row: 15 },
+            { id: 'mkt_plant_2', type: 'pot_plant', col: 26, row: 15 },
+            { id: 'mkt_bench_1', type: 'bench_deco', col: 6, row: 24 },
+            { id: 'mkt_bench_2', type: 'bench_deco', col: 24, row: 24 },
+            { id: 'mkt_lamp_1', type: 'street_lamp', col: 1, row: 10 },
+            { id: 'mkt_lamp_2', type: 'street_lamp', col: 30, row: 10 },
             {
-                id: 'market_pager',
-                name: 'Pager',
-                col: 28, row: 24,
-                color: '#2a2a2a',
+                id: 'sample_stand', name: 'Sample Stand', col: 15, row: 12, color: '#e8a030',
                 onInteract: function() {
-                    if (getFlag('pager_solved')) {
-                        startDialogue({ id: 'market_pager', name: 'Pager',
-                            getLines: function() { return { lines: ["The pager's screen still reads: hELLO. Classic."] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'market_pager_intro', name: 'Pager',
+                    startDialogue({ id: 'sample_stand', name: 'Sample Stand',
                         getLines: function() { return { lines: [
-                            "An old pager! The screen is blank.",
-                            "There's a sticker on the back: 'Type a greeting!'",
-                            "Hmm... how do you spell words on a calculator?",
-                        ], onComplete: function() { startPagerPuzzle(); } }; },
-                    });
-                },
-            },
-            {
-                id: 'betta_accordion',
-                name: "Betta's Accordion",
-                col: 8, row: 18,
-                color: '#ffcc44',
-                onInteract: function() {
-                    if (getFlag('accordion_completed')) {
-                        startDialogue({ id: 'betta_accordion', name: 'Accordion',
-                            getLines: function() { return { lines: ["The accordion sits quietly. Signora Betta smiles knowingly."] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'betta_accordion_intro', name: 'Signora Betta',
-                        getLines: function() {
-                            return { lines: [
-                                "Ah, you want to try my accordion?",
-                                "It's simple — watch the sequence, then repeat it!",
-                                "Let's see if you have the memory of a Betta!",
-                            ], onComplete: function() { startAccordion(); } };
-                        },
+                            "Free samples! ...of air. The actual samples ran out hours ago.",
+                            "But the sign is very convincing, isn't it?",
+                        ] }; },
                     });
                 },
             },
@@ -408,8 +403,6 @@ const ZONES = {
         ],
         powerups: [
             { id: 'market_deli', type: 'deli_meat', col: 7, row: 13 },
-            { id: 'market_gouda', type: 'gouda', col: 23, row: 13 },
-            { id: 'market_choco', type: 'chocolate_milk', col: 15, row: 23 },
         ],
     },
 
@@ -443,14 +436,14 @@ const ZONES = {
         spawnX: 3,
         spawnY: 7,
         transitions: [
-            // North-west door → back to Market (east side, row 14)
-            { col: 0, row: 3, target: 'market', spawnX: 28, spawnY: 14 },
-            { col: 1, row: 3, target: 'market', spawnX: 28, spawnY: 14 },
-            { col: 0, row: 4, target: 'market', spawnX: 28, spawnY: 14 },
-            { col: 1, row: 4, target: 'market', spawnX: 28, spawnY: 14 },
-            // South edge → Library
-            { col: 14, row: 19, target: 'library', spawnX: 11, spawnY: 1 },
-            { col: 15, row: 19, target: 'library', spawnX: 12, spawnY: 1 },
+            // North-west door → back to riverside walk
+            { col: 0, row: 3, target: 'riverside_walk', spawnX: 34, spawnY: 5 },
+            { col: 1, row: 3, target: 'riverside_walk', spawnX: 34, spawnY: 5 },
+            { col: 0, row: 4, target: 'riverside_walk', spawnX: 34, spawnY: 6 },
+            { col: 1, row: 4, target: 'riverside_walk', spawnX: 34, spawnY: 6 },
+            // South edge → garden path
+            { col: 14, row: 19, target: 'garden_path', spawnX: 7, spawnY: 1 },
+            { col: 15, row: 19, target: 'garden_path', spawnX: 8, spawnY: 1 },
         ],
         npcs: [
             {
@@ -509,32 +502,27 @@ const ZONES = {
                 color: '#ff5722',
                 onInteract: function() { startBMXMiniGame(); },
             },
+            // Decorative objects — canal enrichment
+            { id: 'canal_rope_1', type: 'rope_coil', col: 3, row: 6 },
+            { id: 'canal_rope_2', type: 'rope_coil', col: 26, row: 6 },
+            { id: 'canal_rope_3', type: 'rope_coil', col: 14, row: 13 },
+            { id: 'canal_lamp_1', type: 'street_lamp', col: 6, row: 5 },
+            { id: 'canal_lamp_2', type: 'street_lamp', col: 20, row: 5 },
+            { id: 'canal_bench_1', type: 'bench_deco', col: 10, row: 14 },
             {
-                id: 'coco_guitar',
-                name: "Coco's Guitar Spot",
-                col: 4, row: 4,
-                color: '#ff6600',
+                id: 'fishing_spot', name: 'Fishing Spot', col: 12, row: 7, color: '#42a5f5',
                 onInteract: function() {
-                    if (getFlag('air_guitar_completed')) {
-                        startDialogue({ id: 'coco_guitar', name: 'Guitar Spot',
-                            getLines: function() { return { lines: ["Coco already rocked this spot. The echoes still linger."] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'coco_guitar_intro', name: 'Coco',
-                        getLines: function() {
-                            return { lines: [
-                                "*air guitar intensifies*",
-                                "This spot has PERFECT acoustics! Well, for imaginary guitars.",
-                                "Wanna jam? Match my chord combos!",
-                            ], onComplete: function() { startAirGuitar(); } };
-                        },
+                    startDialogue({ id: 'fishing_spot', name: 'Fishing Spot',
+                        getLines: function() { return { lines: [
+                            "A calm spot by the canal. The water shimmers.",
+                            "You could fish here... if you had a rod. And patience. And fish.",
+                        ] }; },
                     });
                 },
             },
         ],
         powerups: [
-            { id: 'canal_water', type: 'water', col: 8, row: 16 },
+            { id: 'canal_gouda', type: 'gouda', col: 8, row: 16 },
         ],
     },
 
@@ -566,12 +554,12 @@ const ZONES = {
         spawnX: 11,
         spawnY: 1,
         transitions: [
-            // North entrance → back to Canal (south path)
-            { col: 11, row: 0, target: 'canal', spawnX: 14, spawnY: 17 },
-            { col: 12, row: 0, target: 'canal', spawnX: 15, spawnY: 17 },
-            // South exit → Papa's Gym
-            { col: 11, row: 17, target: 'gym', spawnX: 12, spawnY: 1 },
-            { col: 12, row: 17, target: 'gym', spawnX: 13, spawnY: 1 },
+            // North entrance → back to garden path
+            { col: 11, row: 0, target: 'garden_path', spawnX: 7, spawnY: 26 },
+            { col: 12, row: 0, target: 'garden_path', spawnX: 8, spawnY: 26 },
+            // South exit → neighborhood
+            { col: 11, row: 17, target: 'neighborhood', spawnX: 1, spawnY: 5 },
+            { col: 12, row: 17, target: 'neighborhood', spawnX: 1, spawnY: 6 },
         ],
         npcs: [
             {
@@ -690,48 +678,6 @@ const ZONES = {
                 },
             },
             {
-                id: 'library_vhs',
-                name: 'VHS Tape',
-                col: 20, row: 5,
-                color: '#1a1a3a',
-                onInteract: function() {
-                    if (getFlag('vhs_solved')) {
-                        startDialogue({ id: 'library_vhs', name: 'VHS Tape',
-                            getLines: function() { return { lines: ["The tape is fully rewound. Mama's cooking secret plays on loop."] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'library_vhs_intro', name: 'VHS Tape',
-                        getLines: function() { return { lines: [
-                            "A dusty VHS tape labeled 'Mama Rosa's Cooking Secrets Vol. 3'!",
-                            "It needs to be rewound before you can watch it...",
-                            "Be careful — old tapes snap if you rewind too fast!",
-                        ], onComplete: function() { startVHSPuzzle(); } }; },
-                    });
-                },
-            },
-            {
-                id: 'library_cdrom',
-                name: 'CD-ROM',
-                col: 17, row: 13,
-                color: '#667799',
-                onInteract: function() {
-                    if (getFlag('cdrom_solved')) {
-                        startDialogue({ id: 'library_cdrom', name: 'CD-ROM',
-                            getLines: function() { return { lines: ["The clean disc gleams. You can see your reflection... and a map!"] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'library_cdrom_intro', name: 'CD-ROM',
-                        getLines: function() { return { lines: [
-                            "A scratched-up CD-ROM! The label is unreadable.",
-                            "If you clean the scratches, you might be able to read it...",
-                            "Time for some careful disc maintenance!",
-                        ], onComplete: function() { startCDROMPuzzle(); } }; },
-                    });
-                },
-            },
-            {
                 id: 'bookshelf_mystery',
                 name: 'Old Bookshelf',
                 col: 7, row: 13,
@@ -751,6 +697,25 @@ const ZONES = {
                                 "Maybe a dog with a good nose could help?",
                             ]};
                         },
+                    });
+                },
+            },
+            // Decorative objects — library enrichment
+            { id: 'lib_chair_1', type: 'chair', col: 2, row: 5 },
+            { id: 'lib_chair_2', type: 'chair', col: 21, row: 5 },
+            { id: 'lib_chair_3', type: 'chair', col: 2, row: 14 },
+            { id: 'lib_lamp_1', type: 'lamp', col: 1, row: 9 },
+            { id: 'lib_lamp_2', type: 'lamp', col: 22, row: 9 },
+            { id: 'lib_plant_1', type: 'pot_plant', col: 1, row: 1 },
+            { id: 'lib_plant_2', type: 'pot_plant', col: 22, row: 1 },
+            {
+                id: 'library_globe', name: 'Old Globe', col: 20, row: 14, color: '#42a5f5',
+                onInteract: function() {
+                    startDialogue({ id: 'library_globe', name: 'Old Globe',
+                        getLines: function() { return { lines: [
+                            "A dusty globe showing Italy at the center. As it should be.",
+                            "Someone has drawn a tiny heart over your town. Mama, probably.",
+                        ] }; },
                     });
                 },
             },
@@ -796,12 +761,12 @@ const ZONES = {
         spawnX: 13,
         spawnY: 1,
         transitions: [
-            // North entrance → back to Library (south wall)
-            { col: 12, row: 0, target: 'library', spawnX: 11, spawnY: 16 },
-            { col: 13, row: 0, target: 'library', spawnX: 12, spawnY: 16 },
-            // South exit → Piazza Vecchia (north-right entrance)
-            { col: 13, row: 21, target: 'piazza', spawnX: 24, spawnY: 1 },
-            { col: 14, row: 21, target: 'piazza', spawnX: 25, spawnY: 1 },
+            // North entrance → back to neighborhood
+            { col: 12, row: 0, target: 'neighborhood', spawnX: 32, spawnY: 5 },
+            { col: 13, row: 0, target: 'neighborhood', spawnX: 32, spawnY: 6 },
+            // South exit → forest trail
+            { col: 13, row: 21, target: 'forest_trail', spawnX: 7, spawnY: 1 },
+            { col: 14, row: 21, target: 'forest_trail', spawnX: 8, spawnY: 1 },
         ],
         npcs: [
             {
@@ -927,30 +892,6 @@ const ZONES = {
                 },
             },
             {
-                id: 'gym_tamagotchi',
-                name: 'Tamagotchi',
-                col: 23, row: 13,
-                color: '#e040fb',
-                onInteract: function() {
-                    if (getFlag('tamagotchi_solved')) {
-                        startDialogue({
-                            id: 'gym_tamagotchi', name: 'Tamagotchi',
-                            getLines: function() { return { lines: ["The Tamagotchi beeps happily. Your digital pet is thriving!"] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({
-                        id: 'gym_tamagotchi', name: 'Tamagotchi',
-                        getLines: function() { return { lines: [
-                            "An old Tamagotchi! The screen flickers to life...",
-                            "A tiny creature stares at you with big pixel eyes.",
-                            "It looks hungry. And sad. And slightly pixelated.",
-                            "You need to feed it the right foods in order!",
-                        ], onComplete: function() { startTamagotchiPuzzle(); } }; },
-                    });
-                },
-            },
-            {
                 id: 'gym_punching_bag',
                 name: 'Punching Bag',
                 col: 20, row: 7,
@@ -970,10 +911,29 @@ const ZONES = {
                     });
                 },
             },
+            // Decorative objects — gym enrichment
+            { id: 'gym_weights_1', type: 'weights', col: 18, row: 4 },
+            { id: 'gym_weights_2', type: 'weights', col: 22, row: 4 },
+            { id: 'gym_weights_3', type: 'weights', col: 18, row: 10 },
+            { id: 'gym_weights_4', type: 'weights', col: 22, row: 10 },
+            { id: 'gym_treadmill_1', type: 'treadmill', col: 8, row: 4 },
+            { id: 'gym_treadmill_2', type: 'treadmill', col: 10, row: 4 },
+            { id: 'gym_bench_1', type: 'bench_deco', col: 16, row: 14 },
+            { id: 'gym_bench_2', type: 'bench_deco', col: 20, row: 14 },
+            {
+                id: 'gym_treadmill_use', name: 'Treadmill', col: 12, row: 4, color: '#333',
+                onInteract: function() {
+                    startDialogue({ id: 'gym_treadmill_use', name: 'Treadmill',
+                        getLines: function() { return { lines: [
+                            "*hops on* *runs for 3 seconds* *hops off*",
+                            "Giulia: That's enough cardio for today. I'm saving my energy for sauce.",
+                        ] }; },
+                    });
+                },
+            },
         ],
         powerups: [
             { id: 'gym_choco', type: 'chocolate_milk', col: 7, row: 18 },
-            { id: 'gym_milk', type: 'milk', col: 4, row: 18 },
         ],
     },
 
@@ -1014,15 +974,15 @@ const ZONES = {
         spawnX: 24,
         spawnY: 1,
         transitions: [
-            // North-right exit → back to Gym (south entrance)
-            { col: 23, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
-            { col: 24, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
-            { col: 25, row: 0, target: 'gym', spawnX: 14, spawnY: 20 },
-            // East exit → Zone 6 (Enzo's Pizzeria) — tiles become walkable after build puzzle
-            { col: 29, row: 10, target: 'pizzeria', spawnX: 1, spawnY: 10 },
-            { col: 29, row: 11, target: 'pizzeria', spawnX: 1, spawnY: 10 },
-            { col: 29, row: 12, target: 'pizzeria', spawnX: 1, spawnY: 11 },
-            { col: 29, row: 13, target: 'pizzeria', spawnX: 1, spawnY: 11 },
+            // North-right exit → back to forest trail
+            { col: 23, row: 0, target: 'forest_trail', spawnX: 7, spawnY: 32 },
+            { col: 24, row: 0, target: 'forest_trail', spawnX: 7, spawnY: 32 },
+            { col: 25, row: 0, target: 'forest_trail', spawnX: 8, spawnY: 32 },
+            // East exit → back alley (tiles become walkable after build puzzle)
+            { col: 29, row: 10, target: 'back_alley', spawnX: 5, spawnY: 1 },
+            { col: 29, row: 11, target: 'back_alley', spawnX: 5, spawnY: 1 },
+            { col: 29, row: 12, target: 'back_alley', spawnX: 6, spawnY: 1 },
+            { col: 29, row: 13, target: 'back_alley', spawnX: 6, spawnY: 1 },
         ],
         npcs: [
             {
@@ -1144,6 +1104,33 @@ const ZONES = {
                     });
                 },
             },
+            // Decorative objects — piazza enrichment
+            { id: 'pza_lamp_1', type: 'street_lamp', col: 4, row: 4 },
+            { id: 'pza_lamp_2', type: 'street_lamp', col: 26, row: 4 },
+            { id: 'pza_lamp_3', type: 'street_lamp', col: 4, row: 18 },
+            { id: 'pza_lamp_4', type: 'street_lamp', col: 26, row: 18 },
+            { id: 'pza_bench_1', type: 'bench_deco', col: 6, row: 8 },
+            { id: 'pza_bench_2', type: 'bench_deco', col: 6, row: 14 },
+            { id: 'pza_bench_3', type: 'bench_deco', col: 18, row: 8 },
+            { id: 'pza_bench_4', type: 'bench_deco', col: 18, row: 14 },
+            { id: 'pza_plant_1', type: 'pot_plant', col: 10, row: 3 },
+            { id: 'pza_plant_2', type: 'pot_plant', col: 20, row: 3 },
+            { id: 'pza_plant_3', type: 'pot_plant', col: 10, row: 19 },
+            { id: 'pza_statue', type: 'statue', col: 15, row: 18 },
+            {
+                id: 'wishing_fountain', name: 'Wishing Fountain', col: 13, row: 7, color: '#6eb5d6',
+                onInteract: function() {
+                    var wishes = [
+                        "You toss a coin into the fountain. It goes 'plink!'",
+                        "You wish for... the recipe to be complete. The fountain gurgles approvingly.",
+                        "You toss a coin. A pigeon immediately tries to retrieve it.",
+                        "You make a wish. The fountain winks. ...fountains can't wink. You need sleep.",
+                    ];
+                    startDialogue({ id: 'wishing_fountain', name: 'Wishing Fountain',
+                        getLines: function() { return { lines: [wishes[Math.floor(Math.random() * wishes.length)]] }; },
+                    });
+                },
+            },
         ],
         // 4 pushable objects: 2 benches + 2 planters — must be placed on the fill targets
         pushables: [
@@ -1153,8 +1140,7 @@ const ZONES = {
             { id: 'piazza_planter_2', col: 22, row: 15, initCol: 22, initRow: 15, type: 'planter' },
         ],
         powerups: [
-            { id: 'piazza_water', type: 'water', col: 14, row: 4 },
-            { id: 'piazza_gouda', type: 'gouda_cheese', col: 3, row: 15 },
+            { id: 'piazza_milk', type: 'milk', col: 14, row: 4 },
         ],
     },
 
@@ -1194,12 +1180,12 @@ const ZONES = {
         spawnX: 1,
         spawnY: 10,
         transitions: [
-            // West exit → back to Piazza (east passage)
-            { col: 0, row: 10, target: 'piazza', spawnX: 24, spawnY: 11 },
-            { col: 0, row: 11, target: 'piazza', spawnX: 24, spawnY: 12 },
-            // East exit (sauce room) → Mama's Sewing Shop (only after boss defeated — door restored by restoreSewingShopDoor)
-            { col: 27, row: 8, target: 'sewing_shop', spawnX: 1, spawnY: 9 },
-            { col: 27, row: 9, target: 'sewing_shop', spawnX: 1, spawnY: 10 },
+            // West exit → back to back alley
+            { col: 0, row: 10, target: 'back_alley', spawnX: 5, spawnY: 22 },
+            { col: 0, row: 11, target: 'back_alley', spawnX: 6, spawnY: 22 },
+            // East exit (sauce room) → courtyard (only after boss defeated — door restored by restoreSewingShopDoor)
+            { col: 27, row: 8, target: 'courtyard', spawnX: 1, spawnY: 6 },
+            { col: 27, row: 9, target: 'courtyard', spawnX: 1, spawnY: 7 },
         ],
         npcs: [
             {
@@ -1300,9 +1286,31 @@ const ZONES = {
                     }
                 },
             },
+            // Decorative objects — pizzeria enrichment
+            { id: 'piz_peel_1', type: 'pizza_peel', col: 16, row: 2 },
+            { id: 'piz_peel_2', type: 'pizza_peel', col: 20, row: 2 },
+            { id: 'piz_prep_1', type: 'prep_table', col: 16, row: 12 },
+            { id: 'piz_prep_2', type: 'prep_table', col: 20, row: 12 },
+            { id: 'piz_chair_1', type: 'chair', col: 4, row: 4 },
+            { id: 'piz_chair_2', type: 'chair', col: 8, row: 4 },
+            { id: 'piz_chair_3', type: 'chair', col: 4, row: 14 },
+            { id: 'piz_plant_1', type: 'pot_plant', col: 1, row: 1 },
+            { id: 'piz_plant_2', type: 'pot_plant', col: 1, row: 18 },
+            {
+                id: 'menu_board', name: 'Menu Board', col: 10, row: 2, color: '#333',
+                onInteract: function() {
+                    startDialogue({ id: 'menu_board', name: "Enzo's Menu",
+                        getLines: function() { return { lines: [
+                            "'Enzo's WORLD-FAMOUS Pizza' — (world-famous in this street only)",
+                            "'Secret Sauce Special' — price: YOUR SOUL. (Just kidding. 12 euros.)",
+                            "Someone has written 'Mama Rosa's sauce is better' in tiny letters at the bottom.",
+                        ] }; },
+                    });
+                },
+            },
         ],
         powerups: [
-            { id: 'pizzeria_deli', type: 'deli_meat', col: 18, row: 4 },
+            { id: 'pizzeria_gouda', type: 'gouda', col: 18, row: 4 },
         ],
     },
 
@@ -1339,9 +1347,9 @@ const ZONES = {
         spawnX: 1,
         spawnY: 9,
         transitions: [
-            // West exit → back to Pizzeria (sauce room)
-            { col: 0, row: 9, target: 'pizzeria', spawnX: 26, spawnY: 8 },
-            { col: 0, row: 10, target: 'pizzeria', spawnX: 26, spawnY: 9 },
+            // West exit → back to courtyard
+            { col: 0, row: 9, target: 'courtyard', spawnX: 22, spawnY: 6 },
+            { col: 0, row: 10, target: 'courtyard', spawnX: 22, spawnY: 7 },
         ],
         npcs: [
             {
@@ -1446,29 +1454,6 @@ const ZONES = {
                 },
             },
             {
-                id: 'sewing_machine_rhythm',
-                name: 'Sewing Machine',
-                col: 6, row: 12,
-                color: '#556b2f',
-                onInteract: function() {
-                    if (getFlag('sewing_rhythm_completed')) {
-                        startDialogue({ id: 'sewing_machine', name: 'Sewing Machine',
-                            getLines: function() { return { lines: ["The sewing machine hums contentedly. Your rhythm was impeccable."] }; },
-                        });
-                        return;
-                    }
-                    startDialogue({ id: 'sewing_machine_intro', name: 'Mama Rosa',
-                        getLines: function() {
-                            return { lines: [
-                                "This is my favorite sewing machine!",
-                                "It has a rhythm all its own. Can you keep up?",
-                                "Press on the beat — like a heartbeat through fabric.",
-                            ], onComplete: function() { startSewingRhythm(); } };
-                        },
-                    });
-                },
-            },
-            {
                 id: 'wedding_planner_trigger',
                 name: 'Wedding Planner Bridget',
                 col: 6, row: 3,
@@ -1492,9 +1477,689 @@ const ZONES = {
                     startWeddingBoss();
                 },
             },
+            // Decorative objects — sewing shop enrichment
+            { id: 'sew_dress_1', type: 'dress_form', col: 3, row: 3 },
+            { id: 'sew_dress_2', type: 'dress_form', col: 9, row: 3 },
+            { id: 'sew_dress_3', type: 'dress_form', col: 3, row: 13 },
+            { id: 'sew_fabric_1', type: 'fabric_bolt', col: 16, row: 2 },
+            { id: 'sew_fabric_2', type: 'fabric_bolt', col: 20, row: 2 },
+            { id: 'sew_fabric_3', type: 'fabric_bolt', col: 16, row: 11 },
+            { id: 'sew_lamp_1', type: 'lamp', col: 1, row: 8 },
+            { id: 'sew_lamp_2', type: 'lamp', col: 22, row: 8 },
+            { id: 'sew_chair_1', type: 'chair', col: 10, row: 8 },
+            { id: 'sew_chair_2', type: 'chair', col: 14, row: 14 },
+            {
+                id: 'clothing_rack', name: 'Clothing Rack', col: 18, row: 12, color: '#ab47bc',
+                onInteract: function() {
+                    var outfits = [
+                        "Giulia tries on a polka-dot apron. Very... bold.",
+                        "Giulia holds up a sequined cape. 'For the wedding?' 'For EVERY DAY.'",
+                        "Giulia finds a tiny chef hat for Brodo. He would hate it. She loves it.",
+                        "Giulia tries a vintage Italian dress. She looks like Mama. She smiles.",
+                    ];
+                    startDialogue({ id: 'clothing_rack', name: 'Clothing Rack',
+                        getLines: function() { return { lines: [outfits[Math.floor(Math.random() * outfits.length)]] }; },
+                    });
+                },
+            },
         ],
         powerups: [
             { id: 'sewing_milk', type: 'milk', col: 20, row: 14 },
+        ],
+    },
+
+    // ============================================================
+    // Intermediary zones — connecting paths between main stages
+    // ============================================================
+
+    // Zone I-1: Italian street connecting La Cucina to Market (vertical, 14×30)
+    street_to_market: {
+        id: 'street_to_market',
+        name: 'Via delle Sorelle',
+        map: [
+            // Row 0: north entrance (from La Cucina)
+            [W, W, W, W, W, W, D, D, W, W, W, W, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, L, P, P, P, P, P, P, L, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, H, W, P, P, G, G, G, G, P, P, W, B, W],
+            [W, W, W, P, P, G, L, L, G, P, P, W, W, W],
+            [W, P, P, P, P, G, G, G, G, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, B, W, P, P, P, P, P, P, P, P, W, H, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, L, P, P, P, P, P, P, L, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, H, W, P, P, G, G, G, G, P, P, W, B, W],
+            [W, W, W, P, P, G, G, G, G, P, P, W, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, B, W, P, P, P, P, P, P, P, P, W, L, W],
+            [W, W, W, P, P, P, P, P, P, P, P, W, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, L, P, P, P, P, P, P, L, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, P, P, W],
+            // Row 29: south exit (to Market)
+            [W, W, W, W, W, W, D, D, W, W, W, W, W, W],
+        ],
+        spawnX: 6, spawnY: 1,
+        transitions: [
+            { col: 6, row: 0, target: 'la_cucina', spawnX: 11, spawnY: 15 },
+            { col: 7, row: 0, target: 'la_cucina', spawnX: 12, spawnY: 15 },
+            { col: 6, row: 29, target: 'market', spawnX: 15, spawnY: 2 },
+            { col: 7, row: 29, target: 'market', spawnX: 16, spawnY: 2 },
+        ],
+        npcs: [
+            {
+                id: 'street_nonna',
+                name: 'Nonna Fiora',
+                col: 4, row: 7,
+                color: '#b39ddb',
+                idle: { type: 'arrange', interval: 3, walkPath: [{col:4,row:7},{col:4,row:12}], walkSpeed: 20 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["Flowers need love, just like sauce needs time.", "Rushing tomatoes is a crime, child."],
+                        ["My basil is growing splendidly this season!", "Want some? Oh wait, you're busy saving the world or whatever."],
+                        ["When I was your age, I walked to the market every day.", "Uphill both ways. In tomato sauce."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+            {
+                id: 'street_cat',
+                name: 'Signor Whiskers',
+                col: 11, row: 16,
+                color: '#ff8a65',
+                getLines: function(flags) {
+                    var lines = [
+                        ["*purrs from the windowsill*", "Meow. (Translation: bring me fish next time.)"],
+                        ["*stretches lazily*", "Mrrrow. (Translation: I own this street.)"],
+                        ["*yawns dramatically*", "Prrrr. (Translation: you humans are amusing.)"],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'betta_accordion',
+                name: "Street Accordion",
+                col: 7, row: 20,
+                color: '#ffcc44',
+                onInteract: function() {
+                    if (getFlag('accordion_completed')) {
+                        startDialogue({ id: 'betta_accordion', name: 'Accordion',
+                            getLines: function() { return { lines: ["The accordion sits quietly. The street remembers the melody."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'betta_accordion_intro', name: 'Signora Betta',
+                        getLines: function() {
+                            return { lines: [
+                                "Ah, you found my accordion! I left it here for practice.",
+                                "It's simple — watch the sequence, then repeat it!",
+                                "Let's see if you have the memory of a Betta!",
+                            ], onComplete: function() { startAccordion(); } };
+                        },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'street_water', type: 'water', col: 7, row: 14 },
+        ],
+    },
+
+    // Zone I-2: Riverside promenade connecting Market to Canal (horizontal, 36×12)
+    riverside_walk: {
+        id: 'riverside_walk',
+        name: 'Lungomare',
+        map: [
+            [A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A],
+            [A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A],
+            [K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K, K],
+            [P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+            [P, P, L, P, P, P, P, P, P, P, P, P, P, P, P, P, P, L, P, P, P, P, P, P, P, P, P, P, P, L, P, P, P, P, P, P],
+            [D, P, P, P, P, P, P, P, B, P, P, P, P, P, P, P, P, P, P, P, P, B, P, P, P, P, P, P, P, P, P, P, P, P, P, D],
+            [D, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, D],
+            [P, P, P, P, P, P, P, P, P, P, P, P, P, L, P, P, P, P, P, P, P, P, P, P, P, L, P, P, P, P, P, P, P, P, P, P],
+            [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+            [G, G, L, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, L, G, G, G, G, G, G, G, G, G, G, G, L, G, G],
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+        ],
+        spawnX: 1, spawnY: 5,
+        transitions: [
+            // West exit → back to Market
+            { col: 0, row: 5, target: 'market', spawnX: 28, spawnY: 14 },
+            { col: 0, row: 6, target: 'market', spawnX: 28, spawnY: 14 },
+            // East exit → Canal
+            { col: 35, row: 5, target: 'canal', spawnX: 3, spawnY: 7 },
+            { col: 35, row: 6, target: 'canal', spawnX: 3, spawnY: 7 },
+        ],
+        npcs: [
+            {
+                id: 'riverside_fisher',
+                name: 'Fisherman Luca',
+                col: 12, row: 3,
+                color: '#5c6bc0',
+                idle: { type: 'fish', interval: 3.5, walkPath: [{col:12,row:3},{col:18,row:3}], walkSpeed: 20 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["The fish aren't biting today.", "They heard about my cooking and got scared."],
+                        ["You know what they say — give a girl a fish, she eats for a day.", "Teach a girl to fish, she gets bored and goes looking for recipes instead."],
+                        ["I once caught a fish THIS big!", "...it was a sardine. But it had personality."],
+                        ["The water here is beautiful, no?", "Mediterranean blue. Just like Mama's eyes when she talks about sauce."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'coco_guitar',
+                name: "Coco's Guitar Spot",
+                col: 20, row: 5,
+                color: '#ff6600',
+                onInteract: function() {
+                    if (getFlag('air_guitar_completed')) {
+                        startDialogue({ id: 'coco_guitar', name: 'Guitar Spot',
+                            getLines: function() { return { lines: ["Coco already rocked this spot. The waterfront still vibes."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'coco_guitar_intro', name: 'Coco',
+                        getLines: function() {
+                            return { lines: [
+                                "*air guitar intensifies*",
+                                "This waterfront has PERFECT acoustics! Well, for imaginary guitars.",
+                                "Wanna jam? Match my chord combos!",
+                            ], onComplete: function() { startAirGuitar(); } };
+                        },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'riverside_choco', type: 'chocolate_milk', col: 18, row: 6 },
+        ],
+        worldItemDefs: [
+            { itemId: 'tomato', col: 28, row: 5 },
+        ],
+    },
+
+    // Zone I-3: Garden path connecting Canal to Library (vertical, 16×28)
+    garden_path: {
+        id: 'garden_path',
+        name: 'Giardino Vecchio',
+        map: [
+            // Row 0: north entrance (from Canal)
+            [W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, L, G, G, G, G, G, P, P, G, G, G, G, G, L, G],
+            [G, G, G, L, G, G, P, P, P, P, G, G, L, G, G, G],
+            [G, G, G, G, G, G, P, P, P, P, G, G, G, G, G, G],
+            [G, G, G, G, G, P, P, G, G, P, P, G, G, G, G, G],
+            [G, L, G, G, G, P, G, G, G, G, P, G, G, G, L, G],
+            [G, G, G, G, G, P, G, L, L, G, P, G, G, G, G, G],
+            [G, G, G, G, G, P, G, G, G, G, P, G, G, G, G, G],
+            [G, G, G, G, G, P, P, P, P, P, P, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, L, G, G, G, G, P, P, G, G, G, G, L, G, G],
+            [G, G, G, G, B, G, G, P, P, G, G, B, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, P, P, P, P, G, G, G, G, G, G],
+            [G, G, G, G, G, P, P, G, G, P, P, G, G, G, G, G],
+            [G, L, G, G, P, P, G, G, G, G, P, P, G, G, L, G],
+            [G, G, G, G, P, G, G, L, L, G, G, P, G, G, G, G],
+            [G, G, G, G, P, G, G, G, G, G, G, P, G, G, G, G],
+            [G, G, G, G, P, P, G, G, G, G, P, P, G, G, G, G],
+            [G, G, G, G, G, P, P, P, P, P, P, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, L, G, G, G, G, P, P, G, G, G, G, L, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            // Row 27: south exit (to Library)
+            [W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W],
+        ],
+        spawnX: 7, spawnY: 1,
+        transitions: [
+            { col: 7, row: 0, target: 'canal', spawnX: 14, spawnY: 17 },
+            { col: 8, row: 0, target: 'canal', spawnX: 15, spawnY: 17 },
+            { col: 7, row: 27, target: 'library', spawnX: 11, spawnY: 1 },
+            { col: 8, row: 27, target: 'library', spawnX: 12, spawnY: 1 },
+        ],
+        npcs: [
+            {
+                id: 'garden_rosa',
+                name: 'Gardener Rosa',
+                col: 3, row: 10,
+                color: '#66bb6a',
+                idle: { type: 'arrange', interval: 3, walkPath: [{col:3,row:10},{col:3,row:14},{col:6,row:14}], walkSpeed: 22 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["Basil, oregano, rosemary... the holy trinity of Italian gardens!", "Well, after tomatoes. Tomatoes are God."],
+                        ["A garden is like a kitchen — patience and love.", "Also bugs. Lots of bugs."],
+                        ["Did you know tomatoes were once considered poisonous?", "Imagine — an Italy without tomato sauce! *shudders*"],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+            {
+                id: 'garden_kid',
+                name: 'Little Emilio',
+                col: 12, row: 18,
+                color: '#ffcc80',
+                idle: { type: 'feed', interval: 2, walkPath: [{col:12,row:18},{col:10,row:16},{col:12,row:14}], walkSpeed: 40 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["I'm chasing butterflies! They're FAST!", "Almost as fast as my sister when she hears the gelato truck."],
+                        ["Did you see that blue one?! It was HUGE!", "Well... medium. Okay, small. But it was BLUE!"],
+                        ["Mama says I should read more books.", "But butterflies don't live in books. I checked."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'garden_vhs',
+                name: 'VHS Tape',
+                col: 8, row: 10,
+                color: '#1a1a3a',
+                onInteract: function() {
+                    if (getFlag('vhs_solved')) {
+                        startDialogue({ id: 'library_vhs', name: 'VHS Tape',
+                            getLines: function() { return { lines: ["The tape is fully rewound. Mama's cooking secret plays on loop."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'library_vhs_intro', name: 'VHS Tape',
+                        getLines: function() { return { lines: [
+                            "A dusty VHS tape on a park bench! Labeled 'Mama Rosa's Cooking Secrets Vol. 3'!",
+                            "It needs to be rewound before you can watch it...",
+                            "Be careful — old tapes snap if you rewind too fast!",
+                        ], onComplete: function() { startVHSPuzzle(); } }; },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'garden_broccoli', type: 'broccoli', col: 7, row: 13 },
+        ],
+    },
+
+    // Zone I-4: Residential neighborhood connecting Library to Gym (horizontal, 34×12)
+    neighborhood: {
+        id: 'neighborhood',
+        name: 'Via Tranquilla',
+        map: [
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+            [W, W, W, H, W, W, G, G, W, W, W, H, W, W, G, G, G, G, W, W, W, H, W, W, G, G, W, W, W, H, W, W, G, W],
+            [W, W, W, W, W, W, G, G, W, W, W, W, W, W, G, L, L, G, W, W, W, W, W, W, G, G, W, W, W, W, W, W, G, W],
+            [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+            [P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+            [D, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, D],
+            [D, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, D],
+            [P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+            [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+            [W, W, W, W, W, W, G, L, W, W, W, W, W, W, G, G, G, G, W, W, W, W, W, W, G, L, W, W, W, W, W, W, G, W],
+            [W, H, W, W, W, W, G, G, W, W, H, W, W, W, G, G, G, G, W, W, H, W, W, W, G, G, W, W, H, W, W, W, G, W],
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+        ],
+        spawnX: 1, spawnY: 5,
+        transitions: [
+            // West exit → back to Library
+            { col: 0, row: 5, target: 'library', spawnX: 11, spawnY: 16 },
+            { col: 0, row: 6, target: 'library', spawnX: 12, spawnY: 16 },
+            // East exit → Gym
+            { col: 33, row: 5, target: 'gym', spawnX: 12, spawnY: 1 },
+            { col: 33, row: 6, target: 'gym', spawnX: 13, spawnY: 1 },
+        ],
+        npcs: [
+            {
+                id: 'mail_paolo',
+                name: 'Mail Carrier Paolo',
+                col: 10, row: 5,
+                color: '#42a5f5',
+                idle: { type: 'arrange', interval: 2.5, walkPath: [{col:10,row:5},{col:18,row:5},{col:18,row:6},{col:10,row:6}], walkSpeed: 35 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["Letters, packages, mysterious recipe fragments...", "Wait, I didn't say that last part. Forget I said anything!"],
+                        ["Everyone on this street is always cooking something.", "My mail bag smells like oregano. Not complaining."],
+                        ["I heard Enzo's pizzeria has been causing trouble.", "Between you and me, his dough is overworked. Just like me!"],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+            {
+                id: 'dog_walker',
+                name: 'Signora Marta',
+                col: 24, row: 6,
+                color: '#ef9a9a',
+                idle: { type: 'feed', interval: 3, walkPath: [{col:24,row:6},{col:28,row:6},{col:28,row:5},{col:24,row:5}], walkSpeed: 28 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["Oh! Is that a basset hound? He's ADORABLE!", "My Fifi would love to play with him. Fifi is a goldfish, but still."],
+                        ["Walking dogs is the best exercise.", "Mostly because they walk and I just hold on for dear life."],
+                        ["Your dog has such expressive eyes!", "He looks like he's carrying the weight of the world. And also wants a treat."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'neighborhood_pager',
+                name: 'Pager',
+                col: 22, row: 6,
+                color: '#2a2a2a',
+                onInteract: function() {
+                    if (getFlag('pager_solved')) {
+                        startDialogue({ id: 'market_pager', name: 'Pager',
+                            getLines: function() { return { lines: ["The pager's screen still reads: hELLO. Classic."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'market_pager_intro', name: 'Pager',
+                        getLines: function() { return { lines: [
+                            "An old pager on someone's doorstep! The screen is blank.",
+                            "There's a sticker on the back: 'Type a greeting!'",
+                            "Hmm... how do you spell words on a calculator?",
+                        ], onComplete: function() { startPagerPuzzle(); } }; },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'neighborhood_water', type: 'water', col: 17, row: 6 },
+        ],
+    },
+
+    // Zone I-5: Forest trail connecting Gym to Piazza (vertical, 16×34)
+    forest_trail: {
+        id: 'forest_trail',
+        name: 'Sentiero del Bosco',
+        map: [
+            // Row 0: north entrance (from Gym)
+            [W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, H, G, G, G, G, P, P, G, G, G, G, H, G, G],
+            [G, G, G, G, G, G, P, P, P, P, G, G, G, G, G, G],
+            [G, H, G, G, G, G, P, G, G, P, G, G, G, G, H, G],
+            [G, G, G, G, G, P, P, G, G, P, P, G, G, G, G, G],
+            [G, G, G, H, G, P, G, G, G, G, P, G, H, G, G, G],
+            [G, G, G, G, G, P, G, G, G, G, P, G, G, G, G, G],
+            [G, G, G, G, G, P, P, P, P, P, P, G, G, G, G, G],
+            [G, G, H, G, G, G, G, P, P, G, G, G, G, H, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            // Cabin area
+            [G, G, G, G, W, W, W, W, W, W, W, W, G, G, G, G],
+            [G, G, G, G, W, F, F, F, F, F, F, W, G, G, G, G],
+            [G, G, G, G, W, F, F, R, R, F, F, W, G, G, G, G],
+            [G, G, G, G, W, F, F, R, R, F, F, W, G, G, G, G],
+            [G, G, G, G, W, W, D, P, P, D, W, W, G, G, G, G],
+            [G, G, G, G, G, G, P, P, P, P, G, G, G, G, G, G],
+            [G, G, H, G, G, G, G, P, P, G, G, G, G, H, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, P, P, P, P, G, G, G, G, G, G],
+            [G, G, G, G, G, P, P, G, G, P, P, G, G, G, G, G],
+            [G, H, G, G, G, P, G, G, G, G, P, G, G, G, H, G],
+            [G, G, G, G, G, P, G, G, G, G, P, G, G, G, G, G],
+            [G, G, G, G, G, P, P, P, P, P, P, G, G, G, G, G],
+            [G, G, H, G, G, G, G, P, P, G, G, G, G, H, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [A, A, A, A, A, J, J, P, P, J, J, A, A, A, A, A],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            [G, G, H, G, G, G, G, P, P, G, G, G, G, H, G, G],
+            [G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G],
+            // Row 33: south exit (to Piazza)
+            [W, W, W, W, W, W, W, D, D, W, W, W, W, W, W, W],
+        ],
+        spawnX: 7, spawnY: 1,
+        transitions: [
+            { col: 7, row: 0, target: 'gym', spawnX: 13, spawnY: 20 },
+            { col: 8, row: 0, target: 'gym', spawnX: 14, spawnY: 20 },
+            { col: 7, row: 33, target: 'piazza', spawnX: 24, spawnY: 1 },
+            { col: 8, row: 33, target: 'piazza', spawnX: 25, spawnY: 1 },
+        ],
+        npcs: [
+            {
+                id: 'hermit_giacomo',
+                name: 'Hermit Giacomo',
+                col: 7, row: 14,
+                color: '#8d6e63',
+                idle: { type: 'read', interval: 4, walkPath: [{col:7,row:14},{col:9,row:14},{col:9,row:15},{col:7,row:15}], walkSpeed: 18 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["The trees whisper secrets, child.", "Mostly about photosynthesis, but sometimes about recipes."],
+                        ["I left civilization thirty years ago.", "Best decision ever. No Wi-Fi, but also no Enzo's terrible pizza."],
+                        ["A wise man once said: 'The sauce is within you.'", "That was me. I said that. Just now. You're welcome."],
+                        ["Why did the tomato turn red?", "Because it saw the salad dressing! Ha! ...I don't get many visitors."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'forest_tamagotchi',
+                name: 'Tamagotchi',
+                col: 9, row: 15,
+                color: '#e040fb',
+                onInteract: function() {
+                    if (getFlag('tamagotchi_solved')) {
+                        startDialogue({
+                            id: 'gym_tamagotchi', name: 'Tamagotchi',
+                            getLines: function() { return { lines: ["The Tamagotchi beeps happily. Your digital pet is thriving!"] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({
+                        id: 'gym_tamagotchi', name: 'Tamagotchi',
+                        getLines: function() { return { lines: [
+                            "A Tamagotchi on the hermit's shelf! The screen flickers to life...",
+                            "A tiny creature stares at you with big pixel eyes.",
+                            "It looks hungry. And sad. And slightly pixelated.",
+                            "You need to feed it the right foods in order!",
+                        ], onComplete: function() { startTamagotchiPuzzle(); } }; },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'forest_brownie', type: 'brownie', col: 8, row: 25 },
+        ],
+    },
+
+    // Zone I-6: Back alley connecting Piazza to Pizzeria (vertical, 12×24)
+    back_alley: {
+        id: 'back_alley',
+        name: 'Vicolo Stretto',
+        map: [
+            // Row 0: north entrance (from Piazza)
+            [W, W, W, W, W, D, D, W, W, W, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, B, P, P, P, P, B, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, P, P, P, P, P, P, P, P, W, W],
+            [W, B, P, P, P, P, P, P, P, P, B, W],
+            [W, W, P, P, P, P, P, P, P, P, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, P, P, B, P, P, B, P, P, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, W, P, P, P, P, P, P, P, P, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, B, P, P, P, P, P, P, P, W],
+            [W, W, P, P, P, P, P, P, P, P, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, B, P, P, W],
+            [W, W, P, P, P, P, P, P, P, P, W, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            [W, P, P, B, P, P, P, P, P, P, P, W],
+            [W, P, P, P, P, P, P, P, P, P, P, W],
+            // Row 23: south exit (to Pizzeria)
+            [W, W, W, W, W, D, D, W, W, W, W, W],
+        ],
+        spawnX: 5, spawnY: 1,
+        transitions: [
+            { col: 5, row: 0, target: 'piazza', spawnX: 24, spawnY: 11 },
+            { col: 6, row: 0, target: 'piazza', spawnX: 24, spawnY: 12 },
+            { col: 5, row: 23, target: 'pizzeria', spawnX: 1, spawnY: 10 },
+            { col: 6, row: 23, target: 'pizzeria', spawnX: 1, spawnY: 11 },
+        ],
+        npcs: [
+            {
+                id: 'street_artist',
+                name: 'Artist Marco',
+                col: 3, row: 8,
+                color: '#ab47bc',
+                idle: { type: 'arrange', interval: 3, walkPath: [{col:3,row:8},{col:3,row:12}], walkSpeed: 20 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["I'm painting a mural of the perfect pizza.", "Enzo saw it and tried to sue me. For 'emotional damage.'"],
+                        ["Art is like cooking — you need passion!", "And a high tolerance for criticism from old Italian women."],
+                        ["This alley has great acoustics.", "If you yell 'PIZZA!' it echoes for three seconds. I timed it."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+            {
+                id: 'alley_cat',
+                name: 'Gatto Nero',
+                col: 8, row: 17,
+                color: '#37474f',
+                getLines: function(flags) {
+                    var lines = [
+                        ["*hisses from the shadows*", "Mrooow. (Translation: this is MY alley.)"],
+                        ["*narrows eyes suspiciously*", "Pffft. (Translation: I am Signor Whiskers' rival. Tell him I said 'pffft.')"],
+                        ["*knocks over a barrel*", "Mrow! (Translation: totally meant to do that.)"],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'alley_cdrom',
+                name: 'CD-ROM',
+                col: 6, row: 10,
+                color: '#667799',
+                onInteract: function() {
+                    if (getFlag('cdrom_solved')) {
+                        startDialogue({ id: 'library_cdrom', name: 'CD-ROM',
+                            getLines: function() { return { lines: ["The clean disc gleams. You can see your reflection... and a map!"] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'library_cdrom_intro', name: 'CD-ROM',
+                        getLines: function() { return { lines: [
+                            "A scratched-up CD-ROM tossed by a crate! The label is unreadable.",
+                            "If you clean the scratches, you might be able to read it...",
+                            "Time for some careful disc maintenance!",
+                        ], onComplete: function() { startCDROMPuzzle(); } }; },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'alley_deli', type: 'deli_meat', col: 6, row: 14 },
+        ],
+        worldItemDefs: [
+            { itemId: 'flour_bag', col: 6, row: 11 },
+        ],
+    },
+
+    // Zone I-7: Courtyard connecting Pizzeria to Sewing Shop (horizontal, 24×14)
+    courtyard: {
+        id: 'courtyard',
+        name: 'Cortile Nascosto',
+        map: [
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, L, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, L, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _FN, _FN, _FN, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _FN, _FN, _FN, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [D, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _FN, _FN, _FN, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, D],
+            [D, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, D],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, L, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, L, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, _CB, W],
+            [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+        ],
+        spawnX: 1, spawnY: 6,
+        transitions: [
+            // West exit → back to Pizzeria (sauce room)
+            { col: 0, row: 6, target: 'pizzeria', spawnX: 26, spawnY: 8 },
+            { col: 0, row: 7, target: 'pizzeria', spawnX: 26, spawnY: 9 },
+            // East exit → Sewing Shop
+            { col: 23, row: 6, target: 'sewing_shop', spawnX: 1, spawnY: 9 },
+            { col: 23, row: 7, target: 'sewing_shop', spawnX: 1, spawnY: 10 },
+        ],
+        npcs: [
+            {
+                id: 'chess_old_man',
+                name: 'Old Signore Dante',
+                col: 14, row: 4,
+                color: '#a1887f',
+                idle: { type: 'read', interval: 4, walkPath: [{col:14,row:4},{col:14,row:8}], walkSpeed: 15 },
+                getLines: function(flags) {
+                    var lines = [
+                        ["I play chess against myself. I always win.", "...and I always lose. Life is complicated."],
+                        ["The secret to a long life? Good sauce.", "The secret to GREAT sauce? Ah, now THAT is a different question entirely."],
+                        ["In chess, the queen does all the work.", "Just like in Italian families. The queen IS the family."],
+                        ["Every move matters. In chess, in cooking, in life.", "Also in crossing the street. Very important there too."],
+                    ];
+                    return { lines: lines[Math.floor(Math.random() * lines.length)] };
+                },
+            },
+        ],
+        objects: [
+            {
+                id: 'sewing_machine_rhythm',
+                name: 'Portable Sewing Machine',
+                col: 12, row: 9,
+                color: '#556b2f',
+                onInteract: function() {
+                    if (getFlag('sewing_rhythm_completed')) {
+                        startDialogue({ id: 'sewing_machine', name: 'Sewing Machine',
+                            getLines: function() { return { lines: ["The sewing machine hums contentedly. Your rhythm was impeccable."] }; },
+                        });
+                        return;
+                    }
+                    startDialogue({ id: 'sewing_machine_intro', name: 'Mama Rosa',
+                        getLines: function() {
+                            return { lines: [
+                                "Oh! Someone left a sewing machine out here!",
+                                "It has a rhythm all its own. Can you keep up?",
+                                "Press on the beat — like a heartbeat through fabric.",
+                            ], onComplete: function() { startSewingRhythm(); } };
+                        },
+                    });
+                },
+            },
+        ],
+        powerups: [
+            { id: 'courtyard_choco', type: 'chocolate_milk', col: 15, row: 8 },
         ],
     },
 };
@@ -1531,14 +2196,17 @@ function renderTiles(ctx, map, cameraX, cameraY) {
             const screenX = col * ts - camX;
             const screenY = row * ts - camY;
 
-            var sprite = getTileSprite(tileId, col, row);
-            if (sprite) {
-                ctx.drawImage(sprite, screenX, screenY, ts, ts);
-            } else {
-                // Fallback to flat color
-                var tile = TILE_BY_ID[tileId] || TILES.WALL;
-                ctx.fillStyle = tile.color;
-                ctx.fillRect(screenX, screenY, ts, ts);
+            // Try image-based sprite first, then procedural, then flat color
+            var tileInfo = TILE_BY_ID[tileId] || TILES.FLOOR;
+            var animFrame = Math.floor(game.time * 3) % 4;
+            if (!SpriteLoader.drawTile(ctx, tileInfo.label, screenX, screenY, animFrame)) {
+                var sprite = getTileSprite(tileId, col, row);
+                if (sprite) {
+                    ctx.drawImage(sprite, screenX, screenY, ts, ts);
+                } else {
+                    ctx.fillStyle = tileInfo.color;
+                    ctx.fillRect(screenX, screenY, ts, ts);
+                }
             }
         }
     }
@@ -1677,7 +2345,7 @@ function checkTransitions() {
             playDoorOpen();
 
             // Trigger tomato juggling when leaving the market with recipe #1
-            if (zone.id === 'market' && getFlag('recipe_1_found') && !getFlag('juggling_completed')) {
+            if (zone.id === 'riverside_walk' && getFlag('recipe_1_found') && !getFlag('juggling_completed')) {
                 game.juggleReturnZone = t.target;
                 game.juggleReturnSpawnX = t.spawnX;
                 game.juggleReturnSpawnY = t.spawnY;
@@ -1686,7 +2354,7 @@ function checkTransitions() {
             }
 
             // Trigger drum solo interlude when leaving the gym with recipe #3
-            if (zone.id === 'gym' && getFlag('recipe_3_found') && !getFlag('drum_solo_completed')) {
+            if (zone.id === 'forest_trail' && getFlag('recipe_3_found') && !getFlag('drum_solo_completed')) {
                 // Store where the player was going so we return there after
                 game.drumReturnZone = t.target;
                 game.drumReturnSpawnX = t.spawnX;
@@ -1912,13 +2580,16 @@ function renderPushables(ctx, cameraX, cameraY) {
         const screenX = px - cameraX;
         const screenY = py - cameraY;
 
-        // Pick sprite based on pushable type
-        var sprite = SPRITES.objects[p.type] || SPRITES.objects.crate;
-        if (sprite) {
-            ctx.drawImage(sprite, screenX, screenY);
-        } else {
-            ctx.fillStyle = CONFIG.CRATE_COLOR;
-            ctx.fillRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+        // Try image-based object sprite first, then procedural, then flat color
+        var objTypes = { crate: 0, bench: 1, planter: 2 };
+        if (!SpriteLoader.drawItem(ctx, 'objects', objTypes[p.type] || 0, screenX, screenY)) {
+            var sprite = SPRITES.objects[p.type] || SPRITES.objects.crate;
+            if (sprite) {
+                ctx.drawImage(sprite, screenX, screenY);
+            } else {
+                ctx.fillStyle = CONFIG.CRATE_COLOR;
+                ctx.fillRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+            }
         }
     }
 }
@@ -2335,6 +3006,17 @@ function renderObjects(ctx, cameraX, cameraY) {
         else if (obj.id === 'gym_punching_bag') spriteKey = 'punching_bag';
         else if (obj.id === 'piazza_tomato') spriteKey = 'market_tomato';
         else if (obj.id === 'gym_flour') spriteKey = 'kitchen_flour';
+        else if (obj.id === 'dot_matrix_printer') spriteKey = 'printer';
+        else if (obj.id === 'alley_cdrom' || obj.id === 'library_cdrom') spriteKey = 'cdrom';
+        else if (obj.id === 'garden_vhs' || obj.id === 'library_vhs') spriteKey = 'vhs';
+        else if (obj.id === 'market_rotary_phone' || obj.id === 'piazza_payphone') spriteKey = 'rotary_phone';
+        else if (obj.id === 'betta_accordion') spriteKey = 'accordion';
+        else if (obj.id === 'sewing_machine_rhythm') spriteKey = 'sewing_machine';
+        else if (obj.id === 'coco_guitar') spriteKey = 'guitar';
+        else if (obj.id === 'neighborhood_pager' || obj.id === 'market_pager') spriteKey = 'nokia';
+        else if (obj.id === 'forest_tamagotchi') spriteKey = 'tamagotchi';
+        // Decorative objects: use obj.type as sprite key if no specific mapping found
+        if (!spriteKey && obj.type && SPRITES.objects[obj.type]) spriteKey = obj.type;
 
         if (spriteKey && SPRITES.objects[spriteKey]) {
             ctx.drawImage(SPRITES.objects[spriteKey], screenX, screenY);
@@ -2347,17 +3029,13 @@ function renderObjects(ctx, cameraX, cameraY) {
             ctx.strokeRect(screenX + 4, screenY + 4, ts - 8, ts - 8);
         }
 
-        // Name label
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(obj.name, screenX + ts / 2, screenY - 4);
+        // Object name label removed for cleaner visuals
     }
 
     // Interaction prompt
     if (!dialogue.active) {
         var nearby = findNearbyObject();
-        if (nearby) {
+        if (nearby && nearby.onInteract) {
             var sx = nearby.col * ts - cameraX + ts / 2;
             var sy = nearby.row * ts - cameraY - 16;
             ctx.fillStyle = '#ffd54f';
@@ -2488,11 +3166,22 @@ function renderWorldItems(ctx, cameraX, cameraY) {
         var spriteKey = item.itemId;
         if (spriteKey.startsWith('recipe_')) spriteKey = 'recipe';
         if (spriteKey.startsWith('plank_')) spriteKey = 'plank';
-        var sprite = SPRITES.items[spriteKey];
 
-        if (sprite) {
+        // Try image-based sprite (recipes sheet for recipes, weapons sheet for weapons, etc.)
+        var imgDrawn = false;
+        if (spriteKey === 'recipe') {
+            var recipeNum = parseInt(item.itemId.split('_')[1]) || 1;
+            imgDrawn = SpriteLoader.drawItem(ctx, 'recipes', recipeNum - 1, cx - 16, cy - 16);
+        }
+        // TODO: map other item types to their sheet indices when assets are ready
+
+        if (!imgDrawn) {
+            var sprite = SPRITES.items[spriteKey];
+        }
+
+        if (!imgDrawn && sprite) {
             ctx.drawImage(sprite, cx - sprite.width / 2, cy - sprite.height / 2);
-        } else {
+        } else if (!imgDrawn) {
             // Fallback: diamond shape
             ctx.fillStyle = itemDef.color;
             ctx.beginPath();

@@ -264,8 +264,13 @@ function renderDialogue(ctx) {
     var portraitY = y + (h - portraitSize) / 2;
     var textOffsetX = portraitSize + portraitPad * 2 + 4; // text shifts right
 
-    // Try to get portrait — prefer LucasArts-style face, fall back to NPC sprite
+    // Try to get portrait — prefer image-based, then procedural LucasArts-style, then NPC sprite
     var portrait = null;
+    var portraitImgDrawn = false;
+
+    // Try image-based portrait from portrait sheet (not yet mapped by index — future)
+    // For now, fall through to procedural portraits
+
     if (dialogue.npcObj && dialogue.npcObj.id) {
         portrait = getPortrait(dialogue.npcObj.id);
     }
@@ -278,7 +283,7 @@ function renderDialogue(ctx) {
         portrait = SPRITES.objects[objKey] || null;
     }
 
-    if (portrait) {
+    if (portrait || portraitImgDrawn) {
         // Portrait frame background
         ctx.fillStyle = 'rgba(40,30,50,0.8)';
         ctx.fillRect(portraitX - 3, portraitY - 3, portraitSize + 6, portraitSize + 6);
@@ -292,7 +297,9 @@ function renderDialogue(ctx) {
         ctx.strokeRect(portraitX - 1, portraitY - 1, portraitSize + 2, portraitSize + 2);
         // Draw portrait (nearest-neighbor for pixel art)
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(portrait, portraitX, portraitY, portraitSize, portraitSize);
+        if (!portraitImgDrawn && portrait) {
+            ctx.drawImage(portrait, portraitX, portraitY, portraitSize, portraitSize);
+        }
     } else {
         // No portrait — draw a generic speech icon
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
@@ -535,10 +542,12 @@ function renderHUD(ctx) {
         if (i < inventory.length) {
             const itemDef = ITEMS[inventory[i]];
             if (itemDef) {
-                // Try to use item sprite
+                // Try image-based item sprite first, then procedural
                 var itemKey = inventory[i];
                 if (itemKey.startsWith('recipe_')) itemKey = 'recipe';
                 if (itemKey.startsWith('plank_')) itemKey = 'plank';
+
+                // TODO: SpriteLoader.drawItem integration when item sheet indices are mapped
                 var itemSprite = SPRITES.items[itemKey];
 
                 if (itemSprite) {

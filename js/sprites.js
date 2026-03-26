@@ -1,10 +1,228 @@
 // ============================================================
-// js/sprites.js — Enhanced pixel art sprite generator
-// All game visuals drawn procedurally on offscreen canvases.
+// js/sprites.js — Sprite system: image-based loader + procedural fallback
+// Loads PNG spritesheets when available; falls back to procedural canvases.
 // Called once at startup; render functions use ctx.drawImage().
 // ============================================================
 
-/** Sprite storage — organized by category. Each value is an offscreen canvas. */
+// ============================================================
+// SpriteLoader — Image-based sprite loading system
+// ============================================================
+
+const SpriteLoader = {
+    images: {},       // loaded Image objects keyed by sheet path
+    manifest: null,   // parsed manifest.json
+    loaded: 0,
+    total: 0,
+    ready: false,     // true when all images attempted (loaded or failed)
+    failed: [],       // list of sheet paths that failed to load
+
+    /** Loads manifest.json, then loads all referenced image sheets. */
+    load: function(onComplete) {
+        var self = this;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'assets/sprites/manifest.json?v=29', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    self.manifest = JSON.parse(xhr.responseText);
+                    self._loadAllSheets(onComplete);
+                } catch(e) {
+                    console.warn('[SpriteLoader] Failed to parse manifest.json:', e);
+                    self.ready = true;
+                    if (onComplete) onComplete();
+                }
+            } else {
+                console.warn('[SpriteLoader] manifest.json not found (status ' + xhr.status + '), using procedural sprites');
+                self.ready = true;
+                if (onComplete) onComplete();
+            }
+        };
+        xhr.onerror = function() {
+            console.warn('[SpriteLoader] Failed to fetch manifest.json, using procedural sprites');
+            self.ready = true;
+            if (onComplete) onComplete();
+        };
+        xhr.send();
+    },
+
+    /** Collects all unique sheet paths from manifest and loads them. */
+    _loadAllSheets: function(onComplete) {
+        var self = this;
+        var basePath = this.manifest.basePath || 'assets/sprites/';
+        var sheets = {};
+
+        // Collect unique sheet paths from all manifest sections
+        var sections = ['tiles', 'characters', 'npcs', 'bosses', 'enemies', 'items', 'ui'];
+        for (var s = 0; s < sections.length; s++) {
+            var section = this.manifest[sections[s]];
+            if (!section) continue;
+            for (var key in section) {
+                if (section[key].sheet) {
+                    sheets[section[key].sheet] = true;
+                }
+            }
+        }
+
+        var sheetPaths = Object.keys(sheets);
+        this.total = sheetPaths.length;
+
+        if (this.total === 0) {
+            this.ready = true;
+            if (onComplete) onComplete();
+            return;
+        }
+
+        var completed = 0;
+        for (var i = 0; i < sheetPaths.length; i++) {
+            (function(path) {
+                var img = new Image();
+                img.onload = function() {
+                    self.images[path] = img;
+                    self.loaded++;
+                    completed++;
+                    if (completed === self.total) {
+                        self.ready = true;
+                        self._logStatus();
+                        if (onComplete) onComplete();
+                    }
+                };
+                img.onerror = function() {
+                    self.failed.push(path);
+                    completed++;
+                    if (completed === self.total) {
+                        self.ready = true;
+                        self._logStatus();
+                        if (onComplete) onComplete();
+                    }
+                };
+                img.src = basePath + path;
+            })(sheetPaths[i]);
+        }
+    },
+
+    /** Logs which assets loaded and which are missing. */
+    _logStatus: function() {
+        if (this.loaded > 0) {
+            console.log('[SpriteLoader] Loaded ' + this.loaded + '/' + this.total + ' sprite sheets');
+        }
+        if (this.failed.length > 0) {
+            console.log('[SpriteLoader] Missing assets (using procedural fallback): ' + this.failed.join(', '));
+        }
+    },
+
+    /** Returns true if a specific sheet path has been loaded. */
+    hasSheet: function(sheetPath) {
+        return !!this.images[sheetPath];
+    },
+
+    /** Draws a frame from a spritesheet. Returns true if drawn, false if sheet not loaded. */
+    draw: function(ctx, sheetPath, frameX, frameY, destX, destY, frameW, frameH) {
+        var img = this.images[sheetPath];
+        if (!img) return false;
+        frameW = frameW || 32;
+        frameH = frameH || 32;
+        ctx.drawImage(img,
+            frameX * frameW, frameY * frameH, frameW, frameH,
+            destX, destY, frameW, frameH
+        );
+        return true;
+    },
+
+    /** Draws a tile from the universal tileset. Returns true if drawn, false if fallback needed. */
+    drawTile: function(ctx, tileLabel, destX, destY, animFrame) {
+        if (!this.manifest || !this.manifest.tiles) return false;
+        // Map label to uppercase key
+        var key = tileLabel.toUpperCase();
+        var def = this.manifest.tiles[key];
+        if (!def) return false;
+        var img = this.images[def.sheet];
+        if (!img) return false;
+
+        var fx = def.fx;
+        // For animated tiles, offset by frame
+        if (def.frames && def.frames > 1 && animFrame !== undefined) {
+            fx = def.fx + (animFrame % def.frames);
+        }
+        var T = CONFIG.TILE_SIZE;
+        ctx.drawImage(img,
+            fx * T, def.fy * T, T, T,
+            destX, destY, T, T
+        );
+        return true;
+    },
+
+    /** Draws a character sprite (Giulia, Brodo). Returns true if drawn. */
+    drawCharacter: function(ctx, charId, frameX, frameY, destX, destY) {
+        if (!this.manifest || !this.manifest.characters) return false;
+        var def = this.manifest.characters[charId];
+        if (!def) return false;
+        return this.draw(ctx, def.sheet, frameX, frameY, destX, destY, def.frameW, def.frameH);
+    },
+
+    /** Draws an NPC sprite. Returns true if drawn. */
+    drawNPC: function(ctx, npcId, destX, destY, flipH) {
+        if (!this.manifest || !this.manifest.npcs) return false;
+        var def = this.manifest.npcs[npcId];
+        if (!def) return false;
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        if (flipH) {
+            ctx.save();
+            ctx.translate(destX + def.frameW, destY);
+            ctx.scale(-1, 1);
+            ctx.drawImage(img, 0, 0, def.frameW, def.frameH, 0, 0, def.frameW, def.frameH);
+            ctx.restore();
+        } else {
+            ctx.drawImage(img, 0, 0, def.frameW, def.frameH, destX, destY, def.frameW, def.frameH);
+        }
+        return true;
+    },
+
+    /** Draws a boss sprite. Returns true if drawn. */
+    drawBoss: function(ctx, bossId, destX, destY) {
+        if (!this.manifest || !this.manifest.bosses) return false;
+        var def = this.manifest.bosses[bossId];
+        if (!def) return false;
+        return this.draw(ctx, def.sheet, 0, 0, destX, destY, def.frameW, def.frameH);
+    },
+
+    /** Draws an enemy sprite. Returns true if drawn. */
+    drawEnemy: function(ctx, enemyId, destX, destY) {
+        if (!this.manifest || !this.manifest.enemies) return false;
+        var def = this.manifest.enemies[enemyId];
+        if (!def) return false;
+        return this.draw(ctx, def.sheet, 0, 0, destX, destY, def.frameW, def.frameH);
+    },
+
+    /** Draws an item from a category sheet. Returns true if drawn. */
+    drawItem: function(ctx, category, frameIndex, destX, destY) {
+        if (!this.manifest || !this.manifest.items) return false;
+        var def = this.manifest.items[category];
+        if (!def) return false;
+        return this.draw(ctx, def.sheet, frameIndex, 0, destX, destY, def.frameW, def.frameH);
+    },
+
+    /** Draws a UI element. Returns true if drawn. */
+    drawUI: function(ctx, uiId, frameX, frameY, destX, destY) {
+        if (!this.manifest || !this.manifest.ui) return false;
+        var def = this.manifest.ui[uiId];
+        if (!def) return false;
+        return this.draw(ctx, def.sheet, frameX, frameY, destX, destY, def.frameW, def.frameH);
+    },
+
+    /** Draws a portrait from the portraits sheet. Returns true if drawn. */
+    drawPortrait: function(ctx, portraitIndex, destX, destY) {
+        if (!this.manifest || !this.manifest.ui || !this.manifest.ui.portraits) return false;
+        var def = this.manifest.ui.portraits;
+        return this.draw(ctx, def.sheet, portraitIndex, 0, destX, destY, def.frameW, def.frameH);
+    }
+};
+
+// ============================================================
+// Procedural sprite system (fallback when images not loaded)
+// ============================================================
+
+/** Procedural sprite storage (fallback) — organized by category. Each value is an offscreen canvas. */
 const SPRITES = {
     tiles: {},     // tiles.grass[0..3], tiles.water[0..3], tiles.wall, etc.
     player: {},    // player.down[0..3], player.up[0..3], etc.
@@ -1832,6 +2050,407 @@ function generateObjectSprites() {
         cx.fillStyle = '#a08070';
         cx.fillRect(T / 2 - 6, T / 2 - 6, 3, 10);
     });
+
+    // ============================================================
+    // Decorative object sprites (non-interactable, visual enrichment)
+    // ============================================================
+
+    // Potted plant — terracotta pot with green leaves
+    SPRITES.objects.pot_plant = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#b5651d'; cx.fillRect(10, 18, 12, 10); // pot
+        cx.fillStyle = '#a0521d'; cx.fillRect(8, 17, 16, 3); // rim
+        cx.fillStyle = '#8b4513'; cx.fillRect(12, 26, 8, 2); // base
+        cx.fillStyle = '#4caf50'; // leaves
+        cx.beginPath(); cx.arc(16, 14, 7, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#66bb6a';
+        cx.beginPath(); cx.arc(13, 11, 5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(19, 12, 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#388e3c'; cx.fillRect(15, 14, 2, 5); // stem
+    });
+
+    // Chair — simple wooden chair (top-down view)
+    SPRITES.objects.chair = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914'; cx.fillRect(8, 6, 16, 18); // seat
+        cx.strokeStyle = '#6b4904'; cx.lineWidth = 1; cx.strokeRect(8, 6, 16, 18);
+        cx.fillStyle = '#a07a1e'; cx.fillRect(10, 8, 12, 14); // cushion
+        cx.fillStyle = '#6b4904'; // legs
+        cx.fillRect(8, 24, 3, 4); cx.fillRect(21, 24, 3, 4);
+        cx.fillRect(8, 4, 3, 4); cx.fillRect(21, 4, 3, 4);
+        cx.fillStyle = '#5a3a04'; cx.fillRect(8, 2, 16, 4); // backrest
+    });
+
+    // Small table — round cafe table
+    SPRITES.objects.table_small = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914';
+        cx.beginPath(); cx.ellipse(16, 14, 10, 8, 0, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#6b4904'; cx.lineWidth = 1;
+        cx.beginPath(); cx.ellipse(16, 14, 10, 8, 0, 0, Math.PI * 2); cx.stroke();
+        cx.fillStyle = '#a07a1e'; // lighter top
+        cx.beginPath(); cx.ellipse(16, 13, 8, 6, 0, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#6b4904'; cx.fillRect(14, 18, 4, 10); // leg
+    });
+
+    // Floor lamp — standing lamp with shade
+    SPRITES.objects.lamp = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#555'; cx.fillRect(14, 12, 4, 18); // pole
+        cx.fillStyle = '#444'; cx.fillRect(10, 28, 12, 2); // base
+        cx.fillStyle = '#ffd54f'; // shade
+        cx.beginPath(); cx.moveTo(8, 12); cx.lineTo(24, 12); cx.lineTo(20, 4); cx.lineTo(12, 4); cx.closePath(); cx.fill();
+        cx.fillStyle = 'rgba(255,235,100,0.3)'; // glow
+        cx.beginPath(); cx.arc(16, 8, 10, 0, Math.PI * 2); cx.fill();
+    });
+
+    // Dumbbells — pair of weights
+    SPRITES.objects.weights = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#555'; cx.fillRect(6, 14, 20, 4); // bar
+        cx.fillStyle = '#333'; // plates
+        cx.fillRect(3, 10, 5, 12); cx.fillRect(24, 10, 5, 12);
+        cx.fillStyle = '#444';
+        cx.fillRect(4, 11, 3, 10); cx.fillRect(25, 11, 3, 10);
+        cx.fillStyle = '#666'; cx.fillRect(8, 13, 3, 6); cx.fillRect(21, 13, 3, 6); // inner plates
+    });
+
+    // Treadmill — running machine (top-down)
+    SPRITES.objects.treadmill = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#333'; cx.fillRect(6, 4, 20, 24); // frame
+        cx.strokeStyle = '#555'; cx.lineWidth = 1; cx.strokeRect(6, 4, 20, 24);
+        cx.fillStyle = '#222'; cx.fillRect(8, 8, 16, 16); // belt
+        cx.strokeStyle = '#444'; // belt lines
+        for (var i = 0; i < 4; i++) { cx.beginPath(); cx.moveTo(8, 10 + i * 4); cx.lineTo(24, 10 + i * 4); cx.stroke(); }
+        cx.fillStyle = '#e53935'; cx.fillRect(10, 4, 12, 3); // console
+        cx.fillStyle = '#4caf50'; cx.fillRect(14, 5, 4, 1); // display
+    });
+
+    // Dress form — mannequin on stand
+    SPRITES.objects.dress_form = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#888'; cx.fillRect(14, 24, 4, 6); // stand pole
+        cx.fillStyle = '#666'; cx.fillRect(10, 28, 12, 2); // base
+        cx.fillStyle = '#d4a88c'; // torso
+        cx.beginPath(); cx.moveTo(10, 10); cx.lineTo(22, 10); cx.lineTo(20, 24); cx.lineTo(12, 24); cx.closePath(); cx.fill();
+        cx.strokeStyle = '#b08060'; cx.lineWidth = 1;
+        cx.beginPath(); cx.moveTo(10, 10); cx.lineTo(22, 10); cx.lineTo(20, 24); cx.lineTo(12, 24); cx.closePath(); cx.stroke();
+        cx.fillStyle = '#c09070'; cx.fillRect(13, 12, 6, 2); // neckline
+        cx.beginPath(); cx.arc(16, 7, 4, 0, Math.PI * 2); cx.fill(); // head shape
+    });
+
+    // Fabric bolt — rolled fabric
+    SPRITES.objects.fabric_bolt = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#c25a8e'; // pink fabric
+        cx.fillRect(6, 10, 20, 14);
+        cx.strokeStyle = '#a0487a'; cx.lineWidth = 1; cx.strokeRect(6, 10, 20, 14);
+        cx.fillStyle = '#d47aa0'; cx.fillRect(8, 12, 16, 10); // lighter center
+        cx.beginPath(); cx.ellipse(6, 17, 3, 7, 0, 0, Math.PI * 2); cx.fill(); // roll end
+        cx.strokeStyle = '#a0487a'; cx.beginPath(); cx.ellipse(6, 17, 3, 7, 0, 0, Math.PI * 2); cx.stroke();
+        cx.fillStyle = '#e8a0c0'; // pattern stripe
+        cx.fillRect(10, 14, 12, 2); cx.fillRect(10, 18, 12, 2);
+    });
+
+    // Pizza peel — wooden paddle
+    SPRITES.objects.pizza_peel = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#c4a46c'; // paddle
+        cx.beginPath(); cx.ellipse(16, 12, 10, 8, 0, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#8b6914'; cx.lineWidth = 1;
+        cx.beginPath(); cx.ellipse(16, 12, 10, 8, 0, 0, Math.PI * 2); cx.stroke();
+        cx.fillStyle = '#a08050'; cx.fillRect(14, 18, 4, 12); // handle
+        cx.strokeStyle = '#8b6914'; cx.strokeRect(14, 18, 4, 12);
+        cx.fillStyle = '#d4b47c'; // lighter center
+        cx.beginPath(); cx.ellipse(16, 11, 7, 5, 0, 0, Math.PI * 2); cx.fill();
+    });
+
+    // Prep table — kitchen prep surface with items
+    SPRITES.objects.prep_table = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#888'; cx.fillRect(4, 10, 24, 16); // steel surface
+        cx.strokeStyle = '#666'; cx.lineWidth = 1; cx.strokeRect(4, 10, 24, 16);
+        cx.fillStyle = '#aaa'; cx.fillRect(6, 12, 20, 12); // top surface
+        cx.fillStyle = '#4caf50'; cx.fillRect(8, 14, 6, 4); // chopped herbs
+        cx.fillStyle = '#e53935'; cx.beginPath(); cx.arc(20, 18, 3, 0, Math.PI * 2); cx.fill(); // tomato
+        cx.fillStyle = '#ccc'; cx.fillRect(16, 14, 2, 8); // knife
+    });
+
+    // Street lamp — outdoor lamp post
+    SPRITES.objects.street_lamp = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#444'; cx.fillRect(14, 8, 4, 22); // pole
+        cx.fillStyle = '#333'; cx.fillRect(10, 28, 12, 2); // base
+        cx.fillStyle = '#ffd54f'; // lamp head
+        cx.fillRect(10, 4, 12, 6);
+        cx.strokeStyle = '#555'; cx.lineWidth = 1; cx.strokeRect(10, 4, 12, 6);
+        cx.fillStyle = 'rgba(255,235,100,0.2)'; // glow
+        cx.beginPath(); cx.arc(16, 7, 12, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#666'; cx.fillRect(12, 2, 8, 3); // cap
+    });
+
+    // Decorative bench — non-pushable sitting bench
+    SPRITES.objects.bench_deco = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914'; cx.fillRect(4, 12, 24, 8); // seat plank
+        cx.strokeStyle = '#6b4904'; cx.lineWidth = 1; cx.strokeRect(4, 12, 24, 8);
+        cx.fillStyle = '#a07a1e'; cx.fillRect(6, 14, 20, 4); // lighter top
+        cx.fillStyle = '#6b4904'; // legs
+        cx.fillRect(6, 20, 3, 6); cx.fillRect(23, 20, 3, 6);
+        cx.fillStyle = '#5a3a04'; cx.fillRect(4, 8, 24, 4); // backrest
+    });
+
+    // Statue — small decorative bust/figure
+    SPRITES.objects.statue = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#9e9e9e'; cx.fillRect(10, 20, 12, 8); // pedestal
+        cx.strokeStyle = '#757575'; cx.lineWidth = 1; cx.strokeRect(10, 20, 12, 8);
+        cx.fillStyle = '#bdbdbd'; // figure
+        cx.fillRect(12, 12, 8, 10); // body
+        cx.beginPath(); cx.arc(16, 9, 5, 0, Math.PI * 2); cx.fill(); // head
+        cx.fillStyle = '#a0a0a0'; cx.fillRect(8, 14, 4, 6); cx.fillRect(20, 14, 4, 6); // arms
+    });
+
+    // Rope coil — dock rope
+    SPRITES.objects.rope_coil = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#a08050';
+        cx.beginPath(); cx.arc(16, 16, 8, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#8b6914'; cx.lineWidth = 1;
+        cx.beginPath(); cx.arc(16, 16, 8, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.arc(16, 16, 5, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.arc(16, 16, 2, 0, Math.PI * 2); cx.stroke();
+        cx.fillStyle = '#6b4904'; cx.beginPath(); cx.arc(16, 16, 2, 0, Math.PI * 2); cx.fill(); // center
+        cx.fillStyle = '#c4a46c'; // rope end trailing
+        cx.fillRect(22, 14, 8, 2);
+    });
+
+    // --- Millennial Puzzle Object Sprites ---
+
+    // --- Dot-Matrix Printer ---
+    SPRITES.objects.printer = createSprite(T, T, function(cx) {
+        // Printer body (boxy beige)
+        cx.fillStyle = '#d4c8a0';
+        cx.fillRect(2, 10, 28, 16);
+        cx.strokeStyle = '#a09060';
+        cx.lineWidth = 1;
+        cx.strokeRect(2, 10, 28, 16);
+        // Paper feed slot (top)
+        cx.fillStyle = '#b0a070';
+        cx.fillRect(4, 8, 24, 4);
+        // Paper coming out
+        cx.fillStyle = '#f5f0e0';
+        cx.fillRect(8, 2, 16, 10);
+        cx.strokeStyle = '#ccc';
+        cx.strokeRect(8, 2, 16, 10);
+        // Printed lines on paper
+        cx.fillStyle = '#555';
+        cx.fillRect(10, 4, 12, 1);
+        cx.fillRect(10, 6, 10, 1);
+        cx.fillRect(10, 8, 8, 1);
+        // Control panel (buttons/lights)
+        cx.fillStyle = '#4caf50';
+        cx.fillRect(22, 14, 3, 2);
+        cx.fillStyle = '#f44336';
+        cx.fillRect(26, 14, 3, 2);
+        // Feed rollers
+        cx.fillStyle = '#555';
+        cx.fillRect(4, 12, 2, 2);
+        cx.fillRect(26, 12, 2, 2);
+    });
+
+    // --- CD-ROM Disc ---
+    SPRITES.objects.cdrom = createSprite(T, T, function(cx) {
+        // Disc body (silver circle)
+        cx.fillStyle = '#c0c8d0';
+        cx.beginPath(); cx.arc(T / 2, T / 2, 12, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#8090a0';
+        cx.lineWidth = 1;
+        cx.beginPath(); cx.arc(T / 2, T / 2, 12, 0, Math.PI * 2); cx.stroke();
+        // Inner ring
+        cx.strokeStyle = '#a0b0c0';
+        cx.beginPath(); cx.arc(T / 2, T / 2, 8, 0, Math.PI * 2); cx.stroke();
+        // Center hole
+        cx.fillStyle = '#1a1a2e';
+        cx.beginPath(); cx.arc(T / 2, T / 2, 3, 0, Math.PI * 2); cx.fill();
+        // Rainbow shimmer (data side reflection)
+        cx.fillStyle = 'rgba(100,200,255,0.15)';
+        cx.beginPath(); cx.arc(T / 2 - 2, T / 2 - 2, 10, 0, Math.PI * 0.5); cx.lineTo(T / 2, T / 2); cx.fill();
+        cx.fillStyle = 'rgba(255,100,200,0.12)';
+        cx.beginPath(); cx.arc(T / 2 + 2, T / 2 + 2, 10, Math.PI, Math.PI * 1.5); cx.lineTo(T / 2, T / 2); cx.fill();
+        // Scratches
+        cx.strokeStyle = 'rgba(0,0,0,0.15)';
+        cx.lineWidth = 0.5;
+        cx.beginPath(); cx.moveTo(8, 14); cx.lineTo(22, 20); cx.stroke();
+        cx.beginPath(); cx.moveTo(12, 22); cx.lineTo(24, 12); cx.stroke();
+    });
+
+    // --- VHS Tape ---
+    SPRITES.objects.vhs = createSprite(T, T, function(cx) {
+        // Cassette body (black rectangle)
+        cx.fillStyle = '#1a1a2a';
+        cx.fillRect(3, 8, 26, 18);
+        cx.strokeStyle = '#333';
+        cx.lineWidth = 1;
+        cx.strokeRect(3, 8, 26, 18);
+        // Label (white sticker on front)
+        cx.fillStyle = '#f5f0e0';
+        cx.fillRect(6, 10, 20, 8);
+        cx.strokeStyle = '#ccc';
+        cx.strokeRect(6, 10, 20, 8);
+        // Label text
+        cx.fillStyle = '#333';
+        cx.fillRect(8, 12, 14, 1);
+        cx.fillRect(8, 14, 10, 1);
+        // Tape reels (visible through window)
+        cx.fillStyle = '#333';
+        cx.fillRect(8, 20, 6, 4);
+        cx.fillRect(18, 20, 6, 4);
+        cx.fillStyle = '#555';
+        cx.beginPath(); cx.arc(11, 22, 2, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(21, 22, 2, 0, Math.PI * 2); cx.fill();
+        // VHS logo hint
+        cx.fillStyle = '#42a5f5';
+        cx.fillRect(22, 11, 3, 1);
+    });
+
+    // --- Red Rotary Phone ---
+    SPRITES.objects.rotary_phone = createSprite(T, T, function(cx) {
+        // Phone body (red rounded)
+        cx.fillStyle = '#c62828';
+        cx.fillRect(4, 10, 24, 18);
+        cx.strokeStyle = '#8e0000';
+        cx.lineWidth = 1;
+        cx.strokeRect(4, 10, 24, 18);
+        // Top curves
+        cx.fillStyle = '#c62828';
+        cx.beginPath(); cx.arc(16, 10, 12, Math.PI, 0); cx.fill();
+        // Rotary dial (circle)
+        cx.fillStyle = '#f5f0e0';
+        cx.beginPath(); cx.arc(16, 18, 7, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#8e0000';
+        cx.beginPath(); cx.arc(16, 18, 7, 0, Math.PI * 2); cx.stroke();
+        // Dial holes
+        cx.fillStyle = '#1a1a2e';
+        cx.beginPath(); cx.arc(16, 13, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(12, 15, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(20, 15, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(11, 19, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(21, 19, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(13, 23, 1.5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(19, 23, 1.5, 0, Math.PI * 2); cx.fill();
+        // Handset cradle
+        cx.fillStyle = '#8e0000';
+        cx.fillRect(6, 6, 20, 4);
+        // Handset
+        cx.fillStyle = '#b71c1c';
+        cx.fillRect(5, 4, 8, 5);
+        cx.fillRect(19, 4, 8, 5);
+        cx.fillRect(8, 3, 16, 3);
+    });
+
+    // --- Accordion ---
+    SPRITES.objects.accordion = createSprite(T, T, function(cx) {
+        // Left keyboard side (treble)
+        cx.fillStyle = '#1a1a2e';
+        cx.fillRect(3, 6, 8, 22);
+        cx.strokeStyle = '#333';
+        cx.strokeRect(3, 6, 8, 22);
+        // White keys
+        cx.fillStyle = '#f5f0e0';
+        for (var k = 0; k < 5; k++) {
+            cx.fillRect(5, 8 + k * 4, 4, 3);
+        }
+        // Bellows (red zigzag middle)
+        cx.fillStyle = '#c62828';
+        cx.fillRect(11, 8, 10, 18);
+        cx.strokeStyle = '#8e0000';
+        cx.lineWidth = 1;
+        // Bellows folds
+        for (var f = 0; f < 4; f++) {
+            var fy = 10 + f * 4.5;
+            cx.beginPath(); cx.moveTo(11, fy); cx.lineTo(21, fy); cx.stroke();
+        }
+        // Right bass side
+        cx.fillStyle = '#1a1a2e';
+        cx.fillRect(21, 6, 8, 22);
+        cx.strokeStyle = '#333';
+        cx.strokeRect(21, 6, 8, 22);
+        // Bass buttons
+        cx.fillStyle = '#c0c0c0';
+        for (var b = 0; b < 3; b++) {
+            for (var bc = 0; bc < 2; bc++) {
+                cx.beginPath(); cx.arc(24 + bc * 4, 11 + b * 6, 1.5, 0, Math.PI * 2); cx.fill();
+            }
+        }
+        // Strap
+        cx.fillStyle = '#5d4037';
+        cx.fillRect(7, 4, 3, 2);
+        cx.fillRect(22, 4, 3, 2);
+    });
+
+    // --- Sewing Machine ---
+    SPRITES.objects.sewing_machine = createSprite(T, T, function(cx) {
+        // Base plate
+        cx.fillStyle = '#556b2f';
+        cx.fillRect(4, 20, 24, 8);
+        cx.strokeStyle = '#3e5020';
+        cx.lineWidth = 1;
+        cx.strokeRect(4, 20, 24, 8);
+        // Body (arch shape)
+        cx.fillStyle = '#6b8e23';
+        cx.fillRect(4, 12, 10, 10);
+        cx.fillRect(14, 8, 10, 4);
+        cx.fillRect(20, 8, 4, 14);
+        // Needle arm
+        cx.fillStyle = '#888';
+        cx.fillRect(15, 8, 2, 6);
+        // Needle
+        cx.fillStyle = '#ccc';
+        cx.fillRect(15.5, 14, 1, 6);
+        // Spool (top)
+        cx.fillStyle = '#c62828';
+        cx.fillRect(6, 8, 6, 4);
+        cx.strokeStyle = '#8e0000';
+        cx.strokeRect(6, 8, 6, 4);
+        // Thread line
+        cx.strokeStyle = '#c62828';
+        cx.lineWidth = 0.5;
+        cx.beginPath(); cx.moveTo(9, 12); cx.lineTo(16, 14); cx.stroke();
+        // Hand wheel (right side)
+        cx.fillStyle = '#888';
+        cx.beginPath(); cx.arc(22, 16, 3, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#666';
+        cx.beginPath(); cx.arc(22, 16, 1.5, 0, Math.PI * 2); cx.fill();
+        // Fabric under needle
+        cx.fillStyle = '#e8b0c0';
+        cx.fillRect(12, 20, 10, 2);
+    });
+
+    // --- Guitar Spot (Air Guitar) ---
+    SPRITES.objects.guitar = createSprite(T, T, function(cx) {
+        // Guitar body (acoustic shape)
+        cx.fillStyle = '#a0522d';
+        cx.beginPath(); cx.ellipse(16, 20, 8, 6, 0, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.ellipse(16, 14, 6, 5, 0, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#6b3410';
+        cx.lineWidth = 1;
+        cx.beginPath(); cx.ellipse(16, 20, 8, 6, 0, 0, Math.PI * 2); cx.stroke();
+        cx.beginPath(); cx.ellipse(16, 14, 6, 5, 0, 0, Math.PI * 2); cx.stroke();
+        // Sound hole
+        cx.fillStyle = '#3e2010';
+        cx.beginPath(); cx.arc(16, 19, 3, 0, Math.PI * 2); cx.fill();
+        // Neck
+        cx.fillStyle = '#8b4513';
+        cx.fillRect(14, 2, 4, 14);
+        cx.strokeStyle = '#5a2d0c';
+        cx.strokeRect(14, 2, 4, 14);
+        // Frets
+        cx.fillStyle = '#ccc';
+        cx.fillRect(14, 5, 4, 1);
+        cx.fillRect(14, 8, 4, 1);
+        cx.fillRect(14, 11, 4, 1);
+        // Strings
+        cx.strokeStyle = '#ddd';
+        cx.lineWidth = 0.5;
+        for (var s = 0; s < 3; s++) {
+            cx.beginPath(); cx.moveTo(15 + s, 2); cx.lineTo(15 + s, 24); cx.stroke();
+        }
+        // Headstock
+        cx.fillStyle = '#5a2d0c';
+        cx.fillRect(13, 0, 6, 4);
+        // Tuning pegs
+        cx.fillStyle = '#ccc';
+        cx.fillRect(13, 1, 2, 1);
+        cx.fillRect(17, 1, 2, 1);
+    });
 }
 
 // ============================================================
@@ -2811,6 +3430,116 @@ function generatePortraits() {
         cx.fillRect(43, 42, 2, 2);
     });
 }
+
+    // --- Intermediary zone NPC portraits ---
+
+    // Nonna Fiora — elderly, lavender shawl, kind eyes, watering can
+    PORTRAITS['street_nonna'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5d0a9', '#b39ddb');
+        cx.fillStyle = '#cccccc'; cx.fillRect(18, 10, 28, 8); // grey hair
+        cx.fillStyle = '#b0b0b0'; cx.fillRect(16, 14, 6, 10); cx.fillRect(42, 14, 6, 10);
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3); // eyes
+        cx.strokeStyle = '#b39ddb'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(10, 16); cx.lineTo(10, 50); cx.stroke(); // shawl
+    });
+
+    // Signor Whiskers — orange cat face
+    PORTRAITS['street_cat'] = createSprite(64, 64, function(cx) {
+        cx.fillStyle = '#1a1a2e'; cx.fillRect(0, 0, 64, 64);
+        cx.fillStyle = '#ff8a65'; cx.beginPath(); cx.arc(32, 34, 18, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#ffab91'; cx.fillRect(24, 28, 16, 10); // snout
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 4, 4); cx.fillRect(36, 30, 4, 4); // eyes
+        cx.fillStyle = '#e57373'; cx.fillRect(30, 38, 4, 2); // nose
+        // Ears
+        cx.fillStyle = '#ff8a65'; cx.beginPath(); cx.moveTo(18, 20); cx.lineTo(22, 10); cx.lineTo(26, 20); cx.fill();
+        cx.beginPath(); cx.moveTo(38, 20); cx.lineTo(42, 10); cx.lineTo(46, 20); cx.fill();
+    });
+
+    // Fisherman Luca — blue cap, stubble, weathered face
+    PORTRAITS['riverside_fisher'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#d4a574', '#5c6bc0');
+        cx.fillStyle = '#5c6bc0'; cx.fillRect(16, 8, 32, 10); cx.fillRect(12, 16, 40, 4); // cap + brim
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3); // eyes
+        cx.fillStyle = '#8d6e63'; for(var i=0;i<6;i++) cx.fillRect(22+i*3, 42+((i*7)%3), 1, 2); // stubble
+    });
+
+    // Gardener Rosa — green bandana, rosy cheeks, warm smile
+    PORTRAITS['garden_rosa'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5d0a9', '#66bb6a');
+        cx.fillStyle = '#66bb6a'; cx.fillRect(16, 8, 32, 8); // bandana
+        cx.fillStyle = '#4caf50'; cx.fillRect(16, 14, 4, 4); cx.fillRect(44, 14, 4, 4); // bandana ties
+        cx.fillStyle = '#5d4037'; cx.fillRect(18, 16, 28, 6); // brown hair under
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3);
+        cx.fillStyle = 'rgba(255,100,100,0.3)'; cx.beginPath(); cx.arc(20, 40, 5, 0, Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(44, 40, 5, 0, Math.PI*2); cx.fill();
+    });
+
+    // Little Emilio — big eyes, messy hair, freckles
+    PORTRAITS['garden_kid'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5d0a9', '#ffcc80');
+        cx.fillStyle = '#8d6e63'; cx.fillRect(16, 6, 32, 12); // messy brown hair
+        cx.fillRect(14, 10, 4, 8); cx.fillRect(46, 10, 4, 8); // tufts
+        cx.fillStyle = '#333'; cx.fillRect(22, 28, 5, 5); cx.fillRect(37, 28, 5, 5); // big eyes
+        cx.fillStyle = '#fff'; cx.fillRect(24, 29, 2, 2); cx.fillRect(39, 29, 2, 2); // eye highlights
+        cx.fillStyle = '#c8a080'; for(var i=0;i<4;i++) cx.fillRect(26+i*3, 36, 2, 2); // freckles
+    });
+
+    // Mail Carrier Paolo — blue cap, friendly, mailbag strap
+    PORTRAITS['mail_paolo'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#d4a574', '#42a5f5');
+        cx.fillStyle = '#42a5f5'; cx.fillRect(16, 8, 32, 10); cx.fillRect(14, 16, 36, 4); // mail cap
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3);
+        cx.fillStyle = '#795548'; cx.fillRect(16, 48, 4, 14); // mailbag strap
+    });
+
+    // Signora Marta — pink dress, curly hair, warm smile
+    PORTRAITS['dog_walker'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#f5d0a9', '#ef9a9a');
+        cx.fillStyle = '#8d6e63'; cx.fillRect(14, 8, 36, 14); // curly brown hair
+        for(var i=0;i<5;i++) { cx.beginPath(); cx.arc(16+i*8, 8, 4, 0, Math.PI*2); cx.fill(); } // curls
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3);
+    });
+
+    // Hermit Giacomo — wild beard, bushy eyebrows, leaf in hair
+    PORTRAITS['hermit_giacomo'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#d4a574', '#8d6e63');
+        cx.fillStyle = '#a1887f'; cx.fillRect(14, 6, 36, 14); // wild grey-brown hair
+        cx.fillRect(12, 16, 6, 12); cx.fillRect(46, 16, 6, 12); // bushy sides
+        cx.fillStyle = '#8d6e63'; cx.fillRect(18, 40, 28, 14); // big beard
+        cx.fillStyle = '#333'; cx.fillRect(24, 28, 4, 3); cx.fillRect(36, 28, 4, 3); // small eyes
+        cx.fillStyle = '#795548'; cx.fillRect(20, 24, 10, 3); cx.fillRect(34, 24, 10, 3); // bushy brows
+        cx.fillStyle = '#66bb6a'; cx.fillRect(42, 8, 6, 8); // leaf in hair
+    });
+
+    // Artist Marco — purple beret, paint smudge, creative expression
+    PORTRAITS['street_artist'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#d4a574', '#ab47bc');
+        cx.fillStyle = '#ab47bc'; cx.beginPath(); cx.arc(32, 10, 16, Math.PI, 0); cx.fill(); // beret
+        cx.fillStyle = '#4a148c'; cx.fillRect(30, 4, 4, 4); // beret nub
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3);
+        cx.fillStyle = '#e91e63'; cx.fillRect(44, 36, 4, 3); // paint smudge on cheek
+        cx.fillStyle = '#2196f3'; cx.fillRect(16, 42, 3, 3); // paint smudge on collar
+    });
+
+    // Gatto Nero — black cat face, yellow eyes
+    PORTRAITS['alley_cat'] = createSprite(64, 64, function(cx) {
+        cx.fillStyle = '#1a1a2e'; cx.fillRect(0, 0, 64, 64);
+        cx.fillStyle = '#37474f'; cx.beginPath(); cx.arc(32, 34, 18, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#455a64'; cx.fillRect(24, 28, 16, 10);
+        cx.fillStyle = '#fdd835'; cx.fillRect(22, 30, 5, 4); cx.fillRect(37, 30, 5, 4); // yellow eyes
+        cx.fillStyle = '#111'; cx.fillRect(24, 31, 2, 2); cx.fillRect(39, 31, 2, 2); // pupils
+        cx.fillStyle = '#e57373'; cx.fillRect(30, 38, 4, 2); // nose
+        cx.fillStyle = '#37474f'; cx.beginPath(); cx.moveTo(16, 22); cx.lineTo(20, 8); cx.lineTo(26, 20); cx.fill(); // ears
+        cx.beginPath(); cx.moveTo(38, 22); cx.lineTo(44, 8); cx.lineTo(48, 20); cx.fill();
+    });
+
+    // Old Signore Dante — white hair, thoughtful eyes, chess piece nearby
+    PORTRAITS['chess_old_man'] = createSprite(64, 64, function(cx) {
+        drawPortraitBase(cx, '#e8c9a0', '#a1887f');
+        cx.fillStyle = '#ffffff'; cx.fillRect(16, 8, 32, 10); // white hair
+        cx.fillRect(14, 14, 6, 8); cx.fillRect(44, 14, 6, 8); // white sides
+        cx.fillStyle = '#333'; cx.fillRect(24, 30, 3, 3); cx.fillRect(37, 30, 3, 3);
+        cx.fillStyle = '#9e9e9e'; cx.fillRect(20, 24, 8, 2); cx.fillRect(36, 24, 8, 2); // wise brows
+        cx.fillStyle = '#fff'; cx.fillRect(50, 44, 6, 12); cx.fillRect(48, 44, 10, 3); // chess king piece
+    });
 
 /** Draws the common portrait base — face circle, eyes, ears. */
 function drawPortraitBase(cx, skinColor, clothColor) {
