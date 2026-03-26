@@ -2317,6 +2317,9 @@ function loadZone(zoneId, spawnCol, spawnRow) {
     // Start zone music (crossfades from previous zone if any)
     startZoneMusic(zoneId);
 
+    // Apply zone color palette tint
+    applyZonePalette(zoneId);
+
     // Schedule Papa Marco auto-intro for first visit (0.5s delay for zone to settle)
     papaHints.autoCallPending = zoneId;
     papaHints.autoCallDelay = 0.5;

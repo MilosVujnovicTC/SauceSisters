@@ -2,34 +2,45 @@
 > Auto-generated. Read this at the start of every new session.
 
 ## Last completed stage
-- Stage 9-5: Full playtest + bug fix pass — completed 2026-03-25
+- Stage V-3: PixelLab asset generation (Phases 1-3) — completed 2026-03-26
 
-## All stages complete
-All 51 stages in BACKLOG.md are now complete (Stage 8-5 deferred). The game is fully playable from start to finish.
+## Current stage in progress
+- Visual overhaul: PixelLab asset generation
+- Status: in progress — Phases 1-3 done (Giulia, Brodo, tiles), Phases 4-7 remaining (NPCs, bosses, items, UI)
+- What's done so far:
+  - SpriteLoader system + manifest.json + full-screen CSS scaling
+  - Zone color palettes, walk sprite bob, power-up glow upgrade, warm title screen, portrait vignette
+  - Giulia: 4-dir walk cycle spritesheet (128x128) — chibi, pink shirt, pale skin, large eyes
+  - Brodo: 5-state strip (160x32) — walk, idle, sit, bark, sniff
+  - Universal tileset: 35 tiles (160x224 grid) — terrain tiles regenerated flat for seamless tiling
+- What remains:
+  - Phase 4: 17 NPC sprites (create_character → extract south-facing frame)
+  - Phase 5: 2 bosses + 2 enemies
+  - Phase 6: 4 item sheets (weapons, powerups, recipes, objects)
+  - Phase 7: UI elements (HUD, dialogue box)
 
-## Deferred features
-- Stage 8-5: Pepe gap mechanic + dog throws — deferred. May return behind sister/player selection screen.
-- Pepe obstacle dash interlude: code intact but random trigger disabled (commented out in world.js checkTransitions).
-- Stage 6-2: AI NPC integration (Anthropic API) — deferred to v2.
+## PixelLab state
+- **Subscription:** Active (paid)
+- **Existing characters (do NOT delete):**
+  - Giulia v3: `c53fb1de-aa81-435a-a029-80c48c43d030` — walk animation complete
+  - Brodo: `4f0c4a32-6c61-4a56-a066-e2afcac5b014` — walk/idle/bark/sneaking animations
+- **Tile batches generated:** 7 total (5 original + 2 flat regenerations)
+- **MCP server required:** PixelLab MCP must be configured for asset generation
 
 ## Current state of the codebase
-- Files: CLAUDE.md, BACKLOG.md, HANDOFF.md, IDEAS-CHANGES.md, index.html, assets/tiles.js, js/engine.js, js/sprites.js, js/save.js, js/audio.js, js/puzzles.js, js/entities.js, js/weapons.js, js/world.js, js/ui.js, visual-mockup.html, assets/audio/sfx/*.ogg (54 files)
+- Files: CLAUDE.md, BACKLOG.md, HANDOFF.md, IDEAS-CHANGES.md, visual-overhaul-plan.md, index.html, assets/tiles.js, js/engine.js, js/sprites.js, js/save.js, js/audio.js, js/puzzles.js, js/entities.js, js/weapons.js, js/world.js, js/ui.js, assets/sprites/manifest.json, assets/sprites/characters/giulia.png, assets/sprites/characters/brodo.png, assets/sprites/tiles/universal.png, assets/audio/sfx/*.ogg (54 files)
 - Script load order: Tone.js (CDN) → Howler.js (CDN) → tiles → engine → sprites → save → audio → puzzles → entities → weapons → world → ui
-- All script tags have `?v=28` cache-busting parameters
-- Working features:
-  - 8 zones with bidirectional transitions, all verified
-  - 5 recipe fragments collectible through distinct paths
-  - 2 boss fights (Enzo 18HP, Wedding Planner 14HP) with death/respawn
-  - 6 interludes with grading and rewards (Pepe Dash disabled)
-  - 10 millennial puzzles with solved flags and rewards
-  - Weapon system (6 weapons), enemy system, power-up system (7 buffs)
-  - Brodo companion with sniff, idle behaviors
-  - NPC system with portraits, walk paths, idle animations, quest dialogue
-  - Score/coin system with HUD display and floating popups
-  - Save/load with auto-save, title screen, pause menu, settings
-  - Procedural music (Tone.js) + sample SFX (Howler.js) per zone
-  - Full finale: wedding montage → credits → return to overworld
-- Known issues: none
+- All script tags have `?v=35` cache-busting parameters
+- **IMPORTANT:** Game must be served via HTTP server (e.g., `python3 -m http.server 8080`) for SpriteLoader to load manifest.json. The `file://` protocol blocks XMLHttpRequest.
+- Working features: all gameplay features from Phase 9-5 + visual overhaul infrastructure + 3 PixelLab asset sets (Giulia, Brodo, tiles)
+- Known issues: NPC/boss/enemy/item sprites still use procedural fallback (not yet generated)
+
+## CONFIG values
+- TILE_SIZE: 32
+- CANVAS_W: 768 (dynamic, adapts to screen aspect)
+- CANVAS_H: 576
 
 ## Next step
-- Game is shippable. Future work could include: AI NPC integration (Stage 6-2), Pepe companion (Stage 8-5), additional content, visual polish.
+- Continue PixelLab asset generation: Phase 4 (17 NPC sprites)
+- Use `create_character` with chibi proportions, extract south-facing frame per NPC
+- See visual-overhaul-plan.md and CLAUDE.md changelog for full details

@@ -88,6 +88,35 @@ const CONFIG = {
 };
 
 // ============================================================
+// Zone color palettes — tint each zone for visual variety
+// Applied via CSS filter on canvas during zone transitions.
+// ============================================================
+const ZONE_PALETTES = {
+    'la_cucina':  { hue: 0,    saturate: 1.0,  brightness: 1.0,  name: 'Warm kitchen gold' },
+    'market':     { hue: 15,   saturate: 1.1,  brightness: 1.05, name: 'Sunny market orange' },
+    'canal':      { hue: -20,  saturate: 0.9,  brightness: 0.95, name: 'Cool Mediterranean blue' },
+    'library':    { hue: 30,   saturate: 0.8,  brightness: 0.9,  name: 'Amber dusk' },
+    'gym':        { hue: -10,  saturate: 1.2,  brightness: 1.1,  name: 'Energetic bright' },
+    'piazza':     { hue: 10,   saturate: 1.0,  brightness: 1.05, name: 'Warm plaza afternoon' },
+    'pizzeria':   { hue: 5,    saturate: 1.3,  brightness: 0.95, name: 'Hot kitchen red' },
+    'sewing_shop': { hue: -5,  saturate: 0.85, brightness: 1.0,  name: 'Soft pink workshop' }
+};
+
+/** Applies zone color palette to the canvas via CSS filter. */
+function applyZonePalette(zoneId) {
+    var p = ZONE_PALETTES[zoneId];
+    if (!p) {
+        canvas.style.filter = '';
+        return;
+    }
+    var parts = [];
+    if (p.hue !== 0)       parts.push('hue-rotate(' + p.hue + 'deg)');
+    if (p.saturate !== 1.0) parts.push('saturate(' + p.saturate + ')');
+    if (p.brightness !== 1.0) parts.push('brightness(' + p.brightness + ')');
+    canvas.style.filter = parts.length > 0 ? parts.join(' ') : '';
+}
+
+// ============================================================
 // Canvas setup
 // ============================================================
 const canvas = document.getElementById('game');

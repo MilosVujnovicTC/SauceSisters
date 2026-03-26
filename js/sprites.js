@@ -20,7 +20,7 @@ const SpriteLoader = {
     load: function(onComplete) {
         var self = this;
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'assets/sprites/manifest.json?v=29', true);
+        xhr.open('GET', 'assets/sprites/manifest.json?v=35', true);
         xhr.onload = function() {
             if (xhr.status === 200) {
                 try {

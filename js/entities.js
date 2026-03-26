@@ -128,12 +128,18 @@ function renderPlayer(ctx, cameraX, cameraY) {
     var screenX = player.x - cameraX;
     var screenY = player.y - cameraY;
 
+    // Walk sprite bob: ±1px vertical offset gives weight to movement
+    var bobOffY = 0;
+    if (player.animFrame === 1 || player.animFrame === 3) {
+        bobOffY = -1; // lift on stride frames
+    }
+
     // Try image-based sprite: direction row (down=0,left=1,right=2,up=3), walk frame column
     var dirRow = { down: 0, left: 1, right: 2, up: 3 };
-    if (!SpriteLoader.drawCharacter(ctx, 'giulia', player.animFrame, dirRow[player.facing] || 0, screenX, screenY)) {
+    if (!SpriteLoader.drawCharacter(ctx, 'giulia', player.animFrame, dirRow[player.facing] || 0, screenX, screenY + bobOffY)) {
         // Procedural fallback (outlined sprite has +2 padding)
         var sprite = getPlayerSprite(player.facing, player.animFrame);
-        ctx.drawImage(sprite, screenX - 2, screenY - 4);
+        ctx.drawImage(sprite, screenX - 2, screenY - 4 + bobOffY);
     }
 }
 
@@ -3151,7 +3157,7 @@ function renderBuffHUD(ctx) {
     }
 }
 
-/** Renders a subtle glow around the player when a buff is active. */
+/** Renders a soft colored halo behind the player when a buff is active. */
 function renderPlayerGlow(ctx, cameraX, cameraY) {
     if (!activeBuff.type || activeBuff.timer <= 0) return;
     var def = POWERUPS[activeBuff.type];
@@ -3159,12 +3165,21 @@ function renderPlayerGlow(ctx, cameraX, cameraY) {
 
     var sx = player.x + player.w / 2 - cameraX;
     var sy = player.y + player.h / 2 - cameraY;
-    var pulse = 0.12 + Math.sin(game.time * 3) * 0.05;
+    var pulse = 0.15 + Math.sin(game.time * 3) * 0.07;
+    var radius = 24 + Math.sin(game.time * 2.5) * 3;
 
-    ctx.fillStyle = def.color;
+    // Radial gradient glow
+    var grad = ctx.createRadialGradient(sx, sy, 4, sx, sy, radius);
+    grad.addColorStop(0, def.color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.save();
     ctx.globalAlpha = pulse;
+    ctx.shadowColor = def.color;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(sx, sy, 20, 0, Math.PI * 2);
+    ctx.arc(sx, sy, radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.restore();
 }

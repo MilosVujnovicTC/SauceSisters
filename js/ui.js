@@ -300,6 +300,15 @@ function renderDialogue(ctx) {
         if (!portraitImgDrawn && portrait) {
             ctx.drawImage(portrait, portraitX, portraitY, portraitSize, portraitSize);
         }
+        // Warm vignette overlay — darkens edges for depth
+        var vcx = portraitX + portraitSize / 2;
+        var vcy = portraitY + portraitSize / 2;
+        var vr = portraitSize * 0.55;
+        var vGrad = ctx.createRadialGradient(vcx, vcy, vr * 0.5, vcx, vcy, vr);
+        vGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        vGrad.addColorStop(1, 'rgba(30,15,5,0.35)');
+        ctx.fillStyle = vGrad;
+        ctx.fillRect(portraitX, portraitY, portraitSize, portraitSize);
     } else {
         // No portrait — draw a generic speech icon
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
@@ -1332,45 +1341,99 @@ function updateTitleScreen(dt) {
     }
 }
 
-/** Renders the title screen. */
+/** Renders the title screen with warm Italian palette. */
 function renderTitleScreen(ctx) {
     if (!titleScreen.active) return;
     var W = CONFIG.CANVAS_W;
     var H = CONFIG.CANVAS_H;
     var t = titleScreen.animTimer;
 
-    // Background — dark with gradient
-    ctx.fillStyle = '#1a1a2e';
+    // Background — warm terracotta gradient
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#4a1a0a');   // deep terracotta top
+    grad.addColorStop(0.4, '#6b2d14'); // warm mid
+    grad.addColorStop(1, '#2a0e05');   // dark bottom
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Animated stars
-    for (var i = 0; i < 40; i++) {
-        var sx = ((i * 137 + Math.sin(t * 0.3 + i) * 20) % W + W) % W;
-        var sy = ((i * 89 + Math.cos(t * 0.2 + i * 0.7) * 15) % H + H) % H;
-        var sa = 0.3 + Math.sin(t * 2 + i) * 0.3;
-        ctx.fillStyle = 'rgba(255, 255, 200, ' + sa + ')';
-        ctx.fillRect(sx, sy, 2, 2);
+    // Floating tomatoes & herbs (replace starfield)
+    for (var i = 0; i < 18; i++) {
+        var fx = ((i * 137 + Math.sin(t * 0.15 + i * 1.3) * 40) % W + W) % W;
+        var fy = ((i * 89 + t * 8 + i * 47) % (H + 40)) - 20;
+        var fa = 0.06 + Math.sin(t * 0.8 + i) * 0.03;
+        var rot = t * 0.3 + i * 0.7;
+        ctx.save();
+        ctx.translate(fx, fy);
+        ctx.rotate(rot);
+        ctx.globalAlpha = fa;
+        if (i % 3 === 0) {
+            // Tomato
+            ctx.fillStyle = '#c62828';
+            ctx.beginPath();
+            ctx.arc(0, 0, 6 + (i % 4), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#2e7d32';
+            ctx.fillRect(-2, -8 - (i % 3), 4, 4);
+        } else if (i % 3 === 1) {
+            // Basil leaf
+            ctx.fillStyle = '#388e3c';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 7, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#1b5e20';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(-5, 0);
+            ctx.lineTo(5, 0);
+            ctx.stroke();
+        } else {
+            // Garlic clove
+            ctx.fillStyle = '#e8d5b7';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 4, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
     }
+    ctx.globalAlpha = 1;
 
-    // Title
+    // Warm glow behind title text
     var titleY = H * 0.25 + Math.sin(t * 1.5) * 4;
-    ctx.fillStyle = '#ffd54f';
+    var glowGrad = ctx.createRadialGradient(W / 2, titleY, 10, W / 2, titleY, 180);
+    glowGrad.addColorStop(0, 'rgba(255, 183, 77, 0.12)');
+    glowGrad.addColorStop(1, 'rgba(255, 183, 77, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.fillRect(0, titleY - 180, W, 360);
+
+    // Title — warm gold with cream shadow
+    ctx.fillStyle = '#ffeeba';
     ctx.font = 'bold 36px monospace';
     ctx.textAlign = 'center';
+    ctx.fillText('The Sauce Sisters', W / 2 + 1, titleY + 1);
+    ctx.fillStyle = '#ffd54f';
     ctx.fillText('The Sauce Sisters', W / 2, titleY);
 
-    // Subtitle
+    // Subtitle — warm orange
     ctx.fillStyle = '#ff8a65';
     ctx.font = '14px monospace';
     ctx.fillText("Mama's Secret Recipe", W / 2, titleY + 30);
 
-    // Decorative tomato
-    ctx.fillStyle = '#e53935';
-    ctx.beginPath();
-    ctx.arc(W / 2, titleY + 60, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#4caf50';
-    ctx.fillRect(W / 2 - 3, titleY + 46, 6, 6);
+    // Decorative tomato trio
+    for (var ti = -1; ti <= 1; ti++) {
+        var tx = W / 2 + ti * 28;
+        var ty = titleY + 58 + Math.sin(t * 2 + ti) * 2;
+        var ts = 8 + (1 - Math.abs(ti)) * 4; // center one bigger
+        ctx.fillStyle = '#d32f2f';
+        ctx.beginPath();
+        ctx.arc(tx, ty, ts, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.arc(tx - ts * 0.2, ty - ts * 0.2, ts * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(tx - 2, ty - ts - 3, 4, 5);
+    }
 
     // Menu options
     var menuY = H * 0.55;
@@ -1379,27 +1442,26 @@ function renderTitleScreen(ctx) {
         var optY = menuY + i * 36;
 
         if (selected) {
-            // Selection highlight
-            ctx.fillStyle = 'rgba(255, 213, 79, 0.15)';
+            // Selection highlight — warm gold
+            ctx.fillStyle = 'rgba(255, 213, 79, 0.12)';
             ctx.fillRect(W / 2 - 120, optY - 16, 240, 28);
             ctx.fillStyle = '#ffd54f';
             ctx.font = 'bold 18px monospace';
-            // Arrow indicator
             var arrowBob = Math.sin(t * 4) * 3;
             ctx.fillText('\u25B6', W / 2 - 100 + arrowBob, optY + 2);
         } else {
-            ctx.fillStyle = '#aaaaaa';
+            ctx.fillStyle = '#c4a882';
             ctx.font = '16px monospace';
         }
         ctx.textAlign = 'center';
         ctx.fillText(titleScreen.options[i], W / 2, optY + 2);
     }
 
-    // Save info (if continue available)
+    // Save info
     if (titleScreen.options[0] === 'Continue') {
         var save = getSaveData();
         if (save) {
-            ctx.fillStyle = '#666666';
+            ctx.fillStyle = '#8b6f4e';
             ctx.font = '11px monospace';
             ctx.textAlign = 'center';
             var info = save.zoneName + '  |  ' + save.recipesFound + '/5 recipes  |  ' + formatPlaytime(save.playtime);
@@ -1408,7 +1470,7 @@ function renderTitleScreen(ctx) {
     }
 
     // Controls hint
-    ctx.fillStyle = '#555555';
+    ctx.fillStyle = '#6b4f3a';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('\u2191\u2193 Select  |  Z/Space/Enter = Confirm', W / 2, H - 30);

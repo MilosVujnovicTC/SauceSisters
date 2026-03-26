@@ -21,6 +21,7 @@ A browser-based top-down RPG game (HTML + vanilla JS, single file) inspired by c
 | Music | Tone.js (CDN) | Procedural, no audio files |
 | SFX manager | Howler.js (CDN) | Spatial audio, sprites |
 | Procedural SFX | Web Audio API | Native, no library |
+| Pixel art | PixelLab MCP | Character sprites, tiles, items (requires PixelLab subscription + MCP server) |
 | AI NPCs | Anthropic API (`claude-haiku-4-5-20251001`) | Prompt-cached system prompts |
 | Persistence | localStorage | Save/load world state |
 
@@ -294,7 +295,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** Phase 10 (Post-launch features). Next: Stage 10-1 (Intro cutscene).
+**Current stage:** Visual overhaul (PixelLab asset generation in progress). See `visual-overhaul-plan.md`.
 
 ---
 
@@ -425,6 +426,9 @@ Before writing any code, Claude must confirm:
 | 19 | 2026-03-25 | 9-3 | Sound tuning pass: boss fight tempo increase — startBossTempo()/endBossTempo() in audio.js (25% BPM ramp via Tone.Transport.bpm.rampTo). Hooked into Enzo boss (startEnzoBoss onComplete, defeat, resetEnzoBoss) and Wedding Planner boss (startWeddingBoss onComplete, defeat, resetWeddingBoss). All 8 zones already had unique music + ambient from A-1. Volume balancing verified consistent (-8 to -22 dB range). Cache-busting ?v=26. |
 | 20 | 2026-03-25 | 9-4 | Score/coin system + balancing: COIN_REWARDS constants + addScore() + getInterludeCoins() in save.js. game.score + game.scorePopups in engine.js. Coins from: enemy kills (10), boss waiters (5), broom defeat (15), Enzo/Wedding boss defeat (50 each), recipe fragments (20), all 6 interludes (S=40/A=25/B=15/C=5). Score HUD (gold coin icon + counter, top-right) + floating "+N" world popups in ui.js. Coin amounts shown on all interlude result screens. Score persists in save/load, resets on New Game. Weapon ammo balancing: added Tomato Crate pickup in Piazza (10,18) and Flour Bag pickup in Gym (9,18) — both reuse existing sprites, hidden when item in inventory. Health/damage values reviewed and confirmed balanced (Enzo 18HP, Wedding 14HP, player 3HP+3 lives). Pepe obstacle dash disabled (random trigger commented out). Cache-busting ?v=27. |
 | 20 | 2026-03-25 | 9-5 | Full playtest + bug fix pass: comprehensive code audit of all game systems. Zone transitions: all 16 bidirectional pairs verified (spawn coords, map bounds, gating flags). Recipe fragments: all 5 collection paths verified (Market heart puzzle, Library Nokia/Brodo dual-path, Gym Papa's form, Pizzeria Enzo defeat, Sewing Shop printer). Boss fights: trigger, death/respawn, defeat sequence, transition blocking — all clean. Interludes: all 6 have completion flags, return zones, Escape skip, game.mode reset. Millennial puzzles: all 10 have solved flags, proper overlay cleanup, no softlocks. Finale: all-recipes check, wedding montage, credits scroll, return to overworld — verified. Bug fix: recipe #2 dual-path cleanup (auto-mark duplicate recipe world items as collected in pickupItem). Cache-busting ?v=28. |
+
+| 21 | 2026-03-26 | V-2 | Visual overhaul infrastructure: SpriteLoader image-based system in sprites.js (load manifest.json → load PNG sheets → draw with fallback to procedural). manifest.json created with all sprite entries. All render functions (entities, world, ui, weapons, puzzles) integrated with SpriteLoader-first, procedural-fallback pattern. Full-screen CSS scaling (image-rendering: pixelated). Zone color palette system (ZONE_PALETTES in engine.js — CSS hue-rotate/saturate/brightness per zone, applied on loadZone). Walk sprite bob (±1px on stride frames). Power-up glow upgrade (radial gradient + shadowBlur). Title screen warm palette (terracotta gradient, floating tomatoes/herbs/garlic). Portrait warm vignette border. Cache-busting ?v=35. |
+| 21 | 2026-03-26 | V-3 | PixelLab asset generation (Phase 1-3): Giulia player sprite (chibi proportions, pink shirt, pale skin, large cute eyes, 4-dir walk cycle 6 frames each — assembled into 128x128 sheet). Brodo basset hound (4 states from template animations: walk/idle/bark/sneaking — assembled into 160x32 strip). Universal tileset (35 tiles across 5 batches, regenerated terrain tiles flat with tile_view="top-down" for seamless tiling, object tiles kept with depth). All saved to assets/sprites/characters/ and assets/sprites/tiles/. Game must be served via HTTP server (not file://) for SpriteLoader to work. PixelLab character IDs: Giulia=c53fb1de, Brodo=4f0c4a32. |
 
 ---
 
