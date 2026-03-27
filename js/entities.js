@@ -850,7 +850,7 @@ function renderNPCs(ctx, cameraX, cameraY) {
 
         // Try image-based NPC sprite first, then procedural
         var npcDrawY = screenY + bobY + walkBob;
-        if (!SpriteLoader.drawNPC(ctx, npc.id, screenX, npcDrawY, npcFacing === 'left')) {
+        if (!SpriteLoader.drawNPC(ctx, npc.id, screenX, npcDrawY, npcFacing === 'left', 44)) {
             // Procedural fallback — flip sprite horizontally when facing left
             if (npcFacing === 'left') {
                 ctx.save();

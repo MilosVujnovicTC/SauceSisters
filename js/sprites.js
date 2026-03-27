@@ -171,21 +171,26 @@ const SpriteLoader = {
         return true;
     },
 
-    /** Draws an NPC sprite. Returns true if drawn. */
-    drawNPC: function(ctx, npcId, destX, destY, flipH) {
+    /** Draws an NPC sprite with optional display scaling. Returns true if drawn. */
+    drawNPC: function(ctx, npcId, destX, destY, flipH, displaySize) {
         if (!this.manifest || !this.manifest.npcs) return false;
         var def = this.manifest.npcs[npcId];
         if (!def) return false;
         var img = this.images[def.sheet];
         if (!img) return false;
+        var fw = def.frameW, fh = def.frameH;
+        var dw = displaySize || fw;
+        var dh = displaySize || fh;
+        var ox = -(dw - fw) / 2;
+        var oy = -(dh - fh) / 2;
         if (flipH) {
             ctx.save();
-            ctx.translate(destX + def.frameW, destY);
+            ctx.translate(destX + ox + dw, destY + oy);
             ctx.scale(-1, 1);
-            ctx.drawImage(img, 0, 0, def.frameW, def.frameH, 0, 0, def.frameW, def.frameH);
+            ctx.drawImage(img, 0, 0, fw, fh, 0, 0, dw, dh);
             ctx.restore();
         } else {
-            ctx.drawImage(img, 0, 0, def.frameW, def.frameH, destX, destY, def.frameW, def.frameH);
+            ctx.drawImage(img, 0, 0, fw, fh, destX + ox, destY + oy, dw, dh);
         }
         return true;
     },

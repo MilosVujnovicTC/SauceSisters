@@ -295,7 +295,7 @@ sauce-sisters/
 
 Each stage is atomic, independently testable, and designed to complete within a single session without context compaction. Follow the stages in order. Do not skip ahead. Do not combine stages.
 
-**Current stage:** Visual overhaul (PixelLab asset generation in progress). See `visual-overhaul-plan.md`.
+**Current stage:** Visual overhaul Phase 4 (NPC sprite generation — 1/17 done, 4 generating). See `visual-overhaul-plan.md` and `HANDOFF.md`.
 
 ---
 
@@ -429,6 +429,8 @@ Before writing any code, Claude must confirm:
 
 | 21 | 2026-03-26 | V-2 | Visual overhaul infrastructure: SpriteLoader image-based system in sprites.js (load manifest.json → load PNG sheets → draw with fallback to procedural). manifest.json created with all sprite entries. All render functions (entities, world, ui, weapons, puzzles) integrated with SpriteLoader-first, procedural-fallback pattern. Full-screen CSS scaling (image-rendering: pixelated). Zone color palette system (ZONE_PALETTES in engine.js — CSS hue-rotate/saturate/brightness per zone, applied on loadZone). Walk sprite bob (±1px on stride frames). Power-up glow upgrade (radial gradient + shadowBlur). Title screen warm palette (terracotta gradient, floating tomatoes/herbs/garlic). Portrait warm vignette border. Cache-busting ?v=35. |
 | 21 | 2026-03-26 | V-3 | PixelLab asset generation (Phase 1-3): Giulia player sprite (chibi proportions, pink shirt, pale skin, large cute eyes, 4-dir walk cycle 6 frames each — assembled into 128x128 sheet). Brodo basset hound (4 states from template animations: walk/idle/bark/sneaking — assembled into 160x32 strip). Universal tileset (35 tiles across 5 batches, regenerated terrain tiles flat with tile_view="top-down" for seamless tiling, object tiles kept with depth). All saved to assets/sprites/characters/ and assets/sprites/tiles/. Game must be served via HTTP server (not file://) for SpriteLoader to work. PixelLab character IDs: Giulia=c53fb1de, Brodo=4f0c4a32. |
+
+| 22 | 2026-03-27 | V-4 | Visual polish pass: (1) Tile palette — all 35 tiles regenerated with muted Stardew-like hex colors (segmentation mode, no outlines, top-down view). Fixed transparent tile edges causing 1px gaps (flattened to opaque). Removed baked-in 3px tile borders on terrain tiles (interior extension). Fixed canal BRIDGEGAP (dark water) and DOCK (weathered wood). (2) Lighting — NW light source shadow system in renderTiles(): gradient shadows south/east of walls, corner darkening. Zone palettes desaturated to 65-78% (was 80-130%). (3) Characters — Giulia + Brodo regenerated as chibi (big head, big eyes, Pokemon style). Display scaling: Giulia 48px, Brodo 40px, NPCs 44px (collision unchanged). Elliptical ground shadows beneath player, Brodo, and all NPCs. (4) NPC generation started — Phase 4 in progress: Betta complete, Papa Marco/Enzo/Mama Rosa/Luigi generating. 12 more NPCs remaining. PixelLab IDs: Giulia=cba57e5a, Brodo=e47769b0, Betta=e08df1ef. Cache-busting ?v=46. |
 
 ---
 

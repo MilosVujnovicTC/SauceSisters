@@ -2,45 +2,84 @@
 > Auto-generated. Read this at the start of every new session.
 
 ## Last completed stage
-- Stage V-3: PixelLab asset generation (Phases 1-3) — completed 2026-03-26
+- Visual polish commit (bd35e2f) — 2026-03-27
+- Muted palette, tile fixes, chibi characters, NW lighting, character shadows
 
 ## Current stage in progress
-- Visual overhaul: PixelLab asset generation
-- Status: in progress — Phases 1-3 done (Giulia, Brodo, tiles), Phases 4-7 remaining (NPCs, bosses, items, UI)
+- Visual overhaul: Phase 4 — NPC sprite generation
+- Status: in progress
 - What's done so far:
-  - SpriteLoader system + manifest.json + full-screen CSS scaling
-  - Zone color palettes, walk sprite bob, power-up glow upgrade, warm title screen, portrait vignette
-  - Giulia: 4-dir walk cycle spritesheet (128x128) — chibi, pink shirt, pale skin, large eyes
-  - Brodo: 5-state strip (160x32) — walk, idle, sit, bark, sniff
-  - Universal tileset: 35 tiles (160x224 grid) — terrain tiles regenerated flat for seamless tiling
+  - 1/17 NPCs downloaded: Betta (npc-betta.png)
+  - 4 generating in PixelLab: Papa Marco, Enzo, Mama Rosa v3, Luigi v3
+  - 12 remaining: Carmela, Lucia, Gatto, Fabio, Jenny, Tony, Gianluca, Viola, Carlo, Threads, Tomas, Marco Jr + Sofia
+  - NPC drawNPC() updated with displaySize=44 scaling
 - What remains:
-  - Phase 4: 17 NPC sprites (create_character → extract south-facing frame)
-  - Phase 5: 2 bosses + 2 enemies
-  - Phase 6: 4 item sheets (weapons, powerups, recipes, objects)
-  - Phase 7: UI elements (HUD, dialogue box)
+  - Download remaining batch 1 NPCs when generation completes
+  - Generate batches 2 + 3 (12 more NPCs)
+  - Download south-facing rotation PNGs as npc-{id}.png
+  - Phase 5: bosses + enemies
+  - Phase 6: item sprites
+  - Phase 7: UI elements
 
-## PixelLab state
-- **Subscription:** Active (paid)
-- **Existing characters (do NOT delete):**
-  - Giulia v3: `c53fb1de-aa81-435a-a029-80c48c43d030` — walk animation complete
-  - Brodo: `4f0c4a32-6c61-4a56-a066-e2afcac5b014` — walk/idle/bark/sneaking animations
-- **Tile batches generated:** 7 total (5 original + 2 flat regenerations)
-- **MCP server required:** PixelLab MCP must be configured for asset generation
+## PixelLab character IDs (do NOT delete)
+- **Giulia Chibi:** `cba57e5a-0fa8-439d-9a38-99287b4c6a5f` — walk animation complete
+- **Brodo Chibi:** `e47769b0-851e-418c-9760-b0e800a809e0` — walk animation complete
+- **Signora Betta:** `e08df1ef-001b-49f8-a4fe-4dcefc6500f7` — downloaded
+- **Papa Marco:** `8cb388a2-d6d1-45cc-878d-a34c4fd58978` — generating
+- **Enzo:** `7985b943-46a0-48de-bf4f-cc643ae9a289` — generating
+- **Mama Rosa v3:** `a0b27d85-7010-4e28-addb-68d5c73fff25` — generating
+- **Luigi v3:** `bed70d78-6ad3-47ca-a00e-4e22537e6e6f` — generating
+- Failed IDs (safe to delete): ce808124, 9c53b03f, 37e4c0de, bfef416d
+
+## NPC generation settings (use for all remaining NPCs)
+```
+body_type: humanoid
+proportions: {"type": "preset", "name": "chibi"}
+size: 32
+n_directions: 4
+view: high top-down
+outline: selective outline
+shading: medium shading
+detail: medium detail (or omit for default)
+```
+Download the **south rotation PNG** as the NPC sprite file (npc-{id}.png).
+
+## Remaining NPC descriptions (batch 2 + 3)
+| NPC ID | Name | Description |
+|--------|------|-------------|
+| carmela | Zia Carmela | cute chibi woman, floral blouse, gold earrings, gossipy expression, hand on hip |
+| lucia | Signora Lucia | cute chibi woman librarian, pince-nez glasses, chain, neat hair, book |
+| gatto | Prof Gatto | cute chibi older man, round glasses, bow tie, cardigan, holding book |
+| fabio | Coach Fabio | cute chibi athletic man, tank top, backwards baseball cap, muscular |
+| jenny | Juice Bar Jenny | cute chibi young woman, ponytail, juice bar apron, cheerful |
+| tony | Big Tony | cute chibi large barrel-chested man, butcher apron, gentle smile |
+| gianluca | Vendor Gianluca | cute chibi young man, straw hat, vendor apron, charming smile |
+| viola | Nonna Viola | cute chibi elderly woman, purple shawl, round glasses, serene |
+| carlo | Accordion Carlo | cute chibi man with beret, open shirt, accordion, mid-song |
+| threads | Signora Threads | cute chibi woman, cat-eye glasses, measuring tape on neck, pincushion |
+| tomas | Little Tomas | cute chibi young boy ~8, big eyes, freckles, oversized shirt |
+| marco-jr | Waiter Marco Jr | cute chibi nervous young man, crooked bow tie, waiter uniform |
+| sofia | Waitress Sofia | cute chibi exasperated young woman, ponytail, waiter uniform, eyebrow raised |
 
 ## Current state of the codebase
-- Files: CLAUDE.md, BACKLOG.md, HANDOFF.md, IDEAS-CHANGES.md, visual-overhaul-plan.md, index.html, assets/tiles.js, js/engine.js, js/sprites.js, js/save.js, js/audio.js, js/puzzles.js, js/entities.js, js/weapons.js, js/world.js, js/ui.js, assets/sprites/manifest.json, assets/sprites/characters/giulia.png, assets/sprites/characters/brodo.png, assets/sprites/tiles/universal.png, assets/audio/sfx/*.ogg (54 files)
-- Script load order: Tone.js (CDN) → Howler.js (CDN) → tiles → engine → sprites → save → audio → puzzles → entities → weapons → world → ui
-- All script tags have `?v=35` cache-busting parameters
-- **IMPORTANT:** Game must be served via HTTP server (e.g., `python3 -m http.server 8080`) for SpriteLoader to load manifest.json. The `file://` protocol blocks XMLHttpRequest.
-- Working features: all gameplay features from Phase 9-5 + visual overhaul infrastructure + 3 PixelLab asset sets (Giulia, Brodo, tiles)
-- Known issues: NPC/boss/enemy/item sprites still use procedural fallback (not yet generated)
+- Files: same as before + updated sprites
+- Script cache-busting: ?v=46
+- Working features: all gameplay + visual polish (muted tiles, shadows, chibi chars)
+- Key code changes this session:
+  - js/engine.js: zone palettes desaturated (0.65-0.78 saturate)
+  - js/world.js: NW shadow lighting pass in renderTiles(), isSolidTile()
+  - js/sprites.js: drawCharacter() displaySize param, drawNPC() displaySize param
+  - js/entities.js: drawCharacterShadow(), player/brodo/NPC ground shadows, display scaling
+  - assets/sprites/tiles/universal.png: muted palette, opaque edges, border-removed terrain
+  - assets/sprites/manifest.json: removed WATER/FOUNTAIN animation frames
 
 ## CONFIG values
 - TILE_SIZE: 32
-- CANVAS_W: 768 (dynamic, adapts to screen aspect)
+- CANVAS_W: 768 (dynamic)
 - CANVAS_H: 576
 
 ## Next step
-- Continue PixelLab asset generation: Phase 4 (17 NPC sprites)
-- Use `create_character` with chibi proportions, extract south-facing frame per NPC
-- See visual-overhaul-plan.md and CLAUDE.md changelog for full details
+- Check if Papa Marco, Enzo, Mama Rosa v3, Luigi v3 are complete
+- Download their south rotation PNGs
+- Generate remaining 12 NPCs in batches
+- Integrate all NPC sprites (south-facing PNGs saved as npc-{id}.png in assets/sprites/characters/)
