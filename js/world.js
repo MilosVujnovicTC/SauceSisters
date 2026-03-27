@@ -3219,18 +3219,13 @@ function renderWorldItems(ctx, cameraX, cameraY) {
         ctx.fill();
         ctx.restore();
 
-        // Item sprite lookup: try recipe first, then item type
+        // Try image-based item sprite by ID first
+        var imgDrawn = SpriteLoader.drawItemById(ctx, item.itemId, cx - 16, cy - 16, 32);
+
+        // Fallback: try procedural sprite
         var spriteKey = item.itemId;
         if (spriteKey.startsWith('recipe_')) spriteKey = 'recipe';
         if (spriteKey.startsWith('plank_')) spriteKey = 'plank';
-
-        // Try image-based sprite (recipes sheet for recipes, weapons sheet for weapons, etc.)
-        var imgDrawn = false;
-        if (spriteKey === 'recipe') {
-            var recipeNum = parseInt(item.itemId.split('_')[1]) || 1;
-            imgDrawn = SpriteLoader.drawItem(ctx, 'recipes', recipeNum - 1, cx - 16, cy - 16);
-        }
-        // TODO: map other item types to their sheet indices when assets are ready
 
         if (!imgDrawn) {
             var sprite = SPRITES.items[spriteKey];

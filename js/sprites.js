@@ -52,7 +52,7 @@ const SpriteLoader = {
         var sheets = {};
 
         // Collect unique sheet paths from all manifest sections
-        var sections = ['tiles', 'characters', 'npcs', 'bosses', 'enemies', 'items', 'ui'];
+        var sections = ['tiles', 'characters', 'npcs', 'bosses', 'enemies', 'items', 'itemSprites', 'ui'];
         for (var s = 0; s < sections.length; s++) {
             var section = this.manifest[sections[s]];
             if (!section) continue;
@@ -219,12 +219,31 @@ const SpriteLoader = {
         return this.draw(ctx, def.sheet, frameIndex, 0, destX, destY, def.frameW, def.frameH);
     },
 
-    /** Draws a UI element. Returns true if drawn. */
-    drawUI: function(ctx, uiId, frameX, frameY, destX, destY) {
+    /** Draws an individual item sprite by item ID (e.g. 'spatula', 'broccoli', 'recipe_1'). Returns true if drawn. */
+    drawItemById: function(ctx, itemId, destX, destY, size) {
+        if (!this.manifest || !this.manifest.itemSprites) return false;
+        var def = this.manifest.itemSprites[itemId];
+        if (!def) return false;
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        var s = size || 32;
+        ctx.drawImage(img, 0, 0, img.width, img.height, destX, destY, s, s);
+        return true;
+    },
+
+    /** Draws a UI element. Returns true if drawn. Supports optional destW/destH for scaling. */
+    drawUI: function(ctx, uiId, frameX, frameY, destX, destY, destW, destH) {
         if (!this.manifest || !this.manifest.ui) return false;
         var def = this.manifest.ui[uiId];
         if (!def) return false;
-        return this.draw(ctx, def.sheet, frameX, frameY, destX, destY, def.frameW, def.frameH);
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        var fw = def.frameW || img.width;
+        var fh = def.frameH || img.height;
+        var dw = destW || fw;
+        var dh = destH || fh;
+        ctx.drawImage(img, frameX * fw, frameY * fh, fw, fh, destX, destY, dw, dh);
+        return true;
     },
 
     /** Draws a portrait from the portraits sheet. Returns true if drawn. */

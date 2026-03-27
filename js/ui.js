@@ -551,15 +551,18 @@ function renderHUD(ctx) {
         if (i < inventory.length) {
             const itemDef = ITEMS[inventory[i]];
             if (itemDef) {
-                // Try image-based item sprite first, then procedural
-                var itemKey = inventory[i];
+                // Try PixelLab sprite first, then procedural
+                var itemId = inventory[i];
+                var drawnByLoader = SpriteLoader.drawItemById(ctx, itemId, sx + 3, sy + 3, slotSize - 6);
+
+                var itemKey = itemId;
                 if (itemKey.startsWith('recipe_')) itemKey = 'recipe';
                 if (itemKey.startsWith('plank_')) itemKey = 'plank';
+                var itemSprite = !drawnByLoader ? SPRITES.items[itemKey] : null;
 
-                // TODO: SpriteLoader.drawItem integration when item sheet indices are mapped
-                var itemSprite = SPRITES.items[itemKey];
-
-                if (itemSprite) {
+                if (drawnByLoader) {
+                    // Already drawn by SpriteLoader
+                } else if (itemSprite) {
                     // Draw sprite centered in slot
                     var iw = itemSprite.width;
                     var ih = itemSprite.height;
@@ -594,20 +597,23 @@ function renderHealthHUD(ctx) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(heartX - 4, heartY - 6, player.maxHp * 22 + 50, 28);
 
-    // Hearts
+    // Hearts — try PixelLab sprites first, then procedural bezier
     for (var i = 0; i < player.maxHp; i++) {
         var filled = i < player.hp;
         var hx = heartX + i * 22;
         var hy = heartY;
 
-        ctx.fillStyle = filled ? '#e94560' : '#444444';
-        ctx.beginPath();
-        ctx.moveTo(hx + 8, hy + 3);
-        ctx.bezierCurveTo(hx + 8, hy, hx, hy, hx, hy + 4);
-        ctx.bezierCurveTo(hx, hy + 8, hx + 8, hy + 13, hx + 8, hy + 15);
-        ctx.bezierCurveTo(hx + 8, hy + 13, hx + 16, hy + 8, hx + 16, hy + 4);
-        ctx.bezierCurveTo(hx + 16, hy, hx + 8, hy, hx + 8, hy + 3);
-        ctx.fill();
+        var heartKey = filled ? 'heart_full' : 'heart_empty';
+        if (!SpriteLoader.drawUI(ctx, heartKey, 0, 0, hx, hy - 1, 18, 18)) {
+            ctx.fillStyle = filled ? '#e94560' : '#444444';
+            ctx.beginPath();
+            ctx.moveTo(hx + 8, hy + 3);
+            ctx.bezierCurveTo(hx + 8, hy, hx, hy, hx, hy + 4);
+            ctx.bezierCurveTo(hx, hy + 8, hx + 8, hy + 13, hx + 8, hy + 15);
+            ctx.bezierCurveTo(hx + 8, hy + 13, hx + 16, hy + 8, hx + 16, hy + 4);
+            ctx.bezierCurveTo(hx + 16, hy, hx + 8, hy, hx + 8, hy + 3);
+            ctx.fill();
+        }
     }
 
     // Lives counter
@@ -651,15 +657,17 @@ function renderScoreHUD(ctx) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(x, y, 96, 20);
 
-    // Coin icon (small yellow circle)
-    ctx.fillStyle = '#ffd700';
-    ctx.beginPath();
-    ctx.arc(x + 12, y + 10, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#b8860b';
-    ctx.font = 'bold 8px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('C', x + 12, y + 13);
+    // Coin icon — try PixelLab sprite first, then procedural
+    if (!SpriteLoader.drawUI(ctx, 'coin', 0, 0, x + 2, y + 1, 18, 18)) {
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(x + 12, y + 10, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#b8860b';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('C', x + 12, y + 13);
+    }
 
     // Score value
     ctx.fillStyle = '#ffd700';

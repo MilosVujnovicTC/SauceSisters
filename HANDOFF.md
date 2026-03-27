@@ -2,84 +2,98 @@
 > Auto-generated. Read this at the start of every new session.
 
 ## Last completed stage
-- Visual polish commit (bd35e2f) — 2026-03-27
-- Muted palette, tile fixes, chibi characters, NW lighting, character shadows
+- Visual overhaul Phases 4-7 — completed 2026-03-27
+- Phase 4: All 18 NPC chibi sprites generated + integrated
+- Phase 5: Boss Enzo, Boss Bridget, Enemy Goon, Enchanted Broom sprites
+- Phase 6: 16 item sprites (8 weapons, 7 power-ups, 1 recipe fragment) + drawItemById system
+- Phase 7: Heart (full/empty) + coin UI sprites
 
 ## Current stage in progress
-- Visual overhaul: Phase 4 — NPC sprite generation
-- Status: in progress
-- What's done so far:
-  - 1/17 NPCs downloaded: Betta (npc-betta.png)
-  - 4 generating in PixelLab: Papa Marco, Enzo, Mama Rosa v3, Luigi v3
-  - 12 remaining: Carmela, Lucia, Gatto, Fabio, Jenny, Tony, Gianluca, Viola, Carlo, Threads, Tomas, Marco Jr + Sofia
-  - NPC drawNPC() updated with displaySize=44 scaling
-- What remains:
-  - Download remaining batch 1 NPCs when generation completes
-  - Generate batches 2 + 3 (12 more NPCs)
-  - Download south-facing rotation PNGs as npc-{id}.png
-  - Phase 5: bosses + enemies
-  - Phase 6: item sprites
-  - Phase 7: UI elements
+- Visual overhaul complete — ready for testing
+- Status: awaiting user confirmation
 
 ## PixelLab character IDs (do NOT delete)
-- **Giulia Chibi:** `cba57e5a-0fa8-439d-9a38-99287b4c6a5f` — walk animation complete
-- **Brodo Chibi:** `e47769b0-851e-418c-9760-b0e800a809e0` — walk animation complete
-- **Signora Betta:** `e08df1ef-001b-49f8-a4fe-4dcefc6500f7` — downloaded
-- **Papa Marco:** `8cb388a2-d6d1-45cc-878d-a34c4fd58978` — generating
-- **Enzo:** `7985b943-46a0-48de-bf4f-cc643ae9a289` — generating
-- **Mama Rosa v3:** `a0b27d85-7010-4e28-addb-68d5c73fff25` — generating
-- **Luigi v3:** `bed70d78-6ad3-47ca-a00e-4e22537e6e6f` — generating
-- Failed IDs (safe to delete): ce808124, 9c53b03f, 37e4c0de, bfef416d
+- **Giulia Chibi:** `cba57e5a-0fa8-439d-9a38-99287b4c6a5f`
+- **Brodo Chibi:** `e47769b0-851e-418c-9760-b0e800a809e0`
+- **Signora Betta:** `e08df1ef-001b-49f8-a4fe-4dcefc6500f7`
+- **Papa Marco:** `8cb388a2-d6d1-45cc-878d-a34c4fd58978`
+- **Enzo:** `7985b943-46a0-48de-bf4f-cc643ae9a289`
+- **Mama Rosa:** `a0b27d85-7010-4e28-addb-68d5c73fff25`
+- **Luigi:** `2fb9bca8-e788-4175-bd13-f35f5541a201`
+- **Zia Carmela:** `f752c70a-3426-4d79-8480-75aaf37a71e4`
+- **Signora Lucia:** `d9bbb88e-5b2c-4687-8f8a-45467e9102fb`
+- **Prof Gatto:** `6bb50c18-1fe1-42d9-8cf8-962f19837876`
+- **Coach Fabio:** `faf9000d-66d0-4199-94a3-4ad2e5ebf345`
+- **Juice Bar Jenny:** `d06190ea-18da-46f1-97b4-91a43cf7cdc1`
+- **Big Tony:** `b935410b-cff5-4b88-8bcf-41208fc7f470`
+- **Vendor Gianluca:** `f7ddea5e-8025-407e-b123-7354415fc75d`
+- **Nonna Viola:** `34f5082a-7090-40d8-8a18-744307c7e343`
+- **Accordion Carlo:** `b26e81d7-95b9-4b06-8aac-8fb60211b2dc`
+- **Signora Threads:** `156aab17-96b7-478d-9931-dc11f6995337`
+- **Little Tomas:** `c3e4e91b-1188-4b41-824f-b426a100d868`
+- **Waiter Marco Jr:** `9b6a0aa5-1ae7-4274-9544-54fd3e574c03`
+- **Waitress Sofia:** `3a441d69-8266-4852-b52c-366f28582c45`
+- **Boss Enzo:** `fd30a69f-eeb4-4872-8c33-c609ef09757b`
+- **Boss Bridget:** `33191a1a-a287-450d-abbb-8a88b9e61cbe`
+- **Market Goon:** `f7038ac0-cade-4fd6-a04e-77dd05c12492`
+- **Enchanted Broom:** `38b4e039-8044-49bc-9877-c37fdb7d7d50`
 
-## NPC generation settings (use for all remaining NPCs)
-```
-body_type: humanoid
-proportions: {"type": "preset", "name": "chibi"}
-size: 32
-n_directions: 4
-view: high top-down
-outline: selective outline
-shading: medium shading
-detail: medium detail (or omit for default)
-```
-Download the **south rotation PNG** as the NPC sprite file (npc-{id}.png).
+## NPC ID mapping (manifest key → sprite file)
+| manifest key (= world.js npc.id) | sprite file | NPC name |
+|---|---|---|
+| signora_betta | npc-betta.png | Signora Betta |
+| papa | npc-papa.png | Papa Marco (hint system) |
+| enzo | npc-enzo.png | Enzo |
+| mama_rosa | npc-mama-rosa.png | Mama Rosa |
+| chef_tutorial | npc-luigi.png | Sous Chef Luigi |
+| canal_duck_lady | npc-carmela.png | Zia Carmela |
+| librarian | npc-lucia.png | Signora Lucia |
+| library_reader | npc-gatto.png | Professor Gatto |
+| gym_trainer | npc-fabio.png | Coach Fabio |
+| gym_smoothie | npc-jenny.png | Juice Bar Jenny |
+| gym_lifter | npc-tony.png | Big Tony |
+| piazza_vendor | npc-gianluca.png | Vendor Gianluca |
+| piazza_nonna | npc-viola.png | Nonna Viola |
+| piazza_musician | npc-carlo.png | Accordion Carlo |
+| shop_cat_lady | npc-threads.png | Signora Threads |
+| shop_assistant | npc-tomas.png | Little Tomás |
+| pizzeria_waiter1 | npc-marco-jr.png | Waiter Marco Jr |
+| pizzeria_waiter2 | npc-sofia.png | Waitress Sofia |
 
-## Remaining NPC descriptions (batch 2 + 3)
-| NPC ID | Name | Description |
-|--------|------|-------------|
-| carmela | Zia Carmela | cute chibi woman, floral blouse, gold earrings, gossipy expression, hand on hip |
-| lucia | Signora Lucia | cute chibi woman librarian, pince-nez glasses, chain, neat hair, book |
-| gatto | Prof Gatto | cute chibi older man, round glasses, bow tie, cardigan, holding book |
-| fabio | Coach Fabio | cute chibi athletic man, tank top, backwards baseball cap, muscular |
-| jenny | Juice Bar Jenny | cute chibi young woman, ponytail, juice bar apron, cheerful |
-| tony | Big Tony | cute chibi large barrel-chested man, butcher apron, gentle smile |
-| gianluca | Vendor Gianluca | cute chibi young man, straw hat, vendor apron, charming smile |
-| viola | Nonna Viola | cute chibi elderly woman, purple shawl, round glasses, serene |
-| carlo | Accordion Carlo | cute chibi man with beret, open shirt, accordion, mid-song |
-| threads | Signora Threads | cute chibi woman, cat-eye glasses, measuring tape on neck, pincushion |
-| tomas | Little Tomas | cute chibi young boy ~8, big eyes, freckles, oversized shirt |
-| marco-jr | Waiter Marco Jr | cute chibi nervous young man, crooked bow tie, waiter uniform |
-| sofia | Waitress Sofia | cute chibi exasperated young woman, ponytail, waiter uniform, eyebrow raised |
+**NPCs without sprites (procedural fallback):** market_vendor, market_cat_lady, canal_fisherman
 
-## Current state of the codebase
-- Files: same as before + updated sprites
-- Script cache-busting: ?v=46
-- Working features: all gameplay + visual polish (muted tiles, shadows, chibi chars)
-- Key code changes this session:
-  - js/engine.js: zone palettes desaturated (0.65-0.78 saturate)
-  - js/world.js: NW shadow lighting pass in renderTiles(), isSolidTile()
-  - js/sprites.js: drawCharacter() displaySize param, drawNPC() displaySize param
-  - js/entities.js: drawCharacterShadow(), player/brodo/NPC ground shadows, display scaling
-  - assets/sprites/tiles/universal.png: muted palette, opaque edges, border-removed terrain
-  - assets/sprites/manifest.json: removed WATER/FOUNTAIN animation frames
+## Asset inventory
+### Characters (assets/sprites/characters/)
+- 18 NPC south-facing PNGs (npc-*.png)
+- 2 boss PNGs (boss-enzo.png, boss-bridget.png)
+- 1 enemy PNG (enemy-goon.png)
+- 1 broom PNG (broom.png)
+- Giulia chibi walk sheet, Brodo chibi sheet (from prior sessions)
+
+### Items (assets/sprites/items/)
+- 8 weapon PNGs: weapon_flour, weapon_tomato, weapon_banana, weapon_spatula, weapon_sock, weapon_rubber_duck, weapon_rolling_pin, weapon_cdrom
+- 7 power-up PNGs: powerup_broccoli, powerup_choco_milk, powerup_water, powerup_deli_meat, powerup_gouda, powerup_brownie, powerup_milk
+- 1 recipe PNG: recipe_fragment (shared by all 5 recipes)
+
+### UI (assets/sprites/ui/)
+- heart_full.png, heart_empty.png, coin.png
+
+## Code changes this session
+- **manifest.json:** NPC keys remapped to world.js IDs, added itemSprites section, added UI sprites
+- **sprites.js:** Added `drawItemById()`, updated `_loadAllSheets` to load itemSprites, enhanced `drawUI` with scaling
+- **world.js:** World item rendering uses `drawItemById` first
+- **ui.js:** HUD inventory uses `drawItemById`, hearts use `drawUI` with PixelLab sprites, coin uses `drawUI`
+- **weapons.js:** Weapon HUD uses `drawItemById`
+- **entities.js:** Power-up world rendering + buff HUD icon use `drawItemById`
+- **index.html:** Cache-busting v=48
 
 ## CONFIG values
 - TILE_SIZE: 32
 - CANVAS_W: 768 (dynamic)
 - CANVAS_H: 576
 
-## Next step
-- Check if Papa Marco, Enzo, Mama Rosa v3, Luigi v3 are complete
-- Download their south rotation PNGs
-- Generate remaining 12 NPCs in batches
-- Integrate all NPC sprites (south-facing PNGs saved as npc-{id}.png in assets/sprites/characters/)
+## Next steps
+- Test the game via HTTP server to verify all PixelLab sprites load
+- Optional: Generate sprites for 3 missing NPCs (market_vendor, market_cat_lady, canal_fisherman)
+- Optional: Generate interactive object sprites (Nokia, BMX, NES cartridge, etc.)
+- Proceed to next BACKLOG stage after visual overhaul is confirmed working

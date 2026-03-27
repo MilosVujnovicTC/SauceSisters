@@ -3109,9 +3109,12 @@ function renderPowerups(ctx, cameraX, cameraY) {
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        // Power-up sprite
-        var sprite = SPRITES.powerups[pu.type];
-        if (sprite) {
+        // Power-up sprite — try PixelLab first, then procedural
+        var puDrawn = SpriteLoader.drawItemById(ctx, pu.type, cx - 12, cy - 12, 24);
+        var sprite = !puDrawn ? SPRITES.powerups[pu.type] : null;
+        if (puDrawn) {
+            // Already drawn
+        } else if (sprite) {
             ctx.drawImage(sprite, cx - 10, cy - 10);
         } else {
             // Fallback to colored square
@@ -3142,13 +3145,15 @@ function renderBuffHUD(ctx) {
     ctx.lineWidth = 1;
     ctx.strokeRect(hx, hy, barW + 24, 28);
 
-    // Icon
-    ctx.fillStyle = def.color;
-    ctx.fillRect(hx + 3, hy + 4, 18, 18);
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 7px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(def.icon, hx + 12, hy + 16);
+    // Icon — try PixelLab sprite first, then colored square fallback
+    if (!SpriteLoader.drawItemById(ctx, activeBuff.type, hx + 2, hy + 3, 20)) {
+        ctx.fillStyle = def.color;
+        ctx.fillRect(hx + 3, hy + 4, 18, 18);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 7px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(def.icon, hx + 12, hy + 16);
+    }
 
     // Buff name label removed for cleaner visuals
 

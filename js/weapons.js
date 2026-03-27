@@ -790,9 +790,11 @@ function renderWeaponHUD(ctx) {
         // Weapon icon (use sprite if available)
         var itemDef = ITEMS[weapon.id];
         if (itemDef) {
-            // TODO: SpriteLoader.drawItem for weapon icon when sheet indices are mapped
-            var wpnSprite = SPRITES.items[weapon.id];
-            if (wpnSprite) {
+            var wpnDrawn = SpriteLoader.drawItemById(ctx, weapon.id, slotX + 4, slotY + 14, slotSize - 8);
+            var wpnSprite = !wpnDrawn ? SPRITES.items[weapon.id] : null;
+            if (wpnDrawn) {
+                // Already drawn by SpriteLoader
+            } else if (wpnSprite) {
                 var ws = slotSize - 8;
                 var wScale = Math.min(ws / wpnSprite.width, ws / wpnSprite.height);
                 var ww = wpnSprite.width * wScale;
