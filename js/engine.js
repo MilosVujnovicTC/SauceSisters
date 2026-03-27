@@ -92,14 +92,16 @@ const CONFIG = {
 // Applied via CSS filter on canvas during zone transitions.
 // ============================================================
 const ZONE_PALETTES = {
-    'la_cucina':  { hue: 0,    saturate: 1.0,  brightness: 1.0,  name: 'Warm kitchen gold' },
-    'market':     { hue: 15,   saturate: 1.1,  brightness: 1.05, name: 'Sunny market orange' },
-    'canal':      { hue: -20,  saturate: 0.9,  brightness: 0.95, name: 'Cool Mediterranean blue' },
-    'library':    { hue: 30,   saturate: 0.8,  brightness: 0.9,  name: 'Amber dusk' },
-    'gym':        { hue: -10,  saturate: 1.2,  brightness: 1.1,  name: 'Energetic bright' },
-    'piazza':     { hue: 10,   saturate: 1.0,  brightness: 1.05, name: 'Warm plaza afternoon' },
-    'pizzeria':   { hue: 5,    saturate: 1.3,  brightness: 0.95, name: 'Hot kitchen red' },
-    'sewing_shop': { hue: -5,  saturate: 0.85, brightness: 1.0,  name: 'Soft pink workshop' }
+    // Reference: Stardew Valley uses ~40-50% saturation terrain, warm/cool temperature shifts per zone
+    // Key principle: terrain stays QUIET (muted), objects/characters POP
+    'la_cucina':   { hue: 5,    saturate: 0.75, brightness: 1.0,  name: 'Warm kitchen gold' },
+    'market':      { hue: 8,    saturate: 0.72, brightness: 1.02, name: 'Sunny market' },
+    'canal':       { hue: -12,  saturate: 0.68, brightness: 0.95, name: 'Cool Mediterranean' },
+    'library':     { hue: 15,   saturate: 0.65, brightness: 0.92, name: 'Amber dusk' },
+    'gym':         { hue: -5,   saturate: 0.78, brightness: 1.05, name: 'Bright gym' },
+    'piazza':      { hue: 6,    saturate: 0.70, brightness: 1.0,  name: 'Warm plaza afternoon' },
+    'pizzeria':    { hue: 3,    saturate: 0.75, brightness: 0.95, name: 'Warm kitchen' },
+    'sewing_shop': { hue: -3,   saturate: 0.70, brightness: 0.98, name: 'Soft pink workshop' }
 };
 
 /** Applies zone color palette to the canvas via CSS filter. */

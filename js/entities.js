@@ -93,6 +93,17 @@ function updatePlayer(dt, map) {
     }
 }
 
+/** Draws an elliptical ground shadow beneath a character to separate them from the background. */
+function drawCharacterShadow(ctx, cx, cy, radiusX, radiusY) {
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
 /** Renders the player using enhanced pixel art sprites. */
 function renderPlayer(ctx, cameraX, cameraY) {
     // Death animation — shrink and fade
@@ -134,9 +145,12 @@ function renderPlayer(ctx, cameraX, cameraY) {
         bobOffY = -1; // lift on stride frames
     }
 
+    // Ground shadow beneath player
+    drawCharacterShadow(ctx, screenX + player.w / 2, screenY + player.h - 2, 12, 5);
+
     // Try image-based sprite: direction row (down=0,left=1,right=2,up=3), walk frame column
     var dirRow = { down: 0, left: 1, right: 2, up: 3 };
-    if (!SpriteLoader.drawCharacter(ctx, 'giulia', player.animFrame, dirRow[player.facing] || 0, screenX, screenY + bobOffY)) {
+    if (!SpriteLoader.drawCharacter(ctx, 'giulia', player.animFrame, dirRow[player.facing] || 0, screenX, screenY + bobOffY, 48)) {
         // Procedural fallback (outlined sprite has +2 padding)
         var sprite = getPlayerSprite(player.facing, player.animFrame);
         ctx.drawImage(sprite, screenX - 2, screenY - 4 + bobOffY);
@@ -483,9 +497,12 @@ function renderBrodo(ctx, cameraX, cameraY) {
     if (isIdle && (anim === 'sit' || anim === 'nap')) {
         bodyOffY = 2 + Math.sin(t * 1.5) * 0.5;
     }
+    // Ground shadow beneath Brodo
+    drawCharacterShadow(ctx, sx + 16, sy + 28, 10, 4);
+
     // Try image-based sprite: state column (follow=0,idle=1,sit=2,bark=3,sniff=4)
     var brodoStates = { follow: 0, idle: 1, sit: 2, bark: 3, sniff: 4, nap: 2 };
-    if (!SpriteLoader.drawCharacter(ctx, 'brodo', brodoStates[spriteKey] || 0, 0, sx, sy + bodyOffY)) {
+    if (!SpriteLoader.drawCharacter(ctx, 'brodo', brodoStates[spriteKey] || 0, 0, sx, sy + bodyOffY, 40)) {
         // Procedural fallback (outlined sprite has +2 padding)
         var sprite = SPRITES.brodo[spriteKey];
         if (sprite) {
@@ -827,6 +844,9 @@ function renderNPCs(ctx, cameraX, cameraY) {
         if (npc._walking) {
             walkBob = Math.sin(game.time * 10) * 1.5;
         }
+
+        // Ground shadow beneath NPC
+        drawCharacterShadow(ctx, screenX + ts / 2, screenY + ts - 2 + bobY + walkBob, 11, 4);
 
         // Try image-based NPC sprite first, then procedural
         var npcDrawY = screenY + bobY + walkBob;

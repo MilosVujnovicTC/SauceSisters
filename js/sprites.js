@@ -151,12 +151,24 @@ const SpriteLoader = {
         return true;
     },
 
-    /** Draws a character sprite (Giulia, Brodo). Returns true if drawn. */
-    drawCharacter: function(ctx, charId, frameX, frameY, destX, destY) {
+    /** Draws a character sprite (Giulia, Brodo). Optional displaySize scales up for visibility. */
+    drawCharacter: function(ctx, charId, frameX, frameY, destX, destY, displaySize) {
         if (!this.manifest || !this.manifest.characters) return false;
         var def = this.manifest.characters[charId];
         if (!def) return false;
-        return this.draw(ctx, def.sheet, frameX, frameY, destX, destY, def.frameW, def.frameH);
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        var fw = def.frameW, fh = def.frameH;
+        var dw = displaySize || fw;
+        var dh = displaySize || fh;
+        // Center the scaled sprite on the tile position
+        var ox = -(dw - fw) / 2;
+        var oy = -(dh - fh) / 2;
+        ctx.drawImage(img,
+            frameX * fw, frameY * fh, fw, fh,
+            destX + ox, destY + oy, dw, dh
+        );
+        return true;
     },
 
     /** Draws an NPC sprite. Returns true if drawn. */

@@ -2176,8 +2176,15 @@ function getTile(map, col, row) {
     return TILE_BY_ID[map[row][col]] || TILES.WALL;
 }
 
+/** Checks if a tile at (col,row) is solid (wall-like) for shadow purposes. */
+function isSolidTile(map, col, row) {
+    if (row < 0 || row >= map.length || col < 0 || col >= map[0].length) return false;
+    var info = TILE_BY_ID[map[row][col]];
+    return info ? info.solid : false;
+}
+
 /** Renders visible tiles from the map. cameraX/cameraY are pixel offsets. */
-/** Renders tilemap using pre-generated sprite textures. */
+/** Renders tilemap using pre-generated sprite textures with NW lighting. */
 function renderTiles(ctx, map, cameraX, cameraY) {
     const ts = CONFIG.TILE_SIZE;
     // Calculate visible tile range
@@ -2207,6 +2214,53 @@ function renderTiles(ctx, map, cameraX, cameraY) {
                     ctx.fillStyle = tileInfo.color;
                     ctx.fillRect(screenX, screenY, ts, ts);
                 }
+            }
+        }
+    }
+
+    // ── Lighting pass: NW light source ──
+    // Shadows cast south and east of solid tiles (walls, objects)
+    // Also adds contact shadow (darker strip) at wall bases
+    ctx.globalAlpha = 1.0;
+    for (let row = startRow; row <= endRow; row++) {
+        for (let col = startCol; col <= endCol; col++) {
+            const tileId = map[row][col];
+            const tileInfo = TILE_BY_ID[tileId] || TILES.FLOOR;
+            const screenX = col * ts - camX;
+            const screenY = row * ts - camY;
+
+            // Skip if this tile itself is solid (shadows go ON walkable tiles)
+            if (tileInfo.solid) continue;
+
+            var wallNorth = isSolidTile(map, col, row - 1);
+            var wallWest  = isSolidTile(map, col - 1, row);
+            var wallNW    = isSolidTile(map, col - 1, row - 1);
+
+            // Full shadow: tile is directly south or east of a wall
+            if (wallNorth && wallWest) {
+                // Corner shadow — darkest
+                ctx.fillStyle = 'rgba(0,0,0,0.22)';
+                ctx.fillRect(screenX, screenY, ts, ts);
+            } else if (wallNorth) {
+                // Shadow below wall — gradient fade south
+                var grad = ctx.createLinearGradient(screenX, screenY, screenX, screenY + ts);
+                grad.addColorStop(0, 'rgba(0,0,0,0.20)');
+                grad.addColorStop(0.4, 'rgba(0,0,0,0.08)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(screenX, screenY, ts, ts);
+            } else if (wallWest) {
+                // Shadow east of wall — gradient fade east
+                var grad = ctx.createLinearGradient(screenX, screenY, screenX + ts, screenY);
+                grad.addColorStop(0, 'rgba(0,0,0,0.18)');
+                grad.addColorStop(0.4, 'rgba(0,0,0,0.06)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(screenX, screenY, ts, ts);
+            } else if (wallNW) {
+                // Diagonal shadow — subtle corner darkening
+                ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                ctx.fillRect(screenX, screenY, ts * 0.4, ts * 0.4);
             }
         }
     }
