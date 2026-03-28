@@ -77,12 +77,7 @@
     "goon":  { "sheet": "characters/enemy-goon.png", "frameW": 32, "frameH": 32 },
     "broom": { "sheet": "characters/broom.png",      "frameW": 32, "frameH": 32 }
   },
-  "items": {
-    "weapons":  { "sheet": "items/weapons.png",  "frameW": 32, "frameH": 32, "count": 8 },
-    "powerups": { "sheet": "items/powerups.png", "frameW": 32, "frameH": 32, "count": 7 },
-    "recipes":  { "sheet": "items/recipes.png",  "frameW": 32, "frameH": 32, "count": 5 },
-    "objects":  { "sheet": "items/objects.png",   "frameW": 32, "frameH": 32, "count": 9 }
-  },
+  "items": {},
   "itemSprites": {
     "spatula":        { "sheet": "items/weapon_spatula.png" },
     "tomato":         { "sheet": "items/weapon_tomato.png" },
@@ -106,9 +101,6 @@
     "recipe_5":       { "sheet": "items/recipe_fragment.png" }
   },
   "ui": {
-    "hud":         { "sheet": "ui/hud.png",       "frameW": 32, "frameH": 32 },
-    "dialogue":    { "sheet": "ui/dialogue.png",  "width": 384, "height": 96 },
-    "portraits":   { "sheet": "ui/portraits.png", "frameW": 64, "frameH": 64, "count": 17 },
     "heart_full":  { "sheet": "ui/heart_full.png" },
     "heart_empty": { "sheet": "ui/heart_empty.png" },
     "coin":        { "sheet": "ui/coin.png" }

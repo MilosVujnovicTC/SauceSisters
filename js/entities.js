@@ -1268,7 +1268,7 @@ function renderSingleEnemy(ctx, cameraX, cameraY, e) {
             spriteState = 'patrol';
         }
         // Try image-based sprite first
-        if (!SpriteLoader.drawEnemy(ctx, 'goon', sx, sy)) {
+        if (!SpriteLoader.drawEnemy(ctx, 'goon', sx, sy, 40)) {
             var sprite = SPRITES.enemy[spriteState];
             if (sprite) {
                 // Outlined sprite has +2 padding, enemy is 24x24
@@ -1974,7 +1974,7 @@ function renderEnzoBoss(ctx, cameraX, cameraY) {
     }
 
     // Draw boss sprite — try image first, then procedural
-    if (!SpriteLoader.drawBoss(ctx, 'enzo_boss', drawX, drawY)) {
+    if (!SpriteLoader.drawBoss(ctx, 'enzo_boss', drawX, drawY, 48)) {
         drawEnzoBossSprite(ctx, drawX, drawY, t);
     }
 
@@ -2719,7 +2719,7 @@ function renderWeddingBoss(ctx, cameraX, cameraY) {
     }
 
     // Draw boss sprite — try image first, then procedural
-    if (!SpriteLoader.drawBoss(ctx, 'bridget', sx, sy)) {
+    if (!SpriteLoader.drawBoss(ctx, 'bridget', sx, sy, 48)) {
         drawWeddingBossSprite(ctx, sx, sy, t);
     }
     ctx.globalAlpha = 1;
@@ -3144,11 +3144,11 @@ function renderBuffHUD(ctx) {
     var def = POWERUPS[activeBuff.type];
     if (!def) return;
 
-    // Position: below weapon HUD, top-right
+    // Position: below score HUD, top-left
     var barW = 96;
     var barH = 8;
-    var hx = CONFIG.CANVAS_W - 120;
-    var hy = CONFIG.INV_MARGIN_TOP + CONFIG.INV_SLOT_SIZE + 16;
+    var hx = 8;
+    var hy = CONFIG.INV_MARGIN_TOP + CONFIG.INV_SLOT_SIZE + 36;
 
     // Background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';

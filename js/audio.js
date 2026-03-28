@@ -117,46 +117,141 @@ const ZONE_SURFACE = {
 };
 
 // ============================================================
-// Music system — upgraded procedural zone loops
+// Music system — Howler.js file-based zone music with Tone.js fallback
 // ============================================================
 
 const music = {
     currentZone: null,
-    zones: {},
     initialized: false,
     fadeTime: 1.2,
-    running: {},
     silentDb: -60,
     fadeProgress: 1,
+    howls: {},           // { zoneId: Howl }
+    bossHowls: {},       // { bossId: Howl }
+    specialHowls: {},    // { key: Howl } — intro, finale, credits, transition
+    activeBossTrack: null, // currently playing boss track id
+    preBossZone: null,     // zone that was playing before boss music
 };
 
-/** Shared reverb bus for all music — adds warmth and space. */
+/** Music file base path. */
+var MUSIC_BASE_PATH = 'generated-music/';
+
+/** Zone → music file mapping. */
+var ZONE_MUSIC_FILES = {
+    la_cucina:   'La Cucina (Tutorial : Home).mp3',
+    market:      'Signora Betta\'s Market (Z1).mp3',
+    canal:       'Canal - Lungomare (Z2).mp3',
+    library:     'Old Library (Z3).mp3',
+    gym:         'Papa\'s Gym (Z4).mp3',
+    piazza:      'Piazza Vecchia (Z5).mp3',
+    pizzeria:    'Enzo\'s Pizzeria (Z6 \u2014 pre-boss).mp3',
+    sewing_shop: 'Mama\'s Sewing Shop (Z7 \u2014 pre-boss).mp3',
+};
+
+/** Boss → music file mapping. */
+var BOSS_MUSIC_FILES = {
+    enzo:    'Enzo Boss Fight.mp3',
+    wedding: 'Wedding Planner Boss Fight.mp3',
+};
+
+/** Special music tracks. */
+var SPECIAL_MUSIC_FILES = {
+    intro:      'Intro Cutscene (Stage 10-1).mp3',
+    finale:     'Finale - Wedding Montage.mp3',
+    credits:    'Credits.mp3',
+    transition: 'Transitional paths (shared track).mp3',
+};
+
+// ---- Tone.js procedural fallback (kept for zones where file fails to load) ----
+
+/** Shared reverb bus for fallback music — adds warmth and space. */
 var musicReverb = null;
 /** Shared chorus for shimmer. */
 var musicChorus = null;
+/** Tone.js fallback zone data (only populated if a file fails). */
+var toneZones = {};
+var toneRunning = {};
 
-/** Creates the shared effects chain for music. */
+/** Creates the shared effects chain for fallback music. */
 function createMusicEffects() {
+    if (musicReverb) return;
     musicReverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).toDestination();
     musicChorus = new Tone.Chorus({ frequency: 0.5, delayTime: 3.5, depth: 0.4, wet: 0.15 }).connect(musicReverb);
 }
 
-/** Creates all zone music instruments and patterns. Called once after audio unlock. */
+/** Loads all zone music via Howler.js. Falls back to Tone.js if file fails. Called once after audio unlock. */
 function initZoneMusic() {
     if (music.initialized || !audio.unlocked) return;
     music.initialized = true;
 
     createMusicEffects();
-    createCucinaMusic();
-    createMarketMusic();
-    createCanalMusic();
-    createLibraryMusic();
-    createGymMusic();
-    createPiazzaMusic();
-    createPizzeriaMusic();
-    createSewingShopMusic();
+
+    // Load zone music files
+    for (var zoneId in ZONE_MUSIC_FILES) {
+        (function(id, file) {
+            music.howls[id] = new Howl({
+                src: [MUSIC_BASE_PATH + file],
+                loop: true,
+                volume: 0,
+                preload: true,
+                onloaderror: function() {
+                    console.warn('[Audio] Failed to load music for ' + id + ', using Tone.js fallback');
+                    music.howls[id] = null;
+                    _createToneFallback(id);
+                },
+            });
+        })(zoneId, ZONE_MUSIC_FILES[zoneId]);
+    }
+
+    // Load boss music files
+    for (var bossId in BOSS_MUSIC_FILES) {
+        (function(id, file) {
+            music.bossHowls[id] = new Howl({
+                src: [MUSIC_BASE_PATH + file],
+                loop: true,
+                volume: 0,
+                preload: true,
+                onloaderror: function() {
+                    console.warn('[Audio] Failed to load boss music for ' + id);
+                    music.bossHowls[id] = null;
+                },
+            });
+        })(bossId, BOSS_MUSIC_FILES[bossId]);
+    }
+
+    // Load special music files
+    for (var key in SPECIAL_MUSIC_FILES) {
+        (function(k, file) {
+            music.specialHowls[k] = new Howl({
+                src: [MUSIC_BASE_PATH + file],
+                loop: (k === 'transition'),
+                volume: 0,
+                preload: true,
+                onloaderror: function() {
+                    console.warn('[Audio] Failed to load special music: ' + k);
+                    music.specialHowls[k] = null;
+                },
+            });
+        })(key, SPECIAL_MUSIC_FILES[key]);
+    }
 
     Tone.Transport.start();
+}
+
+/** Creates a Tone.js procedural fallback for a specific zone. */
+function _createToneFallback(zoneId) {
+    // Only create fallbacks for zones that actually have procedural definitions
+    var creators = {
+        la_cucina: createCucinaMusic,
+        market: createMarketMusic,
+        canal: createCanalMusic,
+        library: createLibraryMusic,
+        gym: createGymMusic,
+        piazza: createPiazzaMusic,
+        pizzeria: createPizzeriaMusic,
+        sewing_shop: createSewingShopMusic,
+    };
+    if (creators[zoneId]) creators[zoneId]();
 }
 
 /** La Cucina: warm, cozy kitchen (A minor, 80 BPM). Accordion-like warmth + gentle melody. */
@@ -262,7 +357,7 @@ function createCucinaMusic() {
     ], '4n');
     tambSeq.loop = true;
 
-    music.zones.la_cucina = {
+    toneZones.la_cucina = {
         gain: gain,
         synths: [pad, padWarm, melody, bass, tamb],
         effects: [delay, tambFilter],
@@ -377,7 +472,7 @@ function createMarketMusic() {
     ], '8n');
     kickSeq.loop = true;
 
-    music.zones.market = {
+    toneZones.market = {
         gain: gain,
         synths: [mandolin, bass, pad, padWarm, shaker, kick],
         effects: [mandolinFilter, shakerFilter],
@@ -461,7 +556,7 @@ function createCanalMusic() {
     ], '2n');
     bassSeq.loop = true;
 
-    music.zones.canal = {
+    toneZones.canal = {
         gain: gain,
         synths: [pad, padLayer, drops, bass],
         effects: [dropDelay],
@@ -543,7 +638,7 @@ function createLibraryMusic() {
     ], '4n');
     counterSeq.loop = true;
 
-    music.zones.library = {
+    toneZones.library = {
         gain: gain,
         synths: [pad, musicBox, counter],
         effects: [boxDelay],
@@ -625,7 +720,7 @@ function createGymMusic() {
     ], '8n');
     melodySeq.loop = true;
 
-    music.zones.gym = {
+    toneZones.gym = {
         gain: gain,
         synths: [bass, chordSynth, lead],
         effects: [leadDelay],
@@ -719,7 +814,7 @@ function createPiazzaMusic() {
     ], '8n');
     bassSeq.loop = true;
 
-    music.zones.piazza = {
+    toneZones.piazza = {
         gain: gain,
         synths: [pad, mandolin, bass],
         effects: [mandolinDelay],
@@ -801,7 +896,7 @@ function createPizzeriaMusic() {
     ], '8n');
     melodySeq.loop = true;
 
-    music.zones.pizzeria = {
+    toneZones.pizzeria = {
         gain: gain,
         synths: [bass, chordSynth, lead],
         effects: [leadDelay],
@@ -882,7 +977,7 @@ function createSewingShopMusic() {
     ], '4n');
     bassSeq.loop = true;
 
-    music.zones.sewing_shop = {
+    toneZones.sewing_shop = {
         gain: gain,
         synths: [melody, pad, bass].filter(Boolean),
         effects: [],
@@ -909,54 +1004,57 @@ function startZoneMusic(zoneId) {
         'courtyard': 'sewing_shop',
     };
     var musicZoneId = musicAliases[zoneId] || zoneId;
-    if (music.currentZone === musicZoneId) return;
+    if (music.currentZone === musicZoneId && !music.activeBossTrack) return;
     zoneId = musicZoneId;
 
-    // Stop old zone music immediately
-    var oldId = music.currentZone;
-    if (oldId && music.zones[oldId]) {
-        var old = music.zones[oldId];
-        for (var i = 0; i < old.patterns.length; i++) {
-            old.patterns[i].stop();
-        }
-        music.running[oldId] = false;
-        old.gain.volume.cancelScheduledValues(0);
-        old.gain.volume.value = music.silentDb;
-    }
+    // Stop any boss music
+    _stopBossMusic();
+
+    // Stop old zone music
+    _stopCurrentZoneMusic();
 
     music.currentZone = zoneId;
-    var zone = music.zones[zoneId];
-    if (!zone) return;
 
-    // Reset Transport for clean scheduling
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    Tone.Transport.bpm.value = zone.tempo;
+    // Try Howler.js file first
+    var howl = music.howls[zoneId];
+    if (howl) {
+        var targetVol = audio.musicVolume * (audio.musicDucked ? 0.25 : 1);
+        howl.volume(0);
+        howl.play();
+        howl.fade(0, targetVol, music.fadeTime * 1000);
+        music.fadeProgress = 1; // Howler handles its own fade
+    } else if (toneZones[zoneId]) {
+        // Tone.js fallback
+        var zone = toneZones[zoneId];
+        Tone.Transport.stop();
+        Tone.Transport.position = 0;
+        Tone.Transport.bpm.value = zone.tempo;
 
-    for (var id in music.zones) {
-        for (var j = 0; j < music.zones[id].patterns.length; j++) {
-            music.zones[id].patterns[j].stop();
+        for (var id in toneZones) {
+            for (var j = 0; j < toneZones[id].patterns.length; j++) {
+                toneZones[id].patterns[j].stop();
+            }
+            toneRunning[id] = false;
         }
-        music.running[id] = false;
-    }
-    for (var i = 0; i < zone.patterns.length; i++) {
-        zone.patterns[i].start(0);
-    }
-    music.running[zoneId] = true;
-    Tone.Transport.start();
+        for (var i = 0; i < zone.patterns.length; i++) {
+            zone.patterns[i].start(0);
+        }
+        toneRunning[zoneId] = true;
+        Tone.Transport.start();
 
-    zone.gain.volume.cancelScheduledValues(0);
-    zone.gain.volume.value = music.silentDb;
-    music.fadeProgress = 0;
+        zone.gain.volume.cancelScheduledValues(0);
+        zone.gain.volume.value = music.silentDb;
+        music.fadeProgress = 0;
+    }
 
     // Start ambient layer for this zone
     startAmbient(zoneId);
 }
 
-/** Updates the manual music fade-in. Called from updateAudio() each frame. */
+/** Updates the manual music fade-in (Tone.js fallback only). Called from updateAudio() each frame. */
 function updateMusicFade(dt) {
     if (music.fadeProgress >= 1) return;
-    if (!music.currentZone || !music.zones[music.currentZone]) return;
+    if (!music.currentZone || !toneZones[music.currentZone]) return;
 
     music.fadeProgress += dt / music.fadeTime;
     if (music.fadeProgress > 1) music.fadeProgress = 1;
@@ -964,21 +1062,74 @@ function updateMusicFade(dt) {
     var targetDb = Tone.gainToDb(audio.musicVolume);
     if (audio.musicDucked) targetDb += audio.duckDb;
     var currentDb = music.silentDb + (targetDb - music.silentDb) * music.fadeProgress;
-    music.zones[music.currentZone].gain.volume.value = currentDb;
+    toneZones[music.currentZone].gain.volume.value = currentDb;
+}
+
+/** Stops the current zone music (Howler or Tone.js). */
+function _stopCurrentZoneMusic() {
+    var oldId = music.currentZone;
+    if (!oldId) return;
+
+    // Stop Howler track
+    var oldHowl = music.howls[oldId];
+    if (oldHowl && oldHowl.playing()) {
+        oldHowl.fade(oldHowl.volume(), 0, 300);
+        setTimeout(function() { oldHowl.stop(); }, 350);
+    }
+
+    // Stop Tone.js fallback
+    if (toneZones[oldId]) {
+        var old = toneZones[oldId];
+        for (var i = 0; i < old.patterns.length; i++) {
+            old.patterns[i].stop();
+        }
+        toneRunning[oldId] = false;
+        old.gain.volume.cancelScheduledValues(0);
+        old.gain.volume.value = music.silentDb;
+    }
+}
+
+/** Stops boss music if playing. */
+function _stopBossMusic() {
+    if (!music.activeBossTrack) return;
+    var bossHowl = music.bossHowls[music.activeBossTrack];
+    if (bossHowl && bossHowl.playing()) {
+        bossHowl.fade(bossHowl.volume(), 0, 300);
+        setTimeout(function() { bossHowl.stop(); }, 350);
+    }
+    music.activeBossTrack = null;
 }
 
 /** Stops all zone music immediately. */
 function stopAllMusic() {
-    for (var id in music.zones) {
-        var z = music.zones[id];
+    // Stop all Howler zone tracks
+    for (var id in music.howls) {
+        var h = music.howls[id];
+        if (h) { try { h.stop(); } catch(e) {} }
+    }
+    // Stop boss tracks
+    for (var bid in music.bossHowls) {
+        var bh = music.bossHowls[bid];
+        if (bh) { try { bh.stop(); } catch(e) {} }
+    }
+    // Stop special tracks
+    for (var sid in music.specialHowls) {
+        var sh = music.specialHowls[sid];
+        if (sh) { try { sh.stop(); } catch(e) {} }
+    }
+    // Stop Tone.js fallbacks
+    for (var tid in toneZones) {
+        var z = toneZones[tid];
         z.gain.volume.cancelScheduledValues(Tone.now());
         z.gain.volume.value = music.silentDb;
         for (var i = 0; i < z.patterns.length; i++) {
             z.patterns[i].stop();
         }
-        music.running[id] = false;
+        toneRunning[tid] = false;
     }
     music.currentZone = null;
+    music.activeBossTrack = null;
+    music.preBossZone = null;
     stopAmbient();
 }
 
@@ -1388,10 +1539,24 @@ function playPlankPlace() {
 
 /** Ducks music volume for dialogue. Call when dialogue opens. */
 function duckMusic() {
-    if (!music.currentZone || !music.zones[music.currentZone] || audio.musicDucked) return;
+    if (!music.currentZone || audio.musicDucked) return;
     audio.musicDucked = true;
-    var zone = music.zones[music.currentZone];
-    zone.gain.volume.value = Tone.gainToDb(audio.musicVolume) + audio.duckDb;
+    var duckedVol = audio.musicVolume * 0.25;
+
+    // Duck Howler track
+    var howl = music.howls[music.currentZone];
+    if (howl && howl.playing()) {
+        howl.fade(howl.volume(), duckedVol, 200);
+    }
+    // Duck boss track
+    if (music.activeBossTrack) {
+        var bossHowl = music.bossHowls[music.activeBossTrack];
+        if (bossHowl && bossHowl.playing()) bossHowl.fade(bossHowl.volume(), duckedVol, 200);
+    }
+    // Duck Tone.js fallback
+    if (toneZones[music.currentZone]) {
+        toneZones[music.currentZone].gain.volume.value = Tone.gainToDb(audio.musicVolume) + audio.duckDb;
+    }
     // Also duck ambient
     if (ambient.current && ambient.nodes[ambient.current]) {
         ambient.nodes[ambient.current].gain.volume.value -= 10;
@@ -1400,10 +1565,23 @@ function duckMusic() {
 
 /** Restores music volume after dialogue. Call when dialogue closes. */
 function unduckMusic() {
-    if (!music.currentZone || !music.zones[music.currentZone] || !audio.musicDucked) return;
+    if (!music.currentZone || !audio.musicDucked) return;
     audio.musicDucked = false;
-    var zone = music.zones[music.currentZone];
-    zone.gain.volume.value = Tone.gainToDb(audio.musicVolume);
+
+    // Restore Howler track
+    var howl = music.howls[music.currentZone];
+    if (howl && howl.playing()) {
+        howl.fade(howl.volume(), audio.musicVolume, 200);
+    }
+    // Restore boss track
+    if (music.activeBossTrack) {
+        var bossHowl = music.bossHowls[music.activeBossTrack];
+        if (bossHowl && bossHowl.playing()) bossHowl.fade(bossHowl.volume(), audio.musicVolume, 200);
+    }
+    // Restore Tone.js fallback
+    if (toneZones[music.currentZone]) {
+        toneZones[music.currentZone].gain.volume.value = Tone.gainToDb(audio.musicVolume);
+    }
     // Restore ambient
     if (ambient.current && ambient.nodes[ambient.current]) {
         ambient.nodes[ambient.current].gain.volume.value += 10;
@@ -1452,8 +1630,19 @@ function setMasterVolume(vol) {
 /** Sets the music volume (0.0 to 1.0). Updates the active zone gain immediately. */
 function setMusicVolume(vol) {
     audio.musicVolume = Math.max(0, Math.min(1, vol));
-    if (music.currentZone && music.zones[music.currentZone]) {
-        music.zones[music.currentZone].gain.volume.value = Tone.gainToDb(audio.musicVolume);
+    // Update Howler zone track
+    if (music.currentZone && music.howls[music.currentZone]) {
+        var h = music.howls[music.currentZone];
+        if (h.playing()) h.volume(audio.musicVolume);
+    }
+    // Update Howler boss track
+    if (music.activeBossTrack && music.bossHowls[music.activeBossTrack]) {
+        var bh = music.bossHowls[music.activeBossTrack];
+        if (bh.playing()) bh.volume(audio.musicVolume);
+    }
+    // Update Tone.js fallback
+    if (music.currentZone && toneZones[music.currentZone]) {
+        toneZones[music.currentZone].gain.volume.value = Tone.gainToDb(audio.musicVolume);
     }
 }
 
@@ -1466,19 +1655,99 @@ function setSfxVolume(vol) {
     // Howler volumes are applied per-play in playSample()
 }
 
-/** Increases music tempo for boss fights (20-30% bump). */
+/** Starts boss fight music, pausing the zone track. Call with 'enzo' or 'wedding'. */
 function startBossTempo() {
-    if (!music.currentZone || !music.zones[music.currentZone]) return;
-    var baseTempo = music.zones[music.currentZone].tempo || 100;
-    var bossTempo = Math.round(baseTempo * 1.25); // 25% increase
-    Tone.Transport.bpm.rampTo(bossTempo, 1.0); // ramp over 1 second
+    // Determine which boss based on current zone
+    var bossId = null;
+    if (music.currentZone === 'pizzeria') bossId = 'enzo';
+    else if (music.currentZone === 'sewing_shop') bossId = 'wedding';
+    if (!bossId) return;
+
+    var bossHowl = music.bossHowls[bossId];
+    if (!bossHowl) {
+        // No boss track available — fall back to Tone.js tempo ramp
+        if (toneZones[music.currentZone]) {
+            var baseTempo = toneZones[music.currentZone].tempo || 100;
+            Tone.Transport.bpm.rampTo(Math.round(baseTempo * 1.25), 1.0);
+        }
+        return;
+    }
+
+    music.preBossZone = music.currentZone;
+    music.activeBossTrack = bossId;
+
+    // Fade out zone music
+    var zoneHowl = music.howls[music.currentZone];
+    if (zoneHowl && zoneHowl.playing()) {
+        zoneHowl.fade(zoneHowl.volume(), 0, 500);
+        setTimeout(function() { zoneHowl.pause(); }, 550);
+    }
+    // Stop Tone.js fallback
+    if (toneZones[music.currentZone] && toneRunning[music.currentZone]) {
+        var tz = toneZones[music.currentZone];
+        for (var i = 0; i < tz.patterns.length; i++) tz.patterns[i].stop();
+        toneRunning[music.currentZone] = false;
+        tz.gain.volume.value = music.silentDb;
+    }
+
+    // Start boss track
+    var targetVol = audio.musicVolume * (audio.musicDucked ? 0.25 : 1);
+    bossHowl.volume(0);
+    bossHowl.play();
+    bossHowl.fade(0, targetVol, 800);
 }
 
-/** Restores music tempo after boss fight. */
+/** Stops boss fight music and restores zone track. */
 function endBossTempo() {
-    if (!music.currentZone || !music.zones[music.currentZone]) return;
-    var baseTempo = music.zones[music.currentZone].tempo || 100;
-    Tone.Transport.bpm.rampTo(baseTempo, 0.5); // ramp back over 0.5 second
+    if (!music.activeBossTrack) {
+        // Tone.js fallback — ramp tempo back
+        if (music.currentZone && toneZones[music.currentZone]) {
+            var baseTempo = toneZones[music.currentZone].tempo || 100;
+            Tone.Transport.bpm.rampTo(baseTempo, 0.5);
+        }
+        return;
+    }
+
+    // Fade out boss track
+    var bossHowl = music.bossHowls[music.activeBossTrack];
+    if (bossHowl && bossHowl.playing()) {
+        bossHowl.fade(bossHowl.volume(), 0, 500);
+        setTimeout(function() { bossHowl.stop(); }, 550);
+    }
+    music.activeBossTrack = null;
+
+    // Restore zone music
+    var zoneId = music.preBossZone || music.currentZone;
+    music.preBossZone = null;
+    if (zoneId) {
+        var zoneHowl = music.howls[zoneId];
+        if (zoneHowl) {
+            var targetVol = audio.musicVolume * (audio.musicDucked ? 0.25 : 1);
+            zoneHowl.volume(0);
+            zoneHowl.play();
+            zoneHowl.fade(0, targetVol, 800);
+        }
+    }
+}
+
+/** Plays a special music track (intro, finale, credits, transition). Stops zone music first. */
+function playSpecialMusic(key) {
+    if (!music.initialized) return;
+    stopAllMusic();
+    var howl = music.specialHowls[key];
+    if (!howl) return;
+    howl.volume(audio.musicVolume);
+    howl.play();
+}
+
+/** Stops a special music track. */
+function stopSpecialMusic(key) {
+    var howl = music.specialHowls[key];
+    if (!howl) return;
+    if (howl.playing()) {
+        howl.fade(howl.volume(), 0, 500);
+        setTimeout(function() { howl.stop(); }, 550);
+    }
 }
 
 /** Plays a test tone at the given note. Debug use. */

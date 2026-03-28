@@ -1374,7 +1374,7 @@ function renderLibraryBroom(ctx, cameraX, cameraY) {
     else if (libraryBroom.state === 'stunned') spriteState = 'stunned';
 
     // Try image-based sprite first
-    var broomDrawn = SpriteLoader.drawEnemy(ctx, 'broom', sx, sy);
+    var broomDrawn = SpriteLoader.drawEnemy(ctx, 'broom', sx, sy, 40);
     if (!broomDrawn) {
         var sprite = SPRITES.broom[spriteState];
         if (sprite) {
@@ -3373,8 +3373,8 @@ function startFinale() {
     finale.weddingSlideTimer = 0;
     game.mode = 'finale';
     setFlag('finale_started', true);
-    // Stop zone music
-    if (typeof stopAllMusic === 'function') stopAllMusic();
+    // Play finale music
+    if (typeof playSpecialMusic === 'function') playSpecialMusic('finale');
 }
 
 /** Updates the finale sequence. */
@@ -3391,6 +3391,9 @@ function updateFinale(dt) {
             if (finale.weddingSlide >= WEDDING_SLIDES.length) {
                 finale.phase = 'credits';
                 finale.scrollY = CONFIG.CANVAS_H;
+                // Switch to credits music
+                if (typeof stopSpecialMusic === 'function') stopSpecialMusic('finale');
+                if (typeof playSpecialMusic === 'function') playSpecialMusic('credits');
             }
         }
     } else if (finale.phase === 'credits') {
@@ -3578,6 +3581,7 @@ function endFinale() {
     finale.active = false;
     game.mode = 'overworld';
     setFlag('game_complete', true);
+    if (typeof stopSpecialMusic === 'function') stopSpecialMusic('credits');
     loadZone('la_cucina');
 }
 

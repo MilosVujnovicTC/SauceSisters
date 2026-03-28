@@ -768,8 +768,8 @@ function renderWeaponHUD(ctx) {
     var weapon = getEquippedWeapon();
     var ts = CONFIG.TILE_SIZE;
 
-    // Draw weapon slot at top-left, below debug info
-    var slotX = CONFIG.CANVAS_W - 120;
+    // Draw weapon slot at top-left
+    var slotX = 8;
     var slotY = CONFIG.INV_MARGIN_TOP;
     var slotSize = CONFIG.INV_SLOT_SIZE;
 

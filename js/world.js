@@ -114,7 +114,7 @@ const ZONES = {
                     });
                 },
             },
-            // Decorative objects — kitchen enrichment
+            // Decorative objects — Italian kitchen enrichment
             { id: 'deco_plant_1', type: 'pot_plant', col: 2, row: 6 },
             { id: 'deco_plant_2', type: 'pot_plant', col: 21, row: 6 },
             { id: 'deco_chair_1', type: 'chair', col: 4, row: 8 },
@@ -122,6 +122,13 @@ const ZONES = {
             { id: 'deco_table_1', type: 'table_small', col: 4, row: 12 },
             { id: 'deco_table_2', type: 'table_small', col: 19, row: 12 },
             { id: 'deco_lamp_k', type: 'lamp', col: 1, row: 15 },
+            // Kitchen-specific decorations
+            { id: 'deco_pots', type: 'hanging_pots', col: 10, row: 9 },
+            { id: 'deco_pots2', type: 'hanging_pots', col: 13, row: 9 },
+            { id: 'deco_fruit', type: 'fruit_bowl', col: 11, row: 4 },
+            { id: 'deco_pasta', type: 'pasta_jar', col: 2, row: 1 },
+            { id: 'deco_pasta2', type: 'pasta_jar', col: 21, row: 1 },
+            { id: 'deco_sink', type: 'kitchen_sink', col: 16, row: 4 },
             {
                 id: 'recipe_board', name: 'Recipe Board', col: 12, row: 2, color: '#c4a46c',
                 onInteract: function() {
@@ -2223,7 +2230,29 @@ function renderTiles(ctx, map, cameraX, cameraY) {
             // Try image-based sprite first, then procedural, then flat color
             var tileInfo = TILE_BY_ID[tileId] || TILES.FLOOR;
             var animFrame = Math.floor(game.time * 3) % 4;
-            if (!SpriteLoader.drawTile(ctx, tileInfo.label, screenX, screenY, animFrame)) {
+
+            // Overlay tiles (barrel, flower, fountain): draw ground first, then transparent object
+            if (tileInfo.overlay && tileInfo.ground) {
+                // Draw ground tile underneath
+                if (!SpriteLoader.drawTile(ctx, tileInfo.ground, screenX, screenY, animFrame)) {
+                    var groundSprite = SPRITES.tiles[tileInfo.ground];
+                    if (Array.isArray(groundSprite)) {
+                        var gv = ((col * 7 + row * 13) % groundSprite.length + groundSprite.length) % groundSprite.length;
+                        groundSprite = groundSprite[gv];
+                    }
+                    if (groundSprite) {
+                        ctx.drawImage(groundSprite, screenX, screenY, ts, ts);
+                    } else {
+                        ctx.fillStyle = TILES.GRASS.color;
+                        ctx.fillRect(screenX, screenY, ts, ts);
+                    }
+                }
+                // Draw transparent procedural overlay (skip PixelLab — those have opaque backgrounds)
+                var sprite = getTileSprite(tileId, col, row);
+                if (sprite) {
+                    ctx.drawImage(sprite, screenX, screenY, ts, ts);
+                }
+            } else if (!SpriteLoader.drawTile(ctx, tileInfo.label, screenX, screenY, animFrame)) {
                 var sprite = getTileSprite(tileId, col, row);
                 if (sprite) {
                     ctx.drawImage(sprite, screenX, screenY, ts, ts);
@@ -2231,6 +2260,38 @@ function renderTiles(ctx, map, cameraX, cameraY) {
                     ctx.fillStyle = tileInfo.color;
                     ctx.fillRect(screenX, screenY, ts, ts);
                 }
+            }
+        }
+    }
+
+    // ── Large door overlay pass ──
+    // Detect adjacent DOOR tiles and render connected large door sprites
+    var doorId = TILES.DOOR.id;
+    var doorDrawn = {}; // track which door groups already rendered
+    for (var dRow = startRow; dRow <= endRow; dRow++) {
+        for (var dCol = startCol; dCol <= endCol; dCol++) {
+            if (map[dRow][dCol] !== doorId) continue;
+            var dKey = dCol + ',' + dRow;
+            if (doorDrawn[dKey]) continue;
+
+            var dsx = dCol * ts - camX;
+            var dsy = dRow * ts - camY;
+
+            // Check horizontal pair (right neighbor)
+            if (dCol + 1 <= endCol && map[dRow][dCol + 1] === doorId && !doorDrawn[(dCol + 1) + ',' + dRow]) {
+                if (SPRITES.objects.large_door_h) {
+                    ctx.drawImage(SPRITES.objects.large_door_h, dsx, dsy, ts * 2, ts);
+                }
+                doorDrawn[dKey] = true;
+                doorDrawn[(dCol + 1) + ',' + dRow] = true;
+            }
+            // Check vertical pair (below neighbor) — only if not already part of horizontal pair
+            else if (dRow + 1 <= endRow && map[dRow + 1][dCol] === doorId && !doorDrawn[dCol + ',' + (dRow + 1)]) {
+                if (SPRITES.objects.large_door_v) {
+                    ctx.drawImage(SPRITES.objects.large_door_v, dsx, dsy, ts, ts * 2);
+                }
+                doorDrawn[dKey] = true;
+                doorDrawn[dCol + ',' + (dRow + 1)] = true;
             }
         }
     }

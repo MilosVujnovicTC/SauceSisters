@@ -20,7 +20,7 @@ const SpriteLoader = {
     load: function(onComplete) {
         var self = this;
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'assets/sprites/manifest.json?v=35', true);
+        xhr.open('GET', 'assets/sprites/manifest.json?v=61', true);
         xhr.onload = function() {
             if (xhr.status === 200) {
                 try {
@@ -95,7 +95,7 @@ const SpriteLoader = {
                         if (onComplete) onComplete();
                     }
                 };
-                img.src = basePath + path;
+                img.src = basePath + path + '?v=61&t=' + Date.now();
             })(sheetPaths[i]);
         }
     },
@@ -195,20 +195,36 @@ const SpriteLoader = {
         return true;
     },
 
-    /** Draws a boss sprite. Returns true if drawn. */
-    drawBoss: function(ctx, bossId, destX, destY) {
+    /** Draws a boss sprite with optional display scaling. Returns true if drawn. */
+    drawBoss: function(ctx, bossId, destX, destY, displaySize) {
         if (!this.manifest || !this.manifest.bosses) return false;
         var def = this.manifest.bosses[bossId];
         if (!def) return false;
-        return this.draw(ctx, def.sheet, 0, 0, destX, destY, def.frameW, def.frameH);
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        var fw = def.frameW, fh = def.frameH;
+        var dw = displaySize || fw;
+        var dh = displaySize || fh;
+        var ox = -(dw - fw) / 2;
+        var oy = -(dh - fh) / 2;
+        ctx.drawImage(img, 0, 0, fw, fh, destX + ox, destY + oy, dw, dh);
+        return true;
     },
 
-    /** Draws an enemy sprite. Returns true if drawn. */
-    drawEnemy: function(ctx, enemyId, destX, destY) {
+    /** Draws an enemy sprite with optional display scaling. Returns true if drawn. */
+    drawEnemy: function(ctx, enemyId, destX, destY, displaySize) {
         if (!this.manifest || !this.manifest.enemies) return false;
         var def = this.manifest.enemies[enemyId];
         if (!def) return false;
-        return this.draw(ctx, def.sheet, 0, 0, destX, destY, def.frameW, def.frameH);
+        var img = this.images[def.sheet];
+        if (!img) return false;
+        var fw = def.frameW, fh = def.frameH;
+        var dw = displaySize || fw;
+        var dh = displaySize || fh;
+        var ox = -(dw - fw) / 2;
+        var oy = -(dh - fh) / 2;
+        ctx.drawImage(img, 0, 0, fw, fh, destX + ox, destY + oy, dw, dh);
+        return true;
     },
 
     /** Draws an item from a category sheet. Returns true if drawn. */
@@ -323,121 +339,165 @@ function tileRand(col, row, seed) {
 function generateTileSprites() {
     var T = CONFIG.TILE_SIZE; // 32
 
-    // --- GRASS (4 variants) ---
+    // --- GRASS (8 variants — varied base colors, grass strokes, occasional flower pixel) ---
     SPRITES.tiles.grass = [];
-    for (var v = 0; v < 4; v++) {
-        SPRITES.tiles.grass.push(createSprite(T, T, function(cx) {
-            // Base green
-            cx.fillStyle = '#4a8c3f';
-            cx.fillRect(0, 0, T, T);
-            // Slightly lighter patches
-            cx.fillStyle = '#52944a';
-            var seed = v * 31;
-            for (var i = 0; i < 3; i++) {
-                var gx = ((seed + i * 11) % 24) + 2;
-                var gy = ((seed + i * 17) % 24) + 2;
-                cx.fillRect(gx, gy, 4 + (i % 2) * 2, 3);
-            }
-            // Grass tufts (darker blades)
-            cx.fillStyle = '#3e7a35';
-            for (var j = 0; j < 4; j++) {
-                var tx = ((seed + j * 7) % 28) + 2;
-                var ty = ((seed + j * 13) % 26) + 2;
-                cx.fillRect(tx, ty, 1, 3);
-                cx.fillRect(tx + 1, ty + 1, 1, 2);
-            }
-            // Lighter highlights
-            cx.fillStyle = '#5a9e4f';
-            for (var k = 0; k < 2; k++) {
-                var hx = ((seed + k * 19) % 26) + 2;
-                var hy = ((seed + k * 23) % 26) + 2;
+    var grassBases = ['#4a7a30', '#527834', '#486e2c', '#4e7632', '#4a8030', '#507636', '#487028', '#4c7a34'];
+    for (var gv = 0; gv < 8; gv++) {
+        (function(variant) {
+            var seed = variant * 31 + 7;
+            SPRITES.tiles.grass.push(createSprite(T, T, function(cx) {
+                // Base color (varies per variant)
+                cx.fillStyle = grassBases[variant];
+                cx.fillRect(0, 0, T, T);
+                // Subtle brightness patches (±5%)
+                cx.fillStyle = 'rgba(80,120,50,0.15)';
+                for (var i = 0; i < 3; i++) {
+                    var px = ((seed + i * 11) % 24) + 2;
+                    var py = ((seed + i * 17) % 24) + 2;
+                    cx.fillRect(px, py, 5 + (i % 3), 4);
+                }
+                // Grass blade strokes (2-3px diagonal lines)
+                cx.strokeStyle = 'rgba(60,100,30,0.5)';
+                cx.lineWidth = 1;
+                for (var j = 0; j < 5; j++) {
+                    var bx = ((seed * (j + 1) * 13) % (T - 4)) + 2;
+                    var by = ((seed * (j + 1) * 7) % (T - 6)) + 3;
+                    cx.beginPath();
+                    cx.moveTo(bx, by);
+                    cx.lineTo(bx + 1 + (j % 2), by - 3);
+                    cx.stroke();
+                }
+                // Darker tuft accents
+                cx.fillStyle = '#3a6828';
+                for (var k = 0; k < 3; k++) {
+                    var tx = ((seed + k * 19) % (T - 4)) + 2;
+                    var ty = ((seed + k * 23) % (T - 6)) + 2;
+                    cx.fillRect(tx, ty, 1, 2);
+                }
+                // Lighter highlight specks
+                cx.fillStyle = '#5a9e4a';
+                var hx = ((seed * 3) % (T - 4)) + 2;
+                var hy = ((seed * 5) % (T - 4)) + 2;
                 cx.fillRect(hx, hy, 2, 1);
-            }
-        }));
+                // Occasional tiny flower pixel (1 in 4 variants)
+                if (variant % 4 === 0) {
+                    var flColors = ['#f8f040', '#f080a0'];
+                    cx.fillStyle = flColors[variant % 2];
+                    var fx = ((seed * 7) % (T - 6)) + 3;
+                    var fy = ((seed * 11) % (T - 8)) + 4;
+                    cx.fillRect(fx, fy, 2, 2);
+                }
+            }));
+        })(gv);
     }
 
-    // --- FLOOR (2 variants — kitchen/indoor tile) ---
+    // --- FLOOR (4 variants — warm wood plank with grain, brightness variation) ---
     SPRITES.tiles.floor = [];
-    for (var fv = 0; fv < 2; fv++) {
-        SPRITES.tiles.floor.push(createSprite(T, T, function(cx) {
-            cx.fillStyle = '#c8a96e';
-            cx.fillRect(0, 0, T, T);
-            // Tile grid lines
-            cx.strokeStyle = '#b89860';
-            cx.lineWidth = 1;
-            cx.strokeRect(0.5, 0.5, T - 1, T - 1);
-            // Cross pattern (floor tiles)
-            cx.beginPath();
-            cx.moveTo(T / 2, 0); cx.lineTo(T / 2, T);
-            cx.moveTo(0, T / 2); cx.lineTo(T, T / 2);
-            cx.stroke();
-            // Subtle wear spots
-            if (fv === 1) {
-                cx.fillStyle = '#c0a060';
-                cx.fillRect(8, 12, 6, 4);
-            }
-        }));
+    var floorBases = ['#b89058', '#c09860', '#b48850', '#bc9462'];
+    for (var fv = 0; fv < 4; fv++) {
+        (function(variant) {
+            SPRITES.tiles.floor.push(createSprite(T, T, function(cx) {
+                // Warm wood base
+                cx.fillStyle = floorBases[variant];
+                cx.fillRect(0, 0, T, T);
+                // Horizontal plank lines (wood direction)
+                cx.strokeStyle = 'rgba(140,100,50,0.3)';
+                cx.lineWidth = 1;
+                cx.beginPath();
+                cx.moveTo(0, T / 2 + 0.5); cx.lineTo(T, T / 2 + 0.5);
+                cx.stroke();
+                // Subtle wood grain lines
+                cx.strokeStyle = 'rgba(120,80,40,0.15)';
+                var gseed = variant * 17;
+                for (var g = 0; g < 3; g++) {
+                    var gy = ((gseed + g * 11) % (T - 4)) + 2;
+                    cx.beginPath();
+                    cx.moveTo(0, gy + 0.5);
+                    cx.lineTo(T, gy + 0.5);
+                    cx.stroke();
+                }
+                // Knot/wear spot on some variants
+                if (variant % 3 === 1) {
+                    cx.fillStyle = 'rgba(100,70,30,0.12)';
+                    cx.beginPath();
+                    cx.arc(10 + variant * 5, 12, 3, 0, Math.PI * 2);
+                    cx.fill();
+                }
+            }));
+        })(fv);
     }
 
-    // --- WALL (brick pattern with depth) ---
+    // --- WALL (darker brick, subtle mortar, recedes visually) ---
     SPRITES.tiles.wall = createSprite(T, T, function(cx) {
-        cx.fillStyle = '#5a4a3a';
+        // Darkened base (~20% darker than before)
+        cx.fillStyle = '#483a2e';
         cx.fillRect(0, 0, T, T);
-        // Brick rows
-        cx.strokeStyle = '#4a3a2a';
+        // Brick rows with subtle mortar (low contrast)
+        cx.strokeStyle = 'rgba(60,48,35,0.6)';
         cx.lineWidth = 1;
         for (var row = 0; row < 4; row++) {
             var by = row * 8;
-            cx.strokeRect(0, by, T, 8);
+            cx.strokeRect(0.5, by + 0.5, T - 1, 7);
             var offset = (row % 2) * 16;
             cx.beginPath();
-            cx.moveTo(offset, by);
-            cx.lineTo(offset, by + 8);
+            cx.moveTo(offset + 0.5, by);
+            cx.lineTo(offset + 0.5, by + 8);
             if (offset + 16 < T) {
-                cx.moveTo(offset + 16, by);
-                cx.lineTo(offset + 16, by + 8);
+                cx.moveTo(offset + 16 + 0.5, by);
+                cx.lineTo(offset + 16 + 0.5, by + 8);
             }
             cx.stroke();
         }
-        // Top highlight
-        cx.fillStyle = '#6a5a4a';
+        // Subtle brick face color variation (very low contrast)
+        cx.fillStyle = '#4e3e32';
+        cx.fillRect(2, 2, 14, 5);
+        cx.fillStyle = '#443628';
+        cx.fillRect(18, 10, 12, 5);
+        cx.fillStyle = '#4a3c30';
+        cx.fillRect(2, 18, 12, 5);
+        // Top highlight (slight)
+        cx.fillStyle = '#524234';
         cx.fillRect(0, 0, T, 2);
         // Bottom shadow
-        cx.fillStyle = '#3a2a1a';
+        cx.fillStyle = '#2e2218';
         cx.fillRect(0, T - 2, T, 2);
-        // Random brick color variation
-        cx.fillStyle = '#5e4e3e';
-        cx.fillRect(2, 2, 14, 5);
-        cx.fillStyle = '#564a38';
-        cx.fillRect(18, 10, 12, 5);
     });
 
-    // --- WATER (4 animation frames) ---
+    // --- WATER (4 animation frames — deep base, shimmer streaks, south depth edge) ---
     SPRITES.tiles.water = [];
     for (var wf = 0; wf < 4; wf++) {
         (function(frame) {
             SPRITES.tiles.water.push(createSprite(T, T, function(cx) {
-                // Base water
                 var phase = frame * Math.PI / 2;
-                var baseB = 207 + Math.sin(phase) * 15;
-                var baseG = 126 + Math.sin(phase) * 8;
-                cx.fillStyle = 'rgb(58,' + Math.round(baseG) + ',' + Math.round(baseB) + ')';
+                // Darker deep water base
+                var baseB = 140 + Math.sin(phase) * 12;
+                var baseG = 100 + Math.sin(phase) * 6;
+                cx.fillStyle = 'rgb(42,' + Math.round(baseG) + ',' + Math.round(baseB) + ')';
                 cx.fillRect(0, 0, T, T);
-                // Ripple lines
-                cx.strokeStyle = 'rgba(100,180,255,0.35)';
+                // Lighter shimmer streaks (3 per tile)
+                var shimmerOffsets = [0.25, 0.5, 0.75];
+                for (var si = 0; si < 3; si++) {
+                    var wave = Math.sin(phase + si * 1.2) * 2;
+                    cx.fillStyle = 'rgba(100,200,220,0.3)';
+                    cx.fillRect(3, T * shimmerOffsets[si] + wave, T - 6, 2);
+                }
+                // Ripple quad curves (organic flow)
+                cx.strokeStyle = 'rgba(80,160,200,0.3)';
                 cx.lineWidth = 1;
-                for (var r = 0; r < 3; r++) {
-                    var ry = 5 + r * 10 + Math.sin(phase + r * 1.2) * 2;
+                for (var r = 0; r < 2; r++) {
+                    var ry = 8 + r * 14 + Math.sin(phase + r * 1.5) * 2;
                     cx.beginPath();
                     cx.moveTo(2, ry);
                     cx.quadraticCurveTo(T / 2, ry + 3 * Math.sin(phase + r), T - 2, ry);
                     cx.stroke();
                 }
-                // Highlight specks
-                cx.fillStyle = 'rgba(200,230,255,0.45)';
-                cx.fillRect(8 + Math.sin(phase) * 3, 4, 3, 2);
-                cx.fillRect(20 - Math.sin(phase) * 2, 18, 2, 2);
-                cx.fillRect(14, 26 + Math.cos(phase) * 2, 2, 1);
+                // Bright sparkle specks
+                cx.fillStyle = 'rgba(200,240,255,0.5)';
+                cx.fillRect(8 + Math.sin(phase) * 3, 4, 2, 2);
+                cx.fillRect(22 - Math.cos(phase) * 2, 20, 2, 1);
+                // Dark south edge (depth illusion)
+                cx.fillStyle = 'rgba(0,0,0,0.2)';
+                cx.fillRect(0, T - 2, T, 2);
             }));
         })(wf);
     }
@@ -575,32 +635,54 @@ function generateTileSprites() {
         }
     });
 
-    // --- STALL (market stall with awning) ---
-    SPRITES.tiles.stall = createSprite(T, T, function(cx) {
-        cx.fillStyle = '#c4782e';
-        cx.fillRect(0, 0, T, T);
-        // Awning stripes (alternating)
-        cx.fillStyle = '#d48a3e';
-        for (var s = 0; s < 4; s++) {
-            cx.fillRect(0, s * 8, T, 4);
-        }
-        // Posts
-        cx.fillStyle = '#8b5e2e';
-        cx.fillRect(0, 0, 3, T);
-        cx.fillRect(T - 3, 0, 3, T);
-        // Counter surface
-        cx.fillStyle = '#9b6828';
-        cx.fillRect(3, T - 6, T - 6, 6);
-    });
+    // --- STALL (market stall — 3 color variants with awnings + produce) ---
+    SPRITES.tiles.stall = [];
+    var awningPalettes = [
+        { c1: '#e83030', c2: '#f8f0e0' }, // red/white
+        { c1: '#2060c0', c2: '#f8f0e0' }, // blue/white
+        { c1: '#20a040', c2: '#f8f0e0' }, // green/white
+    ];
+    for (var sv = 0; sv < 3; sv++) {
+        (function(variant) {
+            var pal = awningPalettes[variant];
+            SPRITES.tiles.stall.push(createSprite(T, T, function(cx) {
+                // Wood counter base (bottom half)
+                cx.fillStyle = '#8a6040';
+                cx.fillRect(0, T * 0.5, T, T * 0.5);
+                // Counter top edge
+                cx.fillStyle = '#a07848';
+                cx.fillRect(0, T * 0.5, T, 2);
+                // Counter shadow
+                cx.fillStyle = '#6a4828';
+                cx.fillRect(0, T - 2, T, 2);
+                // Colored awning stripes (top half)
+                for (var s = 0; s < T; s += 4) {
+                    cx.fillStyle = (s % 8 < 4) ? pal.c1 : pal.c2;
+                    cx.fillRect(s, 0, 4, T * 0.48);
+                }
+                // Posts
+                cx.fillStyle = '#6a4020';
+                cx.fillRect(0, 0, 3, T);
+                cx.fillRect(T - 3, 0, 3, T);
+                // Produce dots on counter
+                var produce = ['#e83020', '#f8c820', '#40b840'];
+                for (var p = 0; p < 3; p++) {
+                    cx.fillStyle = produce[(p + variant) % 3];
+                    cx.beginPath();
+                    cx.arc(7 + p * 8, T * 0.68, 3, 0, Math.PI * 2);
+                    cx.fill();
+                }
+            }));
+        })(sv);
+    }
 
-    // --- BARREL (on grass background) ---
+    // --- BARREL (transparent background — renders on top of underlying tile) ---
     SPRITES.tiles.barrel = createSprite(T, T, function(cx) {
-        // Grass under
-        cx.fillStyle = '#4a8c3f';
-        cx.fillRect(0, 0, T, T);
-        cx.fillStyle = '#3e7a35';
-        cx.fillRect(4, 24, 3, 2);
-        cx.fillRect(22, 20, 2, 3);
+        // Soft elliptical ground shadow
+        cx.fillStyle = 'rgba(0,0,0,0.18)';
+        cx.beginPath();
+        cx.ellipse(T / 2, T / 2 + 8, 13, 6, 0, 0, Math.PI * 2);
+        cx.fill();
         // Barrel body (oval)
         cx.fillStyle = '#7a5c3a';
         cx.beginPath();
@@ -616,78 +698,102 @@ function generateTileSprites() {
         cx.fillRect(8, 6, 4, 16);
     });
 
-    // --- FLOWER (on grass background) ---
-    SPRITES.tiles.flower = createSprite(T, T, function(cx) {
-        // Grass under
-        cx.fillStyle = '#4a8c3f';
-        cx.fillRect(0, 0, T, T);
-        cx.fillStyle = '#3e7a35';
-        cx.fillRect(6, 26, 2, 3); cx.fillRect(22, 22, 1, 3);
-        // Stem
-        cx.strokeStyle = '#2d6a2d';
-        cx.lineWidth = 2;
-        cx.beginPath(); cx.moveTo(T / 2, T - 4); cx.lineTo(T / 2, 12); cx.stroke();
-        // Leaf
-        cx.fillStyle = '#3e8a35';
-        cx.beginPath();
-        cx.ellipse(T / 2 + 5, 20, 4, 2, 0.3, 0, Math.PI * 2);
-        cx.fill();
-        // Petals
-        var petalColors = ['#d65d8c', '#e87da0', '#ff9dba', '#d65d8c', '#c84d7c'];
-        for (var p = 0; p < 5; p++) {
-            var a = (p / 5) * Math.PI * 2 - Math.PI / 2;
-            cx.fillStyle = petalColors[p];
-            cx.beginPath();
-            cx.arc(T / 2 + Math.cos(a) * 5, 10 + Math.sin(a) * 5, 4, 0, Math.PI * 2);
-            cx.fill();
-        }
-        // Center
-        cx.fillStyle = '#ffeb3b';
-        cx.beginPath(); cx.arc(T / 2, 10, 3, 0, Math.PI * 2); cx.fill();
-    });
+    // --- FLOWER (transparent background — renders on top of underlying tile) ---
+    // 5 flower color variants — small delicate wildflowers
+    SPRITES.tiles.flower = [];
+    var flowerPalettes = [
+        { petals: '#f080a0', center: '#f8f040' }, // pink
+        { petals: '#f8f0d0', center: '#f8d830' }, // white/cream
+        { petals: '#f8d030', center: '#d08020' }, // yellow
+        { petals: '#c878e8', center: '#f8f040' }, // purple
+        { petals: '#f8a0c0', center: '#f8e060' }, // salmon
+    ];
+    for (var fv = 0; fv < flowerPalettes.length; fv++) {
+        (function(pal) {
+            SPRITES.tiles.flower.push(createSprite(T, T, function(cx) {
+                var stemX = T / 2;
+                var bloomY = 14;
+                // Thin stem (1px)
+                cx.strokeStyle = '#2a5018';
+                cx.lineWidth = 1;
+                cx.beginPath(); cx.moveTo(stemX, T - 6); cx.lineTo(stemX, bloomY + 4); cx.stroke();
+                // Small side leaf
+                cx.fillStyle = '#3a7828';
+                cx.save();
+                cx.translate(stemX + 1, 22);
+                cx.rotate(0.6);
+                cx.beginPath(); cx.ellipse(0, 0, 3, 1.5, 0, 0, Math.PI * 2); cx.fill();
+                cx.restore();
+                // Small petals (4px radius bloom = ~8px diameter)
+                for (var p = 0; p < 5; p++) {
+                    var a = (p / 5) * Math.PI * 2 - Math.PI / 2;
+                    cx.fillStyle = pal.petals;
+                    cx.beginPath();
+                    cx.arc(stemX + Math.cos(a) * 3, bloomY + Math.sin(a) * 3, 2.5, 0, Math.PI * 2);
+                    cx.fill();
+                }
+                // Center dot
+                cx.fillStyle = pal.center;
+                cx.beginPath(); cx.arc(stemX, bloomY, 1.5, 0, Math.PI * 2); cx.fill();
+            }));
+        })(flowerPalettes[fv]);
+    }
 
-    // --- DOCK (wooden planks) ---
+    // --- DOCK (grey cobblestone dock with mortar, mossy patches) ---
     SPRITES.tiles.dock = createSprite(T, T, function(cx) {
-        cx.fillStyle = '#9e7c4e';
+        // Stone base
+        cx.fillStyle = '#8a8070';
         cx.fillRect(0, 0, T, T);
-        // Plank lines
-        cx.strokeStyle = '#8a6a3e';
+        // Cobblestone mortar grid
+        cx.strokeStyle = '#6a6050';
         cx.lineWidth = 1;
-        for (var i = 0; i < 4; i++) {
-            var py = i * 8 + 0.5;
-            cx.beginPath(); cx.moveTo(0, py); cx.lineTo(T, py); cx.stroke();
-        }
-        // Nail heads
-        cx.fillStyle = '#6a5030';
-        cx.fillRect(4, 2, 2, 2);
-        cx.fillRect(T - 6, 2, 2, 2);
-        cx.fillRect(4, 18, 2, 2);
-        cx.fillRect(T - 6, 18, 2, 2);
-        // Wood grain
-        cx.fillStyle = '#8e6c3e';
-        cx.fillRect(10, 5, 8, 1);
-        cx.fillRect(6, 13, 12, 1);
-        cx.fillRect(14, 22, 6, 1);
+        cx.strokeRect(1, 1, 14, 14);
+        cx.strokeRect(17, 1, 14, 14);
+        cx.strokeRect(8, 17, 14, 14);
+        cx.strokeRect(24, 17, 7, 14);
+        cx.strokeRect(0, 17, 6, 14);
+        // Stone face variation
+        cx.fillStyle = '#928474';
+        cx.fillRect(2, 2, 12, 12);
+        cx.fillStyle = '#7e7466';
+        cx.fillRect(18, 2, 12, 12);
+        cx.fillStyle = '#8a7c6e';
+        cx.fillRect(9, 18, 12, 12);
+        // Mossy/damp patches
+        cx.fillStyle = 'rgba(60,90,50,0.15)';
+        cx.fillRect(3, 20, 4, 3);
+        cx.fillRect(22, 4, 3, 4);
+        // Wet edge indicator (darker bottom)
+        cx.fillStyle = 'rgba(40,60,80,0.2)';
+        cx.fillRect(0, T - 3, T, 3);
     });
 
     // --- PLANK (bridge plank — lighter wood) ---
+    // --- PLANK (bridge plank — horizontal stripes with grain, nail dots) ---
     SPRITES.tiles.plank = createSprite(T, T, function(cx) {
-        cx.fillStyle = '#c4a46c';
-        cx.fillRect(0, 0, T, T);
-        // Wood grain
-        cx.strokeStyle = '#a08050';
-        cx.lineWidth = 1;
-        cx.beginPath();
-        cx.moveTo(3, T * 0.3); cx.lineTo(T - 3, T * 0.3);
-        cx.moveTo(5, T * 0.65); cx.lineTo(T - 5, T * 0.65);
-        cx.stroke();
-        // Highlight top
-        cx.fillStyle = '#d4b47c';
-        cx.fillRect(0, 0, T, 2);
-        // Border
-        cx.strokeStyle = '#8b6914';
-        cx.lineWidth = 1;
-        cx.strokeRect(0.5, 0.5, T - 1, T - 1);
+        // Individual planks (horizontal, perpendicular to bridge direction)
+        var plankColors = ['#8a5c2a', '#9a6830', '#886028'];
+        for (var pl = 0; pl < 4; pl++) {
+            var py = pl * 8;
+            cx.fillStyle = plankColors[pl % 3];
+            cx.fillRect(0, py, T, 8);
+            // Plank top edge (lighter)
+            cx.fillStyle = '#a87840';
+            cx.fillRect(0, py, T, 1);
+            // Plank bottom edge (darker)
+            cx.fillStyle = '#6a4018';
+            cx.fillRect(0, py + 7, T, 1);
+            // Grain lines
+            cx.strokeStyle = 'rgba(90,55,20,0.3)';
+            cx.lineWidth = 1;
+            cx.beginPath();
+            cx.moveTo(2, py + 3 + 0.5); cx.lineTo(T - 2, py + 3 + 0.5);
+            cx.stroke();
+        }
+        // Nail dots at plank ends
+        cx.fillStyle = '#4a2808';
+        cx.fillRect(3, 3, 2, 2); cx.fillRect(T - 5, 3, 2, 2);
+        cx.fillRect(3, 19, 2, 2); cx.fillRect(T - 5, 19, 2, 2);
     });
 
     // --- BRIDGEGAP (uses water frames) ---
@@ -714,106 +820,131 @@ function generateTileSprites() {
         })(bf);
     }
 
-    // --- MAT (gym exercise mat — blue with grip texture) ---
+    // --- MAT (gym exercise mat — warm beige with seam lines, faded red center cross) ---
     SPRITES.tiles.mat = [];
     for (var mv = 0; mv < 2; mv++) {
-        SPRITES.tiles.mat.push(createSprite(T, T, function(cx) {
-            // Base blue mat
-            cx.fillStyle = '#4a90d9';
-            cx.fillRect(0, 0, T, T);
-            // Subtle grip lines
-            cx.strokeStyle = '#3a7ec0';
-            cx.lineWidth = 1;
-            for (var ml = 0; ml < 4; ml++) {
-                var my = 4 + ml * 8;
+        (function(variant) {
+            SPRITES.tiles.mat.push(createSprite(T, T, function(cx) {
+                // Warm beige/cream base
+                cx.fillStyle = variant === 0 ? '#e8d8b0' : '#e0d0a8';
+                cx.fillRect(0, 0, T, T);
+                // Parallel seam lines (wrestling mat sections)
+                cx.strokeStyle = 'rgba(180,150,100,0.4)';
+                cx.lineWidth = 1;
+                for (var ml = 1; ml < 8; ml++) {
+                    cx.beginPath();
+                    cx.moveTo(0, ml * 4 + 0.5); cx.lineTo(T, ml * 4 + 0.5);
+                    cx.stroke();
+                }
+                // Faded red center cross mark
+                cx.strokeStyle = 'rgba(180,60,40,0.18)';
+                cx.lineWidth = 2;
                 cx.beginPath();
-                cx.moveTo(2, my); cx.lineTo(T - 2, my);
+                cx.moveTo(T / 2, 6); cx.lineTo(T / 2, T - 6);
+                cx.moveTo(6, T / 2); cx.lineTo(T - 6, T / 2);
                 cx.stroke();
-            }
-            // Edge highlight
-            cx.fillStyle = '#5aa0e8';
-            cx.fillRect(0, 0, T, 1);
-            cx.fillRect(0, 0, 1, T);
-            // Edge shadow
-            cx.fillStyle = '#3a78b8';
-            cx.fillRect(0, T - 1, T, 1);
-            cx.fillRect(T - 1, 0, 1, T);
-            // Wear mark variation
-            if (mv === 1) {
-                cx.fillStyle = '#4888c8';
-                cx.fillRect(10, 14, 8, 6);
-            }
-        }));
+                // Edge border
+                cx.strokeStyle = 'rgba(160,130,80,0.3)';
+                cx.lineWidth = 1;
+                cx.strokeRect(0.5, 0.5, T - 1, T - 1);
+            }));
+        })(mv);
     }
 
-    // --- EQUIPMENT (gym weight rack — metallic gray with details) ---
+    // --- EQUIPMENT (gym — dark rubberized floor with barbell silhouette) ---
     SPRITES.tiles.equipment = createSprite(T, T, function(cx) {
-        // Base dark gray
+        // Dark rubberized floor
+        cx.fillStyle = '#3a3028';
+        cx.fillRect(0, 0, T, T);
+        // Rubber texture dots
+        cx.fillStyle = 'rgba(60,50,40,0.5)';
+        for (var ei = 0; ei < 6; ei++) {
+            cx.fillRect(4 + ei * 5, 3 + (ei % 3) * 10, 2, 2);
+        }
+        // Barbell silhouette — bar
         cx.fillStyle = '#888888';
-        cx.fillRect(0, 0, T, T);
-        // Metal frame bars
+        cx.fillRect(4, T / 2 - 1, T - 8, 3);
+        // Weight plates (circles at each end)
         cx.fillStyle = '#666666';
-        cx.fillRect(2, 0, 4, T);
-        cx.fillRect(T - 6, 0, 4, T);
-        // Weight plates (circles)
-        cx.fillStyle = '#555555';
-        cx.fillRect(8, 4, 16, 6);
-        cx.fillRect(8, 14, 16, 6);
-        cx.fillRect(8, 24, 16, 6);
-        // Plate highlights
+        cx.beginPath(); cx.arc(7, T / 2, 5, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(T - 7, T / 2, 5, 0, Math.PI * 2); cx.fill();
+        // Metallic highlight on plates
         cx.fillStyle = '#999999';
-        cx.fillRect(9, 5, 14, 1);
-        cx.fillRect(9, 15, 14, 1);
-        cx.fillRect(9, 25, 14, 1);
-        // Top and bottom frame
-        cx.fillStyle = '#777777';
-        cx.fillRect(0, 0, T, 2);
-        cx.fillStyle = '#555555';
-        cx.fillRect(0, T - 2, T, 2);
+        cx.beginPath(); cx.arc(6, T / 2 - 2, 2, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(T - 8, T / 2 - 2, 2, 0, Math.PI * 2); cx.fill();
+        // Bar grip texture
+        cx.fillStyle = '#7a7a7a';
+        for (var g = 0; g < 3; g++) {
+            cx.fillRect(12 + g * 4, T / 2 - 1, 1, 3);
+        }
     });
 
-    // --- JUICEBAR (warm orange counter with bottles) ---
+    // --- JUICEBAR (warm wood counter with cups + menu board hint) ---
     SPRITES.tiles.juicebar = createSprite(T, T, function(cx) {
-        // Base warm orange counter
-        cx.fillStyle = '#e8a030';
+        // Warm wood counter
+        cx.fillStyle = '#8a5c2a';
         cx.fillRect(0, 0, T, T);
-        // Wood grain
-        cx.strokeStyle = '#c88820';
+        // Horizontal wood grain
+        cx.strokeStyle = 'rgba(100,60,20,0.25)';
         cx.lineWidth = 1;
-        cx.beginPath();
-        cx.moveTo(4, T * 0.3); cx.lineTo(T - 4, T * 0.35);
-        cx.moveTo(3, T * 0.7); cx.lineTo(T - 3, T * 0.65);
-        cx.stroke();
-        // Counter edge highlight
-        cx.fillStyle = '#f0b848';
+        for (var jg = 0; jg < 5; jg++) {
+            cx.beginPath();
+            cx.moveTo(0, 3 + jg * 6 + 0.5); cx.lineTo(T, 3 + jg * 6 + 0.5);
+            cx.stroke();
+        }
+        // Counter edge highlight (top)
+        cx.fillStyle = '#a07040';
         cx.fillRect(0, 0, T, 2);
-        // Counter edge shadow
-        cx.fillStyle = '#b07818';
+        // Counter edge shadow (bottom)
+        cx.fillStyle = '#6a4018';
         cx.fillRect(0, T - 3, T, 3);
-        // Small bottles/cups
-        cx.fillStyle = '#4CAF50';
-        cx.fillRect(6, 8, 4, 8);
-        cx.fillStyle = '#FF9800';
-        cx.fillRect(14, 10, 4, 6);
-        cx.fillStyle = '#E91E63';
-        cx.fillRect(22, 8, 4, 8);
+        // Small cups/bottles
+        cx.fillStyle = '#e8e0d0'; // cream cup
+        cx.fillRect(6, 8, 4, 6);
+        cx.fillStyle = '#f08030'; // orange juice
+        cx.fillRect(6, 8, 4, 3);
+        cx.fillStyle = '#4caf50'; // green smoothie
+        cx.fillRect(14, 10, 4, 5);
+        cx.fillStyle = '#68a840';
+        cx.fillRect(14, 10, 4, 2);
+        cx.fillStyle = '#e8e0d0';
+        cx.fillRect(22, 9, 4, 6);
+        cx.fillStyle = '#e84060'; // berry drink
+        cx.fillRect(22, 9, 4, 3);
+        // Menu board hint (dark rect at top-back)
+        cx.fillStyle = '#2a2018';
+        cx.fillRect(4, 2, T - 8, 5);
+        cx.fillStyle = '#f8f0d0';
+        cx.fillRect(6, 3, 3, 1); cx.fillRect(11, 3, 5, 1); cx.fillRect(18, 3, 4, 1);
     });
 
-    // --- MIRROR (reflective light blue wall panel) ---
+    // --- MIRROR (silver chrome frame, reflective gradient interior) ---
     SPRITES.tiles.mirror = createSprite(T, T, function(cx) {
-        // Frame
-        cx.fillStyle = '#5a4a3a';
+        // Silver/chrome frame (2px)
+        cx.fillStyle = '#c0c0c0';
         cx.fillRect(0, 0, T, T);
-        // Mirror surface
-        cx.fillStyle = '#a8d8ea';
+        // Corner details (darker)
+        cx.fillStyle = '#a0a0a0';
+        cx.fillRect(0, 0, 3, 3); cx.fillRect(T - 3, 0, 3, 3);
+        cx.fillRect(0, T - 3, 3, 3); cx.fillRect(T - 3, T - 3, 3, 3);
+        // Reflective interior gradient (light top to slightly blue bottom)
+        var mirrorGrad = cx.createLinearGradient(0, 2, 0, T - 2);
+        mirrorGrad.addColorStop(0, '#d8eef8');
+        mirrorGrad.addColorStop(0.5, '#c0dae8');
+        mirrorGrad.addColorStop(1, '#a8c8e0');
+        cx.fillStyle = mirrorGrad;
         cx.fillRect(2, 2, T - 4, T - 4);
-        // Reflection shine
-        cx.fillStyle = 'rgba(255,255,255,0.3)';
-        cx.fillRect(4, 4, 8, 2);
-        cx.fillRect(6, 6, 4, 4);
-        // Subtle gradient effect
-        cx.fillStyle = 'rgba(150,210,240,0.4)';
-        cx.fillRect(2, T / 2, T - 4, T / 2 - 2);
+        // Horizontal reflection line (bright stripe through middle)
+        cx.fillStyle = 'rgba(255,255,255,0.35)';
+        cx.fillRect(3, T / 2 - 1, T - 6, 2);
+        // Highlight glint (top-left)
+        cx.fillStyle = 'rgba(255,255,255,0.4)';
+        cx.fillRect(4, 4, 6, 2);
+        cx.fillRect(5, 6, 3, 3);
+        // Frame inner bevel
+        cx.strokeStyle = '#d0d0d0';
+        cx.lineWidth = 1;
+        cx.strokeRect(1.5, 1.5, T - 3, T - 3);
     });
 
     // --- FOUNTAIN (4 animation frames — water basin with spray) ---
@@ -822,9 +953,11 @@ function generateTileSprites() {
         (function(frame) {
             SPRITES.tiles.fountain.push(createSprite(T, T, function(cx) {
                 var phase = frame * Math.PI / 2;
-                // Stone base
-                cx.fillStyle = '#8a8070';
-                cx.fillRect(0, 0, T, T);
+                // Soft elliptical ground shadow
+                cx.fillStyle = 'rgba(0,0,0,0.15)';
+                cx.beginPath();
+                cx.ellipse(T / 2, T / 2 + 2, 15, 8, 0, 0, Math.PI * 2);
+                cx.fill();
                 // Circular basin border
                 cx.fillStyle = '#706658';
                 cx.beginPath();
@@ -1846,30 +1979,40 @@ function generateObjectSprites() {
 
     // Crate
     SPRITES.objects.crate = createSprite(T, T, function(cx) {
-        // Shadow
-        cx.fillStyle = 'rgba(0,0,0,0.18)';
-        cx.fillRect(3, 3, T - 2, T - 2);
-        // Body
-        cx.fillStyle = '#b5651d';
-        cx.fillRect(1, 1, T - 3, T - 3);
-        // Planks
-        cx.strokeStyle = '#8b4513';
+        var x = 1, y = 1, s = T - 3;
+        // Top face (lighter — 3D surface)
+        cx.fillStyle = '#c8a060';
+        cx.fillRect(x, y, s, 6);
+        // Front face (main body)
+        cx.fillStyle = '#a07840';
+        cx.fillRect(x, y + 6, s, s - 8);
+        // Bottom shadow edge
+        cx.fillStyle = '#604820';
+        cx.fillRect(x, y + s - 2, s, 2);
+        // Outline
+        cx.strokeStyle = '#5a3818';
         cx.lineWidth = 1;
-        cx.strokeRect(1, 1, T - 3, T - 3);
+        cx.strokeRect(x + 0.5, y + 0.5, s - 1, s - 1);
+        // Wood grain lines on front face
+        cx.strokeStyle = '#8a6530';
+        cx.lineWidth = 1;
+        for (var cg = 0; cg < 3; cg++) {
+            cx.beginPath();
+            cx.moveTo(x + 3, y + 8 + cg * 5);
+            cx.lineTo(x + s - 3, y + 8 + cg * 5);
+            cx.stroke();
+        }
+        // Center cross plank
+        cx.strokeStyle = '#6a4820';
         cx.beginPath();
-        cx.moveTo(T / 2, 1); cx.lineTo(T / 2, T - 2);
-        cx.moveTo(1, T / 2); cx.lineTo(T - 2, T / 2);
+        cx.moveTo(x + s / 2, y); cx.lineTo(x + s / 2, y + s);
         cx.stroke();
         // Corner nails
         cx.fillStyle = '#d4a03c';
-        cx.fillRect(3, 3, 2, 2);
-        cx.fillRect(T - 6, 3, 2, 2);
-        cx.fillRect(3, T - 6, 2, 2);
-        cx.fillRect(T - 6, T - 6, 2, 2);
-        // Wood grain
-        cx.fillStyle = '#a55510';
-        cx.fillRect(6, 8, 8, 1);
-        cx.fillRect(T / 2 + 4, 20, 6, 1);
+        cx.fillRect(x + 2, y + 2, 2, 2);
+        cx.fillRect(x + s - 4, y + 2, 2, 2);
+        cx.fillRect(x + 2, y + s - 4, 2, 2);
+        cx.fillRect(x + s - 4, y + s - 4, 2, 2);
     });
 
     // Bench — wooden park bench with slats and armrests
@@ -2355,6 +2498,99 @@ function generateObjectSprites() {
         cx.fillStyle = '#ccc'; cx.fillRect(16, 14, 2, 8); // knife
     });
 
+    // Hanging pots — copper pots on kitchen rack
+    SPRITES.objects.hanging_pots = createSprite(T, T, function(cx) {
+        // Rack bar
+        cx.fillStyle = '#555';
+        cx.fillRect(4, 4, 24, 2);
+        // Hooks
+        cx.fillStyle = '#777';
+        cx.fillRect(8, 6, 1, 3); cx.fillRect(16, 6, 1, 3); cx.fillRect(23, 6, 1, 3);
+        // Copper pots
+        var potColors = ['#c07030', '#d08040', '#b06028'];
+        for (var pi = 0; pi < 3; pi++) {
+            var px = 6 + pi * 8;
+            cx.fillStyle = potColors[pi];
+            cx.beginPath(); cx.arc(px + 3, 14, 5, 0, Math.PI * 2); cx.fill();
+            cx.fillStyle = '#a06020';
+            cx.fillRect(px, 9, 6, 2); // rim
+            // Handle
+            cx.strokeStyle = '#805018';
+            cx.lineWidth = 1;
+            cx.beginPath(); cx.moveTo(px + 6, 12); cx.lineTo(px + 9, 12); cx.stroke();
+        }
+    });
+
+    // Fruit bowl — colorful fruits in ceramic bowl
+    SPRITES.objects.fruit_bowl = createSprite(T, T, function(cx) {
+        // Bowl
+        cx.fillStyle = '#e8d0a0';
+        cx.beginPath(); cx.ellipse(16, 18, 10, 6, 0, 0, Math.PI * 2); cx.fill();
+        cx.strokeStyle = '#c0a070'; cx.lineWidth = 1;
+        cx.beginPath(); cx.ellipse(16, 18, 10, 6, 0, 0, Math.PI * 2); cx.stroke();
+        // Fruits
+        cx.fillStyle = '#e53935'; // apple
+        cx.beginPath(); cx.arc(12, 14, 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#fdd835'; // lemon
+        cx.beginPath(); cx.ellipse(19, 15, 4, 3, 0.3, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#66bb6a'; // pear
+        cx.beginPath(); cx.arc(15, 12, 3, 0, Math.PI * 2); cx.fill();
+        // Apple stem
+        cx.fillStyle = '#5d4037'; cx.fillRect(11, 10, 1, 2);
+        // Highlight
+        cx.fillStyle = 'rgba(255,255,255,0.3)';
+        cx.beginPath(); cx.arc(11, 13, 1.5, 0, Math.PI * 2); cx.fill();
+    });
+
+    // Pasta jar — glass jar with dried pasta
+    SPRITES.objects.pasta_jar = createSprite(T, T, function(cx) {
+        // Jar body (glass)
+        cx.fillStyle = 'rgba(200,220,230,0.6)';
+        cx.fillRect(10, 8, 12, 18);
+        cx.strokeStyle = 'rgba(160,190,200,0.8)'; cx.lineWidth = 1;
+        cx.strokeRect(10, 8, 12, 18);
+        // Pasta inside (yellow tubes)
+        cx.fillStyle = '#f0d060';
+        for (var pj = 0; pj < 5; pj++) {
+            cx.fillRect(12 + (pj % 3) * 3, 12 + pj * 2, 2, 8);
+        }
+        cx.fillStyle = '#e0c050';
+        cx.fillRect(12, 20, 8, 4);
+        // Lid
+        cx.fillStyle = '#8b4513';
+        cx.fillRect(9, 6, 14, 3);
+        cx.fillStyle = '#a05a1a'; cx.fillRect(10, 5, 12, 2);
+        // Glass highlight
+        cx.fillStyle = 'rgba(255,255,255,0.25)';
+        cx.fillRect(11, 10, 2, 12);
+    });
+
+    // Kitchen sink — white basin with chrome faucet
+    SPRITES.objects.kitchen_sink = createSprite(T, T, function(cx) {
+        // Basin
+        cx.fillStyle = '#e8e0d8';
+        cx.fillRect(6, 10, 20, 14);
+        cx.strokeStyle = '#c0b8b0'; cx.lineWidth = 1;
+        cx.strokeRect(6, 10, 20, 14);
+        // Inner basin (darker)
+        cx.fillStyle = '#d0c8c0';
+        cx.fillRect(8, 12, 16, 10);
+        // Water hint
+        cx.fillStyle = 'rgba(100,180,220,0.3)';
+        cx.fillRect(10, 14, 12, 6);
+        // Faucet
+        cx.fillStyle = '#b0b0b0';
+        cx.fillRect(14, 4, 4, 8);
+        cx.fillRect(12, 4, 8, 2);
+        // Spout
+        cx.fillStyle = '#999';
+        cx.fillRect(18, 6, 3, 2);
+        cx.fillRect(20, 8, 2, 3);
+        // Chrome highlight
+        cx.fillStyle = 'rgba(255,255,255,0.4)';
+        cx.fillRect(15, 5, 1, 4);
+    });
+
     // Street lamp — outdoor lamp post
     SPRITES.objects.street_lamp = createSprite(T, T, function(cx) {
         cx.fillStyle = '#444'; cx.fillRect(14, 8, 4, 22); // pole
@@ -2642,6 +2878,82 @@ function generateObjectSprites() {
 }
 
 // ============================================================
+// Large door overlay sprites (for connected door tiles)
+// ============================================================
+
+/** Generates large door overlay sprites. */
+function generateLargeDoorSprites() {
+    var T = CONFIG.TILE_SIZE;
+
+    // Horizontal double door (2 tiles wide, 1 tile tall)
+    SPRITES.objects.large_door_h = createSprite(T * 2, T, function(cx) {
+        // Stone arch surround
+        cx.fillStyle = '#5a504a';
+        cx.fillRect(0, 0, T * 2, T);
+        // Door panels (warm oak)
+        cx.fillStyle = '#b07828';
+        cx.fillRect(4, 3, T - 5, T - 3);     // left panel
+        cx.fillRect(T + 1, 3, T - 5, T - 3);  // right panel
+        // Panel planks
+        cx.strokeStyle = '#8a5c1e';
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(T / 2, 3); cx.lineTo(T / 2, T);
+        cx.moveTo(T + T / 2, 3); cx.lineTo(T + T / 2, T);
+        cx.stroke();
+        // Arch top (curved)
+        cx.fillStyle = '#4a403a';
+        cx.beginPath();
+        cx.moveTo(0, 6);
+        cx.quadraticCurveTo(T, -2, T * 2, 6);
+        cx.lineTo(T * 2, 0); cx.lineTo(0, 0);
+        cx.closePath();
+        cx.fill();
+        // Center divider
+        cx.fillStyle = '#3a3028';
+        cx.fillRect(T - 1, 3, 2, T - 3);
+        // Brass knobs
+        cx.fillStyle = '#d4a03c';
+        cx.beginPath(); cx.arc(T - 5, T / 2 + 2, 2, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(T + 5, T / 2 + 2, 2, 0, Math.PI * 2); cx.fill();
+        // Stone step
+        cx.fillStyle = '#8a8070';
+        cx.fillRect(2, T - 4, T * 2 - 4, 4);
+    });
+
+    // Vertical double door (1 tile wide, 2 tiles tall)
+    SPRITES.objects.large_door_v = createSprite(T, T * 2, function(cx) {
+        // Stone surround
+        cx.fillStyle = '#5a504a';
+        cx.fillRect(0, 0, T, T * 2);
+        // Door panel (warm oak)
+        cx.fillStyle = '#b07828';
+        cx.fillRect(3, 4, T - 6, T * 2 - 8);
+        // Planks
+        cx.strokeStyle = '#8a5c1e';
+        cx.lineWidth = 1;
+        cx.beginPath();
+        cx.moveTo(T / 2, 4); cx.lineTo(T / 2, T * 2 - 4);
+        cx.moveTo(3, T); cx.lineTo(T - 3, T);
+        cx.stroke();
+        // Arch top
+        cx.fillStyle = '#4a403a';
+        cx.beginPath();
+        cx.moveTo(2, 8);
+        cx.quadraticCurveTo(T / 2, 0, T - 2, 8);
+        cx.lineTo(T - 2, 0); cx.lineTo(2, 0);
+        cx.closePath();
+        cx.fill();
+        // Brass knob
+        cx.fillStyle = '#d4a03c';
+        cx.beginPath(); cx.arc(T - 7, T, 2, 0, Math.PI * 2); cx.fill();
+        // Stone step
+        cx.fillStyle = '#8a8070';
+        cx.fillRect(2, T * 2 - 4, T - 4, 4);
+    });
+}
+
+// ============================================================
 // Item sprites (world items — small icons)
 // ============================================================
 
@@ -2871,6 +3183,7 @@ function generateAllSprites() {
     generateEnemySprites();
     generateBroomSprites();
     generateObjectSprites();
+    generateLargeDoorSprites();
     generateItemSprites();
     generatePowerupSprites();
     generatePortraits();

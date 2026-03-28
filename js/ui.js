@@ -525,12 +525,13 @@ function updatePapaAutoCall(dt) {
 
 /** Renders the inventory HUD at the top-center of the screen. */
 function renderHUD(ctx) {
-    const slotSize = CONFIG.INV_SLOT_SIZE;
-    const gap = CONFIG.INV_SLOT_GAP;
+    const invScale = 0.8; // 20% smaller
+    const slotSize = Math.round(CONFIG.INV_SLOT_SIZE * invScale);
+    const gap = Math.round(CONFIG.INV_SLOT_GAP * invScale);
     const maxSlots = Math.min(CONFIG.INV_MAX_SLOTS, Math.max(inventory.length, 5)); // show at least 5 slots
     const totalW = maxSlots * (slotSize + gap) - gap;
-    const startX = (CONFIG.CANVAS_W - totalW) / 2;
-    const startY = CONFIG.INV_MARGIN_TOP;
+    const startX = CONFIG.CANVAS_W - totalW - 12;
+    const startY = CONFIG.CANVAS_H - slotSize - 16;
 
     // Background bar
     ctx.fillStyle = CONFIG.INV_BG;
@@ -650,8 +651,8 @@ function renderPapaHintHUD(ctx) {
 
 /** Renders the score/coin counter in the HUD. */
 function renderScoreHUD(ctx) {
-    var x = CONFIG.CANVAS_W - 120;
-    var y = CONFIG.INV_MARGIN_TOP + CONFIG.INV_SLOT_SIZE + 16;
+    var x = 8;
+    var y = CONFIG.INV_MARGIN_TOP + CONFIG.INV_SLOT_SIZE + 12;
 
     // Background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -1267,22 +1268,33 @@ function renderCartridge(ctx) {
 /** Renders the item pickup flash effect (full-screen golden flash + item name). */
 function renderItemFlash(ctx) {
     if (!game.itemFlash || game.itemFlash <= 0) return;
+    var W = CONFIG.CANVAS_W, H = CONFIG.CANVAS_H;
 
-    const alpha = Math.min(game.itemFlash / CONFIG.ITEM_FLASH_DURATION, 1) * 0.4;
-    ctx.fillStyle = 'rgba(255, 235, 59, ' + alpha + ')';
-    ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+    var alpha = Math.min(game.itemFlash / CONFIG.ITEM_FLASH_DURATION, 1);
+
+    // Subtle golden vignette border (not full-screen wash)
+    var vignetteGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.min(W, H) * 0.7);
+    vignetteGrad.addColorStop(0, 'rgba(255, 235, 59, 0)');
+    vignetteGrad.addColorStop(1, 'rgba(255, 235, 59, ' + (alpha * 0.15) + ')');
+    ctx.fillStyle = vignetteGrad;
+    ctx.fillRect(0, 0, W, H);
 
     // Item name announcement
     if (game.itemFlash > CONFIG.ITEM_FLASH_DURATION * 0.3) {
-        const textAlpha = Math.min((game.itemFlash - CONFIG.ITEM_FLASH_DURATION * 0.3) / (CONFIG.ITEM_FLASH_DURATION * 0.5), 1);
-        ctx.fillStyle = 'rgba(255, 235, 59, ' + textAlpha + ')';
-        ctx.font = 'bold 22px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Found: ' + game.itemFlashName + '!', CONFIG.CANVAS_W / 2, CONFIG.CANVAS_H / 2 - 40);
+        var textAlpha = Math.min((game.itemFlash - CONFIG.ITEM_FLASH_DURATION * 0.3) / (CONFIG.ITEM_FLASH_DURATION * 0.5), 1);
 
-        ctx.fillStyle = 'rgba(255, 255, 255, ' + (textAlpha * 0.8) + ')';
-        ctx.font = '14px monospace';
-        ctx.fillText('A piece of Mama\'s secret sauce recipe!', CONFIG.CANVAS_W / 2, CONFIG.CANVAS_H / 2 - 10);
+        // Dark backing for readability
+        ctx.fillStyle = 'rgba(0, 0, 0, ' + (textAlpha * 0.5) + ')';
+        ctx.fillRect(W / 2 - 160, H / 2 - 58, 320, 40);
+
+        ctx.fillStyle = 'rgba(255, 235, 59, ' + textAlpha + ')';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Found: ' + game.itemFlashName + '!', W / 2, H / 2 - 38);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + (textAlpha * 0.7) + ')';
+        ctx.font = '12px monospace';
+        ctx.fillText('A piece of Mama\'s secret sauce recipe!', W / 2, H / 2 - 22);
     }
 }
 
@@ -1342,7 +1354,7 @@ function updateTitleScreen(dt) {
             game.score = 0;
             game.scorePopups = [];
             deleteSave();
-            loadZone('la_cucina');
+            startIntro();
         } else if (choice === 'Settings') {
             openSettings('title');
         }
@@ -1899,4 +1911,802 @@ function getStoredApiKey() {
 /** Sets the stored API key. */
 function setStoredApiKey(key) {
     settingsUI.apiKeyInput = key || '';
+}
+
+// ============================================================
+// Intro cinematic animation
+// ============================================================
+
+var intro = {
+    active: false,
+    timer: 0,           // total elapsed time
+    slideIndex: 0,       // current slide
+    slideTimer: 0,       // time on current slide
+    textReveal: 0,       // characters revealed so far
+    fadeAlpha: 1,        // 1 = fully black (fade-in from black)
+    skipping: false,     // true if player pressed skip
+};
+
+/** Slide definitions for the story intro. */
+var INTRO_SLIDES = [
+    {
+        duration: 6,
+        scene: 'restaurant',
+        title: '',
+        lines: [
+            'In the heart of a little Italian town,',
+            'there stands a restaurant called',
+            '"La Cucina delle Sorelle."'
+        ],
+    },
+    {
+        duration: 5.5,
+        scene: 'sisters',
+        title: '',
+        lines: [
+            'It is run by two sisters:',
+            'Giulia, 13, methodical and curious...',
+            'and Coco, 9, chaotic and fearless.'
+        ],
+    },
+    {
+        duration: 5,
+        scene: 'dogs',
+        title: '',
+        lines: [
+            'With their loyal dogs by their side:',
+            'Brodo, a basset hound who sniffs out anything,',
+            'and Pepe, a chihuahua who fits anywhere.'
+        ],
+    },
+    {
+        duration: 5.5,
+        scene: 'wedding',
+        title: '',
+        lines: [
+            'Tomorrow is the biggest wedding in town.',
+            'Everyone is counting on the sisters',
+            'to serve Mama Rosa\'s legendary tomato sauce.'
+        ],
+    },
+    {
+        duration: 5,
+        scene: 'problem',
+        title: '',
+        lines: [
+            'But there\'s a problem...',
+            'The recipe is missing!',
+            'Mama says she hid it "somewhere safe."'
+        ],
+    },
+    {
+        duration: 5.5,
+        scene: 'fragments',
+        title: '',
+        lines: [
+            'The recipe was torn into 5 fragments,',
+            'scattered across the city in the places',
+            'Mama loved most.'
+        ],
+    },
+    {
+        duration: 5,
+        scene: 'papa',
+        title: '',
+        lines: [
+            'Papa Marco will guide you by headset',
+            '(when he\'s not doing bicep curls).',
+            '"Don\'t worry, I\'ll be your Alfred! ...Mostly."'
+        ],
+    },
+    {
+        duration: 4,
+        scene: 'go',
+        title: '',
+        lines: [
+            'Find the recipe. Make the sauce.',
+            'Save the wedding.',
+            ''
+        ],
+    },
+];
+
+/** Starts the intro cinematic. */
+function startIntro() {
+    intro.active = true;
+    intro.timer = 0;
+    intro.slideIndex = 0;
+    intro.slideTimer = 0;
+    intro.textReveal = 0;
+    intro.fadeAlpha = 1;
+    intro.skipping = false;
+    game.mode = 'intro';
+    if (typeof playSpecialMusic === 'function') playSpecialMusic('intro');
+}
+
+/** Ends the intro and loads the game. */
+function endIntro() {
+    intro.active = false;
+    game.mode = 'overworld';
+    if (typeof stopSpecialMusic === 'function') stopSpecialMusic('intro');
+    loadZone('la_cucina');
+}
+
+/** Updates intro animation state. */
+function updateIntro(dt) {
+    if (!intro.active) return;
+    intro.timer += dt;
+    intro.slideTimer += dt;
+
+    var slide = INTRO_SLIDES[intro.slideIndex];
+
+    // Fade in from black (first 0.8s of each slide)
+    if (intro.slideTimer < 0.8) {
+        intro.fadeAlpha = 1 - (intro.slideTimer / 0.8);
+    } else {
+        intro.fadeAlpha = 0;
+    }
+
+    // Text reveal — characters per second
+    var totalChars = 0;
+    for (var i = 0; i < slide.lines.length; i++) totalChars += slide.lines[i].length;
+    intro.textReveal = Math.min((intro.slideTimer - 0.4) * 35, totalChars);
+
+    // Fade out (last 0.6s of slide)
+    var fadeOutStart = slide.duration - 0.6;
+    if (intro.slideTimer > fadeOutStart) {
+        intro.fadeAlpha = Math.min((intro.slideTimer - fadeOutStart) / 0.6, 1);
+    }
+
+    // Advance slide
+    if (intro.slideTimer >= slide.duration) {
+        intro.slideIndex++;
+        intro.slideTimer = 0;
+        intro.textReveal = 0;
+        intro.fadeAlpha = 1;
+        if (intro.slideIndex >= INTRO_SLIDES.length) {
+            endIntro();
+            return;
+        }
+    }
+
+    // Escape skips entire intro
+    if (isJustPressed('Escape')) {
+        endIntro();
+        return;
+    }
+
+    // Interact/Enter advances within the intro
+    if (actionJustPressed('interact') || isJustPressed('Enter')) {
+        // First press: skip to end of current slide's text
+        var allRevealed = (intro.textReveal >= totalChars);
+        if (!allRevealed) {
+            intro.textReveal = totalChars;
+            intro.fadeAlpha = 0;
+            // Extend slide so player can read it
+            intro.slideTimer = Math.max(intro.slideTimer, slide.duration - 2);
+        } else {
+            // Text fully shown — advance to next slide
+            intro.slideIndex++;
+            intro.slideTimer = 0;
+            intro.textReveal = 0;
+            intro.fadeAlpha = 1;
+            if (intro.slideIndex >= INTRO_SLIDES.length) {
+                endIntro();
+                return;
+            }
+        }
+    }
+}
+
+/** Renders the intro cinematic. */
+function renderIntro(ctx) {
+    if (!intro.active) return;
+    var W = CONFIG.CANVAS_W;
+    var H = CONFIG.CANVAS_H;
+    var slide = INTRO_SLIDES[intro.slideIndex];
+    var t = intro.slideTimer;
+
+    // Background — dark warm base
+    var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#1a0a04');
+    bgGrad.addColorStop(1, '#0d0502');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Scene-specific illustration
+    _renderIntroScene(ctx, slide.scene, t, W, H);
+
+    // Text area — bottom third
+    var textAreaY = H * 0.62;
+
+    // Soft dark gradient behind text
+    var textBg = ctx.createLinearGradient(0, textAreaY - 30, 0, H);
+    textBg.addColorStop(0, 'rgba(13, 5, 2, 0)');
+    textBg.addColorStop(0.15, 'rgba(13, 5, 2, 0.85)');
+    textBg.addColorStop(1, 'rgba(13, 5, 2, 0.95)');
+    ctx.fillStyle = textBg;
+    ctx.fillRect(0, textAreaY - 30, W, H - textAreaY + 30);
+
+    // Render text lines with typewriter reveal
+    ctx.textAlign = 'center';
+    var charsLeft = Math.floor(Math.max(0, intro.textReveal));
+    var lineY = textAreaY + 20;
+    for (var li = 0; li < slide.lines.length; li++) {
+        var line = slide.lines[li];
+        if (charsLeft <= 0) break;
+        var showLen = Math.min(charsLeft, line.length);
+        var shown = line.substring(0, showLen);
+        charsLeft -= line.length;
+
+        // Main text
+        ctx.font = '15px monospace';
+        ctx.fillStyle = '#e8d5b7';
+        ctx.fillText(shown, W / 2, lineY);
+        lineY += 26;
+    }
+
+    // Skip hint (bottom)
+    var hintAlpha = Math.min(t / 2, 0.5);
+    ctx.fillStyle = 'rgba(139, 111, 78, ' + hintAlpha + ')';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Z/Space = advance  |  Esc = skip all', W / 2, H - 16);
+
+    // Slide progress dots
+    var dotY = H - 32;
+    var dotSpacing = 12;
+    var totalDots = INTRO_SLIDES.length;
+    var dotsStartX = W / 2 - ((totalDots - 1) * dotSpacing) / 2;
+    for (var di = 0; di < totalDots; di++) {
+        ctx.beginPath();
+        ctx.arc(dotsStartX + di * dotSpacing, dotY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = di === intro.slideIndex ? '#ffd54f' : 'rgba(139, 111, 78, 0.4)';
+        ctx.fill();
+    }
+
+    // Fade overlay (in/out transitions)
+    if (intro.fadeAlpha > 0) {
+        ctx.fillStyle = 'rgba(13, 5, 2, ' + intro.fadeAlpha + ')';
+        ctx.fillRect(0, 0, W, H);
+    }
+}
+
+/** Renders scene-specific illustrations for each intro slide. */
+function _renderIntroScene(ctx, scene, t, W, H) {
+    var centerX = W / 2;
+    var sceneH = H * 0.58; // top portion for illustration
+    var baseY = sceneH * 0.5;
+
+    ctx.save();
+
+    if (scene === 'restaurant') {
+        // Warm restaurant exterior — simple building silhouette with glowing windows
+        var bw = 200, bh = 120;
+        var bx = centerX - bw / 2, by = baseY - bh / 2 + 20;
+
+        // Building body
+        ctx.fillStyle = '#5c3a1e';
+        ctx.fillRect(bx, by, bw, bh);
+
+        // Roof (triangle)
+        ctx.fillStyle = '#8b4513';
+        ctx.beginPath();
+        ctx.moveTo(bx - 15, by);
+        ctx.lineTo(centerX, by - 50);
+        ctx.lineTo(bx + bw + 15, by);
+        ctx.closePath();
+        ctx.fill();
+
+        // Windows with warm glow
+        for (var wi = 0; wi < 3; wi++) {
+            var wx = bx + 30 + wi * 65;
+            var wy = by + 25;
+
+            // Glow
+            var wGlow = ctx.createRadialGradient(wx + 12, wy + 15, 2, wx + 12, wy + 15, 35);
+            wGlow.addColorStop(0, 'rgba(255, 183, 77, 0.3)');
+            wGlow.addColorStop(1, 'rgba(255, 183, 77, 0)');
+            ctx.fillStyle = wGlow;
+            ctx.fillRect(wx - 20, wy - 15, 64, 60);
+
+            // Window frame
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(wx, wy, 24, 30);
+            ctx.fillStyle = '#ffcc66';
+            var flicker = 0.8 + Math.sin(t * 3 + wi * 1.5) * 0.2;
+            ctx.globalAlpha = flicker;
+            ctx.fillRect(wx + 2, wy + 2, 20, 26);
+            ctx.globalAlpha = 1;
+
+            // Cross frame
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(wx + 11, wy, 2, 30);
+            ctx.fillRect(wx, wy + 13, 24, 2);
+        }
+
+        // Door
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(centerX - 14, by + bh - 45, 28, 45);
+        ctx.fillStyle = '#ffd54f';
+        ctx.beginPath();
+        ctx.arc(centerX + 8, by + bh - 22, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sign
+        ctx.fillStyle = '#2a1a0a';
+        ctx.fillRect(centerX - 55, by - 8, 110, 18);
+        ctx.fillStyle = '#ffeeba';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('La Cucina delle Sorelle', centerX, by + 6);
+
+        // Ground
+        ctx.fillStyle = '#3d2a14';
+        ctx.fillRect(0, by + bh, W, 30);
+
+        // Stars
+        _renderIntroStars(ctx, t, W, by - 50);
+
+    } else if (scene === 'sisters') {
+        // Two sister silhouettes — Giulia (taller) and Coco (shorter)
+        var gx = centerX - 50, cy = centerX + 30;
+
+        // Warm spotlight
+        var spot = ctx.createRadialGradient(centerX, baseY + 20, 10, centerX, baseY + 20, 120);
+        spot.addColorStop(0, 'rgba(255, 183, 77, 0.15)');
+        spot.addColorStop(1, 'rgba(255, 183, 77, 0)');
+        ctx.fillStyle = spot;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Try PixelLab sprite for Giulia, fallback to procedural
+        var giuliaDrawn = SpriteLoader.drawCharacter(ctx, 'giulia', 0, 0, gx - 24, baseY - 20, 64);
+        if (!giuliaDrawn) {
+            // Procedural Giulia (taller, pink)
+            ctx.fillStyle = '#e94560';
+            ctx.fillRect(gx, baseY - 10, 16, 35);
+            ctx.fillStyle = '#ffcc99';
+            ctx.beginPath();
+            ctx.arc(gx + 8, baseY - 20, 12, 0, Math.PI * 2);
+            ctx.fill();
+            // Hair
+            ctx.fillStyle = '#5d4037';
+            ctx.beginPath();
+            ctx.arc(gx + 8, baseY - 24, 12, Math.PI, 0);
+            ctx.fill();
+            ctx.fillRect(gx - 2, baseY - 24, 4, 16);
+            ctx.fillRect(gx + 16, baseY - 24, 4, 16);
+        }
+
+        // Coco (shorter, purple — procedural only since no sprite)
+        var cox = cy;
+        ctx.fillStyle = '#ce93d8';
+        ctx.fillRect(cox, baseY + 2, 14, 28);
+        ctx.fillStyle = '#ffcc99';
+        ctx.beginPath();
+        ctx.arc(cox + 7, baseY - 8, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.arc(cox + 7, baseY - 12, 10, Math.PI, 0);
+        ctx.fill();
+        // Pigtails
+        ctx.fillRect(cox - 4, baseY - 14, 4, 12);
+        ctx.fillRect(cox + 14, baseY - 14, 4, 12);
+
+        // Names below
+        ctx.fillStyle = '#e94560';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Giulia', gx + 8, baseY + 45);
+        ctx.fillStyle = '#ce93d8';
+        ctx.fillText('Coco', cox + 7, baseY + 45);
+
+    } else if (scene === 'dogs') {
+        // Brodo and Pepe
+        var bx2 = centerX - 60, px2 = centerX + 30;
+
+        var spot2 = ctx.createRadialGradient(centerX, baseY + 10, 10, centerX, baseY + 10, 100);
+        spot2.addColorStop(0, 'rgba(196, 149, 106, 0.2)');
+        spot2.addColorStop(1, 'rgba(196, 149, 106, 0)');
+        ctx.fillStyle = spot2;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Try Brodo sprite
+        var brodoDrawn = SpriteLoader.drawCharacter(ctx, 'brodo', 0, 0, bx2 - 10, baseY - 10, 56);
+        if (!brodoDrawn) {
+            // Procedural Brodo (long basset hound)
+            ctx.fillStyle = '#c4956a';
+            ctx.fillRect(bx2, baseY, 36, 14);
+            ctx.beginPath();
+            ctx.arc(bx2 + 4, baseY + 4, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Floppy ears
+            ctx.fillStyle = '#a0784e';
+            ctx.fillRect(bx2 - 4, baseY + 2, 6, 14);
+            ctx.fillRect(bx2 + 10, baseY + 2, 6, 14);
+            // Eyes
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(bx2 + 1, baseY + 2, 2, 2);
+            ctx.fillRect(bx2 + 6, baseY + 2, 2, 2);
+            // Stubby legs
+            ctx.fillStyle = '#c4956a';
+            for (var leg = 0; leg < 4; leg++) {
+                ctx.fillRect(bx2 + 3 + leg * 9, baseY + 14, 4, 6);
+            }
+        }
+
+        // Pepe (chihuahua — tiny)
+        ctx.fillStyle = '#d4a574';
+        ctx.beginPath();
+        ctx.arc(px2 + 6, baseY + 6, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(px2 + 2, baseY + 10, 8, 8);
+        // Big ears
+        ctx.beginPath();
+        ctx.moveTo(px2, baseY); ctx.lineTo(px2 - 4, baseY - 10); ctx.lineTo(px2 + 5, baseY + 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px2 + 12, baseY); ctx.lineTo(px2 + 16, baseY - 10); ctx.lineTo(px2 + 7, baseY + 2);
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(px2 + 3, baseY + 4, 2, 3);
+        ctx.fillRect(px2 + 8, baseY + 4, 2, 3);
+        // Tiny legs
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(px2 + 2, baseY + 18, 2, 4);
+        ctx.fillRect(px2 + 8, baseY + 18, 2, 4);
+
+        // Tail wag
+        var tailAngle = Math.sin(t * 8) * 0.4;
+        ctx.save();
+        ctx.translate(px2 + 10, baseY + 12);
+        ctx.rotate(tailAngle - 0.5);
+        ctx.fillRect(0, -1, 8, 2);
+        ctx.restore();
+
+        // Names
+        ctx.fillStyle = '#c4956a';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Brodo', bx2 + 16, baseY + 40);
+        ctx.fillStyle = '#d4a574';
+        ctx.fillText('Pepe', px2 + 6, baseY + 40);
+
+    } else if (scene === 'wedding') {
+        // Wedding bell + cake silhouette
+        var spot3 = ctx.createRadialGradient(centerX, baseY, 15, centerX, baseY, 140);
+        spot3.addColorStop(0, 'rgba(255, 213, 79, 0.15)');
+        spot3.addColorStop(1, 'rgba(255, 213, 79, 0)');
+        ctx.fillStyle = spot3;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Wedding cake (3-tier)
+        var cakeX = centerX, cakeBaseY = baseY + 40;
+        ctx.fillStyle = '#ffeeba';
+        ctx.fillRect(cakeX - 35, cakeBaseY - 25, 70, 25); // bottom tier
+        ctx.fillRect(cakeX - 25, cakeBaseY - 45, 50, 20); // mid tier
+        ctx.fillRect(cakeX - 15, cakeBaseY - 60, 30, 15); // top tier
+        // Frosting details
+        ctx.fillStyle = '#fff3e0';
+        for (var fi = 0; fi < 3; fi++) {
+            var fiy = cakeBaseY - 25 - fi * 18;
+            var fiw = 70 - fi * 20;
+            ctx.fillRect(cakeX - fiw / 2, fiy, fiw, 3);
+        }
+        // Topper heart
+        ctx.fillStyle = '#e94560';
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2665', cakeX, cakeBaseY - 66);
+
+        // Bells on sides
+        for (var bi = -1; bi <= 1; bi += 2) {
+            var bellX = cakeX + bi * 90;
+            var bellSwing = Math.sin(t * 2.5 + bi) * 0.15;
+            ctx.save();
+            ctx.translate(bellX, baseY - 30);
+            ctx.rotate(bellSwing);
+            ctx.fillStyle = '#ffd54f';
+            ctx.beginPath();
+            ctx.arc(0, 8, 12, 0, Math.PI);
+            ctx.fill();
+            ctx.fillRect(-12, 0, 24, 8);
+            // Clapper
+            ctx.fillStyle = '#ff8f00';
+            ctx.beginPath();
+            ctx.arc(0, 18, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Ribbon
+            ctx.strokeStyle = '#ffd54f';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -4);
+            ctx.lineTo(0, -20);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Confetti particles
+        for (var ci = 0; ci < 12; ci++) {
+            var cx2 = ((ci * 83 + t * 30 * (ci % 3 + 1)) % W);
+            var cy2 = ((ci * 57 + t * 40 + ci * 37) % (sceneH + 20)) - 10;
+            var confettiColors = ['#e94560', '#ffd54f', '#4fc3f7', '#ce93d8', '#81c784'];
+            ctx.fillStyle = confettiColors[ci % confettiColors.length];
+            ctx.globalAlpha = 0.5;
+            ctx.save();
+            ctx.translate(cx2, cy2);
+            ctx.rotate(t * 2 + ci);
+            ctx.fillRect(-3, -1, 6, 2);
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+
+    } else if (scene === 'problem') {
+        // Dramatic torn paper / broken heart
+        var spot4 = ctx.createRadialGradient(centerX, baseY, 5, centerX, baseY, 100);
+        spot4.addColorStop(0, 'rgba(233, 69, 96, 0.15)');
+        spot4.addColorStop(1, 'rgba(233, 69, 96, 0)');
+        ctx.fillStyle = spot4;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Recipe paper (torn)
+        ctx.fillStyle = '#f5e6c8';
+        ctx.save();
+        ctx.translate(centerX - 20, baseY - 20);
+        ctx.rotate(-0.08);
+        ctx.fillRect(0, 0, 60, 75);
+        // Torn right edge
+        ctx.fillStyle = '#1a0a04';
+        ctx.beginPath();
+        ctx.moveTo(60, 0);
+        for (var ty = 0; ty < 75; ty += 5) {
+            ctx.lineTo(60 + Math.sin(ty * 0.7) * 6 + 3, ty);
+        }
+        ctx.lineTo(80, 75);
+        ctx.lineTo(80, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Second torn piece (drifting away)
+        var driftX = Math.sin(t * 0.8) * 10 + 40;
+        var driftR = Math.sin(t * 0.6) * 0.1 + 0.12;
+        ctx.fillStyle = '#f5e6c8';
+        ctx.save();
+        ctx.translate(centerX + driftX, baseY - 10 + Math.sin(t) * 5);
+        ctx.rotate(driftR);
+        // Torn left edge
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        for (var ty2 = 0; ty2 < 65; ty2 += 5) {
+            ctx.lineTo(Math.sin(ty2 * 0.7) * 6 - 3, ty2);
+        }
+        ctx.lineTo(50, 65);
+        ctx.lineTo(50, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // "Recipe" text scribbles on paper
+        ctx.fillStyle = '#8b4513';
+        ctx.globalAlpha = 0.4;
+        ctx.font = '7px monospace';
+        ctx.textAlign = 'left';
+        ctx.save();
+        ctx.translate(centerX - 16, baseY - 8);
+        ctx.rotate(-0.08);
+        ctx.fillText('Mama\'s Secret', 4, 10);
+        ctx.fillText('Tomato Sauce', 4, 20);
+        ctx.fillText('~~~~~~~~~~~', 4, 30);
+        ctx.fillText('1. Take the...', 4, 40);
+        ctx.fillText('2. Add fresh', 4, 50);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+
+        // Question marks floating
+        ctx.fillStyle = '#e94560';
+        ctx.font = 'bold 24px monospace';
+        ctx.textAlign = 'center';
+        var q1y = baseY - 50 + Math.sin(t * 2) * 8;
+        var q2y = baseY - 40 + Math.sin(t * 2 + 2) * 8;
+        ctx.globalAlpha = 0.6 + Math.sin(t * 3) * 0.3;
+        ctx.fillText('?', centerX - 60, q1y);
+        ctx.fillText('?', centerX + 70, q2y);
+        ctx.globalAlpha = 1;
+
+    } else if (scene === 'fragments') {
+        // 5 glowing recipe fragments scattered
+        var fragPositions = [
+            { x: centerX - 120, y: baseY - 20 },
+            { x: centerX - 50,  y: baseY + 30 },
+            { x: centerX,       y: baseY - 35 },
+            { x: centerX + 55,  y: baseY + 15 },
+            { x: centerX + 110, y: baseY - 10 },
+        ];
+
+        for (var fi2 = 0; fi2 < 5; fi2++) {
+            var fp = fragPositions[fi2];
+            var fragBob = Math.sin(t * 1.5 + fi2 * 1.2) * 5;
+
+            // Glow
+            var fGlow = ctx.createRadialGradient(fp.x, fp.y + fragBob, 2, fp.x, fp.y + fragBob, 30);
+            fGlow.addColorStop(0, 'rgba(255, 213, 79, 0.35)');
+            fGlow.addColorStop(1, 'rgba(255, 213, 79, 0)');
+            ctx.fillStyle = fGlow;
+            ctx.fillRect(fp.x - 30, fp.y + fragBob - 30, 60, 60);
+
+            // Try PixelLab item sprite
+            var fragDrawn = SpriteLoader.drawItemById(ctx, 'recipe_1', fp.x - 12, fp.y + fragBob - 12, 24);
+            if (!fragDrawn) {
+                // Procedural recipe fragment
+                ctx.fillStyle = '#f5e6c8';
+                ctx.save();
+                ctx.translate(fp.x, fp.y + fragBob);
+                ctx.rotate(fi2 * 0.3 - 0.3);
+                ctx.fillRect(-10, -12, 20, 24);
+                // Torn edge
+                ctx.fillStyle = '#d4b896';
+                ctx.fillRect(8, -12, 2, 24);
+                // Number
+                ctx.fillStyle = '#8b4513';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('#' + (fi2 + 1), 0, 4);
+                ctx.restore();
+            }
+        }
+
+        // Connecting dotted lines between fragments
+        ctx.strokeStyle = 'rgba(255, 213, 79, 0.15)';
+        ctx.setLineDash([3, 5]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var fli = 0; fli < fragPositions.length - 1; fli++) {
+            ctx.moveTo(fragPositions[fli].x, fragPositions[fli].y);
+            ctx.lineTo(fragPositions[fli + 1].x, fragPositions[fli + 1].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+    } else if (scene === 'papa') {
+        // Papa with headset
+        var spot5 = ctx.createRadialGradient(centerX, baseY, 10, centerX, baseY, 100);
+        spot5.addColorStop(0, 'rgba(76, 175, 80, 0.12)');
+        spot5.addColorStop(1, 'rgba(76, 175, 80, 0)');
+        ctx.fillStyle = spot5;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Try Papa NPC sprite
+        var papaDrawn = SpriteLoader.drawNPC(ctx, 'papa', centerX - 22, baseY - 25, false, 64);
+        if (!papaDrawn) {
+            // Procedural Papa
+            ctx.fillStyle = '#2e7d32'; // green tank top
+            ctx.fillRect(centerX - 12, baseY - 5, 24, 35);
+            ctx.fillStyle = '#dbb08a';
+            ctx.beginPath();
+            ctx.arc(centerX, baseY - 18, 14, 0, Math.PI * 2);
+            ctx.fill();
+            // Stubble
+            ctx.fillStyle = 'rgba(90, 70, 50, 0.3)';
+            ctx.beginPath();
+            ctx.arc(centerX, baseY - 10, 10, 0, Math.PI);
+            ctx.fill();
+            // Headset
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(centerX, baseY - 22, 16, Math.PI * 1.2, Math.PI * 1.8);
+            ctx.stroke();
+            ctx.fillStyle = '#333';
+            ctx.fillRect(centerX + 13, baseY - 16, 6, 10);
+            // Bicep flex (animated)
+            var flexAngle = Math.sin(t * 3) * 0.15;
+            ctx.save();
+            ctx.translate(centerX + 16, baseY);
+            ctx.rotate(-0.8 + flexAngle);
+            ctx.fillStyle = '#dbb08a';
+            ctx.fillRect(0, -4, 18, 8);
+            // Bicep bulge
+            ctx.beginPath();
+            ctx.arc(9, -6, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Speech bubble
+        var bubbleX = centerX + 60, bubbleY = baseY - 50;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        _drawRoundRect(ctx, bubbleX - 5, bubbleY - 12, 130, 28, 6);
+        ctx.fill();
+        // Bubble tail
+        ctx.beginPath();
+        ctx.moveTo(bubbleX, bubbleY + 16);
+        ctx.lineTo(bubbleX - 12, bubbleY + 10);
+        ctx.lineTo(bubbleX + 5, bubbleY + 10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#333';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'left';
+        var papaQuote = 'I\'ll be your Alfred!';
+        var papaShow = Math.min(Math.floor(t * 12), papaQuote.length);
+        ctx.fillText(papaQuote.substring(0, papaShow), bubbleX + 2, bubbleY + 4);
+
+    } else if (scene === 'go') {
+        // Final slide — dramatic title card
+        var pulse = 0.8 + Math.sin(t * 2) * 0.2;
+
+        // Warm glow
+        var goGlow = ctx.createRadialGradient(centerX, baseY, 10, centerX, baseY, 160);
+        goGlow.addColorStop(0, 'rgba(255, 183, 77, ' + (0.2 * pulse) + ')');
+        goGlow.addColorStop(1, 'rgba(255, 183, 77, 0)');
+        ctx.fillStyle = goGlow;
+        ctx.fillRect(0, 0, W, sceneH);
+
+        // Big tomato
+        ctx.fillStyle = '#c62828';
+        ctx.beginPath();
+        ctx.arc(centerX, baseY, 35 + Math.sin(t * 1.5) * 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Highlight
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.arc(centerX - 10, baseY - 12, 12, 0, Math.PI * 2);
+        ctx.fill();
+        // Stem
+        ctx.fillStyle = '#2e7d32';
+        ctx.fillRect(centerX - 4, baseY - 40, 8, 12);
+        ctx.beginPath();
+        ctx.arc(centerX, baseY - 38, 8, 0, Math.PI, true);
+        ctx.fill();
+
+        // Decorative spatula crossed behind
+        ctx.strokeStyle = '#8b4513';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(centerX - 50, baseY + 45);
+        ctx.lineTo(centerX + 50, baseY - 45);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(centerX + 50, baseY + 45);
+        ctx.lineTo(centerX - 50, baseY - 45);
+        ctx.stroke();
+        // Spatula heads
+        ctx.fillStyle = '#a0784e';
+        ctx.fillRect(centerX + 40, baseY - 50, 14, 20);
+        ctx.fillRect(centerX - 54, baseY - 50, 14, 20);
+    }
+
+    ctx.restore();
+}
+
+/** Draws stars in the sky for the restaurant scene. */
+function _renderIntroStars(ctx, t, W, maxY) {
+    ctx.fillStyle = '#ffeeba';
+    for (var si = 0; si < 25; si++) {
+        var sx = (si * 41 + 17) % W;
+        var sy = (si * 29 + 5) % Math.max(maxY, 40);
+        var sa = 0.3 + Math.sin(t * 1.5 + si * 0.8) * 0.3;
+        ctx.globalAlpha = sa;
+        ctx.fillRect(sx, sy, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+}
+
+/** Helper: draws a rounded rectangle path. */
+function _drawRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
 }
