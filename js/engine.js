@@ -731,53 +731,126 @@ function render(ctx) {
     // Piazza build puzzle target markers
     renderPiazzaTargetMarkers(ctx, game.cameraX, game.cameraY);
 
-    // Render world items (below pushables so crate slides over reveal spot)
-    renderWorldItems(ctx, game.cameraX, game.cameraY);
-
-    // Render pushables
-    renderPushables(ctx, game.cameraX, game.cameraY);
-
-    // Render NPCs
-    renderNPCs(ctx, game.cameraX, game.cameraY);
-
-    // Render interactable objects (BMX bike, etc.)
-    renderObjects(ctx, game.cameraX, game.cameraY);
-
-    // Render library cat mini-boss
-    renderLibraryBroom(ctx, game.cameraX, game.cameraY);
-
-    // Render generic enemies
-    renderEnemies(ctx, game.cameraX, game.cameraY);
-
-    // Render Enzo boss
-    renderEnzoBoss(ctx, game.cameraX, game.cameraY);
-    renderBossProjectiles(ctx, game.cameraX, game.cameraY);
-
-    // Render Wedding Planner boss
-    renderWeddingBoss(ctx, game.cameraX, game.cameraY);
-    renderWPProjectiles(ctx, game.cameraX, game.cameraY);
-    renderStressClouds(ctx, game.cameraX, game.cameraY);
-
-    // Render Brodo (dog companion)
-    renderBrodo(ctx, game.cameraX, game.cameraY);
-
-    // Render hidden item sparkles
+    // ── Ground-level effects (render before Y-sorted entities) ──
     renderHiddenItemSparkles(ctx, game.cameraX, game.cameraY);
-
-    // Render world power-ups (below player, on ground)
-    renderPowerups(ctx, game.cameraX, game.cameraY);
-
-    // Render traps (below player, on ground)
     renderTraps(ctx, game.cameraX, game.cameraY);
 
-    // Render player glow (buff active)
-    renderPlayerGlow(ctx, game.cameraX, game.cameraY);
+    // ── Y-sorted entity pass ──
+    // Collect all entities with their bottom-edge Y for depth sorting
+    var camX = game.cameraX, camY = game.cameraY;
+    var ts = CONFIG.TILE_SIZE;
+    var sortList = [];
+    var zone = game.currentZone;
 
-    // Render player
-    renderPlayer(ctx, game.cameraX, game.cameraY);
+    // World items
+    for (var wi = 0; wi < worldItems.length; wi++) {
+        var item = worldItems[wi];
+        if (item.collected) continue;
+        sortList.push({ sortY: item.row * ts + ts, render: renderSingleWorldItem.bind(null, ctx, camX, camY, item) });
+    }
+
+    // Pushables
+    if (zone && zone.pushables) {
+        for (var pi = 0; pi < zone.pushables.length; pi++) {
+            var p = zone.pushables[pi];
+            var py = p.sliding ? p.visualY : p.row * ts;
+            sortList.push({ sortY: py + ts, render: renderSinglePushable.bind(null, ctx, camX, camY, p) });
+        }
+    }
+
+    // NPCs
+    if (zone && zone.npcs) {
+        for (var ni = 0; ni < zone.npcs.length; ni++) {
+            var npc = zone.npcs[ni];
+            var npcY = npc._y !== undefined ? npc._y : npc.row * ts;
+            sortList.push({ sortY: npcY + ts, render: renderSingleNPC.bind(null, ctx, camX, camY, npc) });
+        }
+    }
+
+    // Objects
+    if (zone && zone.objects) {
+        for (var oi = 0; oi < zone.objects.length; oi++) {
+            var obj = zone.objects[oi];
+            sortList.push({ sortY: obj.row * ts + ts, render: renderSingleObject.bind(null, ctx, camX, camY, obj) });
+        }
+    }
+
+    // Library broom
+    if (typeof libraryBroom !== 'undefined' && libraryBroom.active) {
+        sortList.push({ sortY: libraryBroom.y + libraryBroom.h, render: renderLibraryBroom.bind(null, ctx, camX, camY) });
+    }
+
+    // Enemies
+    for (var ei = 0; ei < enemies.length; ei++) {
+        var e = enemies[ei];
+        if (e.state === 'dead') continue;
+        sortList.push({ sortY: e.y + (e.h || 24), render: renderSingleEnemy.bind(null, ctx, camX, camY, e) });
+    }
+
+    // Enzo boss
+    if (enzoBoss.active) {
+        sortList.push({ sortY: enzoBoss.y + enzoBoss.h, render: renderEnzoBoss.bind(null, ctx, camX, camY) });
+    }
+
+    // Wedding boss
+    if (weddingBoss.active) {
+        sortList.push({ sortY: weddingBoss.y + (weddingBoss.h || 32), render: renderWeddingBoss.bind(null, ctx, camX, camY) });
+    }
+
+    // Power-ups
+    for (var pui = 0; pui < worldPowerups.length; pui++) {
+        var pu = worldPowerups[pui];
+        if (pu.collected) continue;
+        sortList.push({ sortY: pu.y + ts, render: renderSinglePowerup.bind(null, ctx, camX, camY, pu) });
+    }
+
+    // Decorative trees
+    var decos = ZONE_DECORATIONS[zone ? zone.id : ''];
+    if (decos && SPRITES.tiles.tree) {
+        for (var di = 0; di < decos.length; di++) {
+            var deco = decos[di];
+            if (deco.type === 'tree') {
+                // Tree is 2x3 tiles, anchor at trunk base (col, row is trunk position)
+                var treeSortY = deco.row * ts + ts; // bottom of trunk
+                (function(d) {
+                    sortList.push({ sortY: treeSortY, render: function() {
+                        var dx = d.col * ts - camX - ts / 2; // center canopy over trunk
+                        var dy = d.row * ts - camY - ts * 2;  // canopy extends 2 tiles above trunk
+                        ctx.drawImage(SPRITES.tiles.tree, dx, dy, ts * 2, ts * 3);
+                    }});
+                })(deco);
+            }
+        }
+    }
+
+    // Brodo
+    sortList.push({ sortY: brodo.y + brodo.h, render: renderBrodo.bind(null, ctx, camX, camY) });
+
+    // Player (glow renders right before player sprite)
+    sortList.push({ sortY: player.y + player.h, render: function() {
+        renderPlayerGlow(ctx, camX, camY);
+        renderPlayer(ctx, camX, camY);
+    }});
+
+    // Sort by Y (ascending = further entities render first)
+    sortList.sort(function(a, b) { return a.sortY - b.sortY; });
+
+    // Render all entities in depth order
+    for (var si = 0; si < sortList.length; si++) {
+        sortList[si].render();
+    }
+
+    // ── Interaction prompts (above Y-sorted entities) ──
+    renderNPCPrompt(ctx, camX, camY);
+    renderInteractionPrompts(ctx, camX, camY);
+
+    // ── Overlay effects (above all entities) ──
+    renderBossProjectiles(ctx, camX, camY);
+    renderWPProjectiles(ctx, camX, camY);
+    renderStressClouds(ctx, camX, camY);
 
     // Post-processing: ambient glow/bloom pass on world
-    renderWorldGlow(ctx, game.cameraX, game.cameraY);
+    renderWorldGlow(ctx, camX, camY);
 
     // Render projectiles (on top of player)
     renderProjectiles(ctx, game.cameraX, game.cameraY);

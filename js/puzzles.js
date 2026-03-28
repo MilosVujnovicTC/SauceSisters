@@ -365,13 +365,38 @@ function renderBMX(ctx) {
         ctx.fill();
     }
 
-    // --- Far hills (parallax, slower) ---
+    // --- Wispy high-altitude clouds ---
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    for (var wc = 0; wc < 4; wc++) {
+        var wcX = ((wc * 280 + 80) - (bmx.bgCloudOffset * 0.15) % (w + 400) + w + 400) % (w + 400) - 100;
+        var wcY = 15 + (wc % 2) * 18;
+        ctx.beginPath();
+        ctx.arc(wcX, wcY, 8 + wc % 3 * 3, 0, Math.PI * 2);
+        ctx.arc(wcX + 14, wcY - 2, 6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // --- Far hills (parallax, slowest) ---
+    ctx.fillStyle = '#2e7a2e';
+    ctx.beginPath();
+    ctx.moveTo(0, gY);
+    for (var xf = 0; xf <= w; xf += 20) {
+        var farFarY = gY - 55 - Math.sin((xf + bmx.bgCloudOffset * 0.12) * 0.004) * 20
+                      - Math.sin((xf + bmx.bgCloudOffset * 0.12) * 0.011) * 12
+                      - Math.cos((xf + bmx.bgCloudOffset * 0.12) * 0.007) * 8;
+        ctx.lineTo(xf, farFarY);
+    }
+    ctx.lineTo(w, gY);
+    ctx.fill();
+
+    // --- Mid hills (parallax) ---
     ctx.fillStyle = '#3e8a52';
     ctx.beginPath();
     ctx.moveTo(0, gY);
     for (var x = 0; x <= w; x += 30) {
         var farHillY = gY - 40 - Math.sin((x + bmx.bgCloudOffset * 0.25) * 0.005) * 25
-                       - Math.sin((x + bmx.bgCloudOffset * 0.25) * 0.012) * 10;
+                       - Math.sin((x + bmx.bgCloudOffset * 0.25) * 0.012) * 10
+                       - Math.cos((x + bmx.bgCloudOffset * 0.25) * 0.009) * 8;
         ctx.lineTo(x, farHillY);
     }
     ctx.lineTo(w, gY);
@@ -382,7 +407,8 @@ function renderBMX(ctx) {
     ctx.beginPath();
     ctx.moveTo(0, gY);
     for (var x2 = 0; x2 <= w; x2 += 40) {
-        var hillY = gY - 20 - Math.sin((x2 + bmx.bgCloudOffset * 0.5) * 0.007) * 18;
+        var hillY = gY - 20 - Math.sin((x2 + bmx.bgCloudOffset * 0.5) * 0.007) * 18
+                    - Math.cos((x2 + bmx.bgCloudOffset * 0.5) * 0.013) * 6;
         ctx.lineTo(x2, hillY);
     }
     ctx.lineTo(w, gY);
@@ -421,6 +447,12 @@ function renderBMX(ctx) {
     ctx.fillStyle = '#a89070';
     for (var pi = 0; pi < w; pi += 18) {
         ctx.fillRect(pi + ((pi * 3) % 7), gY + 1, 2, 2);
+    }
+    // Scrolling dashed center line
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    var dashOffset = bmx.scrollX % 32;
+    for (var dl = -dashOffset; dl < w; dl += 32) {
+        ctx.fillRect(dl, gY + 2, 14, 2);
     }
 
     // --- Ground gaps (water underneath) ---
@@ -578,6 +610,16 @@ function renderBMX(ctx) {
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(rearWX, wheelY, BMX_CONFIG.WHEEL_RADIUS, 0, Math.PI * 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(frontWX, wheelY, BMX_CONFIG.WHEEL_RADIUS, 0, Math.PI * 2); ctx.stroke();
+        // Spokes (rotating based on scroll)
+        var spokeAngle = bmx.scrollX * 0.05;
+        ctx.strokeStyle = '#777'; ctx.lineWidth = 1;
+        for (var sp = 0; sp < 4; sp++) {
+            var sa = spokeAngle + sp * Math.PI / 2;
+            var sdx = Math.cos(sa) * (BMX_CONFIG.WHEEL_RADIUS - 1);
+            var sdy = Math.sin(sa) * (BMX_CONFIG.WHEEL_RADIUS - 1);
+            ctx.beginPath(); ctx.moveTo(rearWX - sdx, wheelY - sdy); ctx.lineTo(rearWX + sdx, wheelY + sdy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(frontWX - sdx, wheelY - sdy); ctx.lineTo(frontWX + sdx, wheelY + sdy); ctx.stroke();
+        }
         // Hub
         ctx.fillStyle = '#555';
         ctx.beginPath(); ctx.arc(rearWX, wheelY, 2, 0, Math.PI * 2); ctx.fill();

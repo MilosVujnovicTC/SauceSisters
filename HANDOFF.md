@@ -2,14 +2,13 @@
 > Auto-generated. Read this at the start of every new session.
 
 ## Last completed stage
-- Visual overhaul Phases 4-7 — completed 2026-03-27
-- Phase 4: All 18 NPC chibi sprites generated + integrated
-- Phase 5: Boss Enzo, Boss Bridget, Enemy Goon, Enchanted Broom sprites
-- Phase 6: 16 item sprites (8 weapons, 7 power-ups, 1 recipe fragment) + drawItemById system
-- Phase 7: Heart (full/empty) + coin UI sprites
+- Visual rendering polish (V-6) — completed 2026-03-28
+- Y-sorted render pipeline, drop shadows, wall highlights, ambient light
+- Multi-tile objects (connected counters, 2x2 stoves/stalls, 1x2 bookshelves, trees)
+- Tile transitions, BMX mini-game polish
 
 ## Current stage in progress
-- Visual overhaul complete — ready for testing
+- Visual overhaul fully complete — ready for testing
 - Status: awaiting user confirmation
 
 ## PixelLab character IDs (do NOT delete)
@@ -62,30 +61,47 @@
 
 **NPCs without sprites (procedural fallback):** market_vendor, market_cat_lady, canal_fisherman
 
-## Asset inventory
-### Characters (assets/sprites/characters/)
-- 18 NPC south-facing PNGs (npc-*.png)
-- 2 boss PNGs (boss-enzo.png, boss-bridget.png)
-- 1 enemy PNG (enemy-goon.png)
-- 1 broom PNG (broom.png)
-- Giulia chibi walk sheet, Brodo chibi sheet (from prior sessions)
+## Code changes this session (V-6)
 
-### Items (assets/sprites/items/)
-- 8 weapon PNGs: weapon_flour, weapon_tomato, weapon_banana, weapon_spatula, weapon_sock, weapon_rubber_duck, weapon_rolling_pin, weapon_cdrom
-- 7 power-up PNGs: powerup_broccoli, powerup_choco_milk, powerup_water, powerup_deli_meat, powerup_gouda, powerup_brownie, powerup_milk
-- 1 recipe PNG: recipe_fragment (shared by all 5 recipes)
+### js/engine.js
+- Replaced fixed-order render calls (lines 734-777) with Y-sorted entity pass
+- Collects NPCs, pushables, objects, enemies, bosses, broom, Brodo, player, items, power-ups, tree decorations into sortList
+- Sorted by bottom-edge Y ascending, rendered in depth order
+- Ground effects (sparkles, traps) before Y-sort; overlays (projectiles, boss attacks) after
+- Interaction prompts (renderNPCPrompt, renderInteractionPrompts) after Y-sort
 
-### UI (assets/sprites/ui/)
-- heart_full.png, heart_empty.png, coin.png
+### js/entities.js
+- Extracted renderSingleNPC() from renderNPCs() loop body
+- Extracted renderSingleEnemy() from renderEnemies() loop body
+- Extracted renderSinglePowerup() from renderPowerups() loop body
+- Split NPC interaction prompt into renderNPCPrompt()
+- Original batch functions now delegate to single-entity functions
 
-## Code changes this session
-- **manifest.json:** NPC keys remapped to world.js IDs, added itemSprites section, added UI sprites
-- **sprites.js:** Added `drawItemById()`, updated `_loadAllSheets` to load itemSprites, enhanced `drawUI` with scaling
-- **world.js:** World item rendering uses `drawItemById` first
-- **ui.js:** HUD inventory uses `drawItemById`, hearts use `drawUI` with PixelLab sprites, coin uses `drawUI`
-- **weapons.js:** Weapon HUD uses `drawItemById`
-- **entities.js:** Power-up world rendering + buff HUD icon use `drawItemById`
-- **index.html:** Cache-busting v=48
+### js/world.js
+- Extracted renderSinglePushable() from renderPushables()
+- Extracted renderSingleObject() from renderObjects()
+- Extracted renderSingleWorldItem() from renderWorldItems()
+- Split object interaction prompt into renderInteractionPrompts()
+- Added drop shadows to pushables (radiusX=13), objects (radiusX=10), world items (radiusX=8)
+- Added ZONE_DECORATIONS data (trees in Market + Piazza)
+- renderTiles() new passes: tile transition blending, multi-tile overlay, wall top-face highlights, ambient light gradient
+
+### js/sprites.js
+- Added multi-tile overlay sprites in generateTileSprites():
+  - counter_left, counter_mid, counter_right (connected counter variants with stone top)
+  - stove_2x2 (64x64 — 4 burners + oven door with chrome handle)
+  - stall_2x2 (64x64 — candy-striped awning + goods on counter)
+  - shelf_1x2 (32x64 — tall bookshelf with 4 rows of colored spines)
+  - tree (64x96 — 2x3 canopy+trunk decoration)
+
+### js/puzzles.js
+- BMX renderBMX(): added 3rd far parallax hill layer, wispy high-altitude clouds
+- Compound sine curves for organic hill profiles (no flat tops)
+- Scrolling dashed road center line
+- Rotating wheel spokes based on bmx.scrollX
+
+### index.html
+- Cache-busting v=51
 
 ## CONFIG values
 - TILE_SIZE: 32
@@ -93,7 +109,7 @@
 - CANVAS_H: 576
 
 ## Next steps
-- Test the game via HTTP server to verify all PixelLab sprites load
+- Test the game via HTTP server to verify all visual improvements
+- Optional: Phase 6 decorative elements (cats, buckets, bollards, hanging pots)
 - Optional: Generate sprites for 3 missing NPCs (market_vendor, market_cat_lady, canal_fisherman)
-- Optional: Generate interactive object sprites (Nokia, BMX, NES cartridge, etc.)
 - Proceed to next BACKLOG stage after visual overhaul is confirmed working

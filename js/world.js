@@ -2183,7 +2183,24 @@ function isSolidTile(map, col, row) {
     return info ? info.solid : false;
 }
 
-/** Renders visible tiles from the map. cameraX/cameraY are pixel offsets. */
+// ── Decorative overlays per zone (trees, etc.) ──
+var ZONE_DECORATIONS = {
+    market: [
+        { type: 'tree', col: 2, row: 1 },
+        { type: 'tree', col: 29, row: 1 },
+        { type: 'tree', col: 2, row: 9 },
+        { type: 'tree', col: 29, row: 9 },
+        { type: 'tree', col: 1, row: 16 },
+        { type: 'tree', col: 29, row: 16 }
+    ],
+    piazza: [
+        { type: 'tree', col: 1, row: 1 },
+        { type: 'tree', col: 27, row: 1 },
+        { type: 'tree', col: 1, row: 18 },
+        { type: 'tree', col: 27, row: 18 }
+    ]
+};
+
 /** Renders tilemap using pre-generated sprite textures with NW lighting. */
 function renderTiles(ctx, map, cameraX, cameraY) {
     const ts = CONFIG.TILE_SIZE;
@@ -2213,6 +2230,121 @@ function renderTiles(ctx, map, cameraX, cameraY) {
                 } else {
                     ctx.fillStyle = tileInfo.color;
                     ctx.fillRect(screenX, screenY, ts, ts);
+                }
+            }
+        }
+    }
+
+    // ── Tile transition blending pass ──
+    // Draw soft gradient edges where different walkable tile types meet
+    var blendW = 6; // blend strip width in pixels
+    for (var tRow = startRow; tRow <= endRow; tRow++) {
+        for (var tCol = startCol; tCol <= endCol; tCol++) {
+            var tId = map[tRow][tCol];
+            var tInfo = TILE_BY_ID[tId] || TILES.FLOOR;
+            if (tInfo.solid) continue; // only blend walkable tiles
+            var tsx = tCol * ts - camX;
+            var tsy = tRow * ts - camY;
+
+            // Check each neighbor — if different walkable type, blend
+            var neighbors = [
+                { dr: -1, dc: 0, dir: 'N' }, // north
+                { dr: 1,  dc: 0, dir: 'S' }, // south
+                { dr: 0,  dc: -1, dir: 'W' }, // west
+                { dr: 0,  dc: 1, dir: 'E' }  // east
+            ];
+            for (var nb = 0; nb < 4; nb++) {
+                var nr = tRow + neighbors[nb].dr;
+                var nc = tCol + neighbors[nb].dc;
+                if (nr < 0 || nr >= map.length || nc < 0 || nc >= map[0].length) continue;
+                var nId = map[nr][nc];
+                if (nId === tId) continue; // same tile type
+                var nInfo = TILE_BY_ID[nId] || TILES.FLOOR;
+                if (nInfo.solid) continue; // don't blend with solid tiles
+                if (nInfo.label === tInfo.label) continue; // same visual type
+
+                var grad;
+                var nColor = nInfo.color;
+                if (neighbors[nb].dir === 'N') {
+                    grad = ctx.createLinearGradient(tsx, tsy, tsx, tsy + blendW);
+                    grad.addColorStop(0, nColor); grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.globalAlpha = 0.25; ctx.fillStyle = grad;
+                    ctx.fillRect(tsx, tsy, ts, blendW);
+                } else if (neighbors[nb].dir === 'S') {
+                    grad = ctx.createLinearGradient(tsx, tsy + ts, tsx, tsy + ts - blendW);
+                    grad.addColorStop(0, nColor); grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.globalAlpha = 0.25; ctx.fillStyle = grad;
+                    ctx.fillRect(tsx, tsy + ts - blendW, ts, blendW);
+                } else if (neighbors[nb].dir === 'W') {
+                    grad = ctx.createLinearGradient(tsx, tsy, tsx + blendW, tsy);
+                    grad.addColorStop(0, nColor); grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.globalAlpha = 0.25; ctx.fillStyle = grad;
+                    ctx.fillRect(tsx, tsy, blendW, ts);
+                } else if (neighbors[nb].dir === 'E') {
+                    grad = ctx.createLinearGradient(tsx + ts, tsy, tsx + ts - blendW, tsy);
+                    grad.addColorStop(0, nColor); grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.globalAlpha = 0.25; ctx.fillStyle = grad;
+                    ctx.fillRect(tsx + ts - blendW, tsy, blendW, ts);
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    // ── Multi-tile overlay pass ──
+    // Draw enhanced sprites for connected counters, stove clusters, shelf pairs, stall groups
+    for (var oRow = startRow; oRow <= endRow; oRow++) {
+        for (var oCol = startCol; oCol <= endCol; oCol++) {
+            var oTileId = map[oRow][oCol];
+            var oInfo = TILE_BY_ID[oTileId] || TILES.FLOOR;
+            var oLabel = oInfo.label;
+            var osx = oCol * ts - camX;
+            var osy = oRow * ts - camY;
+
+            // Connected counters: check left/right neighbors
+            if (oLabel === 'counter') {
+                var hasLeft = oCol > 0 && (TILE_BY_ID[map[oRow][oCol - 1]] || TILES.FLOOR).label === 'counter';
+                var hasRight = oCol < map[0].length - 1 && (TILE_BY_ID[map[oRow][oCol + 1]] || TILES.FLOOR).label === 'counter';
+                var counterSprite = null;
+                if (hasLeft && hasRight) counterSprite = SPRITES.tiles.counter_mid;
+                else if (hasRight) counterSprite = SPRITES.tiles.counter_left;
+                else if (hasLeft) counterSprite = SPRITES.tiles.counter_right;
+                if (counterSprite) {
+                    ctx.drawImage(counterSprite, osx, osy, ts, ts);
+                }
+            }
+
+            // Stove 2x2: only render from top-left stove of a 2-wide pair
+            if (oLabel === 'stove' && SPRITES.tiles.stove_2x2) {
+                var stoveRight = oCol + 1 < map[0].length && (TILE_BY_ID[map[oRow][oCol + 1]] || TILES.FLOOR).label === 'stove';
+                var stoveBelow = oRow + 1 < map.length && (TILE_BY_ID[map[oRow + 1][oCol]] || TILES.FLOOR).label === 'stove';
+                var stoveLeft = oCol > 0 && (TILE_BY_ID[map[oRow][oCol - 1]] || TILES.FLOOR).label === 'stove';
+                var stoveAbove = oRow > 0 && (TILE_BY_ID[map[oRow - 1][oCol]] || TILES.FLOOR).label === 'stove';
+                // Only render 2x2 from top-left corner of a 2x2 block
+                if (stoveRight && stoveBelow && !stoveLeft && !stoveAbove) {
+                    ctx.drawImage(SPRITES.tiles.stove_2x2, osx, osy, ts * 2, ts * 2);
+                }
+            }
+
+            // Stall 2x2: render from top-left of 2x2 stall block
+            if (oLabel === 'stall' && SPRITES.tiles.stall_2x2) {
+                var stallRight = oCol + 1 < map[0].length && (TILE_BY_ID[map[oRow][oCol + 1]] || TILES.FLOOR).label === 'stall';
+                var stallBelow = oRow + 1 < map.length && (TILE_BY_ID[map[oRow + 1][oCol]] || TILES.FLOOR).label === 'stall';
+                var stallLeft = oCol > 0 && (TILE_BY_ID[map[oRow][oCol - 1]] || TILES.FLOOR).label === 'stall';
+                var stallAbove = oRow > 0 && (TILE_BY_ID[map[oRow - 1][oCol]] || TILES.FLOOR).label === 'stall';
+                // Top-left corner of 2x2 block
+                if (stallRight && stallBelow && !stallLeft && !stallAbove) {
+                    ctx.drawImage(SPRITES.tiles.stall_2x2, osx, osy, ts * 2, ts * 2);
+                }
+            }
+
+            // Bookshelf 1x2: render from top shelf when shelf below exists
+            if (oLabel === 'shelf' && SPRITES.tiles.shelf_1x2) {
+                var shelfBelow = oRow + 1 < map.length && (TILE_BY_ID[map[oRow + 1][oCol]] || TILES.FLOOR).label === 'shelf';
+                var shelfAbove = oRow > 0 && (TILE_BY_ID[map[oRow - 1][oCol]] || TILES.FLOOR).label === 'shelf';
+                // Top of a vertical pair
+                if (shelfBelow && !shelfAbove) {
+                    ctx.drawImage(SPRITES.tiles.shelf_1x2, osx, osy, ts, ts * 2);
                 }
             }
         }
@@ -2264,6 +2396,35 @@ function renderTiles(ctx, map, cameraX, cameraY) {
             }
         }
     }
+
+    // ── Wall top-face highlights ──
+    // Bright strip at bottom of wall tiles that face open floor (visible wall face)
+    for (var hRow = startRow; hRow <= endRow; hRow++) {
+        for (var hCol = startCol; hCol <= endCol; hCol++) {
+            var hTileId = map[hRow][hCol];
+            var hTileInfo = TILE_BY_ID[hTileId] || TILES.FLOOR;
+            if (!hTileInfo.solid) continue;
+            // Check if tile below is non-solid (visible wall face)
+            if (hRow + 1 < map.length && !isSolidTile(map, hCol, hRow + 1)) {
+                var hx = hCol * ts - camX;
+                var hy = hRow * ts - camY;
+                ctx.fillStyle = 'rgba(255,255,230,0.12)';
+                ctx.fillRect(hx, hy + ts - 2, ts, 2);
+            }
+        }
+    }
+
+    // ── Ambient light gradient ──
+    // Subtle warm light from above, fading toward bottom
+    var viewX = startCol * ts - camX;
+    var viewY = startRow * ts - camY;
+    var viewW = (endCol - startCol + 1) * ts;
+    var viewH = (endRow - startRow + 1) * ts;
+    var ambientGrad = ctx.createLinearGradient(viewX, viewY, viewX, viewY + viewH);
+    ambientGrad.addColorStop(0, 'rgba(255,255,200,0)');
+    ambientGrad.addColorStop(1, 'rgba(255,255,200,0.04)');
+    ctx.fillStyle = ambientGrad;
+    ctx.fillRect(viewX, viewY, viewW, viewH);
 }
 
 // ============================================================
@@ -2624,30 +2785,34 @@ function checkPushableCollision(newX, newY, pw, ph, dirCol, dirRow) {
 
 /** Renders all pushable objects in the current zone. */
 /** Renders pushable objects using type-specific sprites (crate, bench, planter). */
+/** Renders a single pushable object (crate, bench, planter). */
+function renderSinglePushable(ctx, cameraX, cameraY, p) {
+    var ts = CONFIG.TILE_SIZE;
+    var px = p.sliding ? p.visualX : p.col * ts;
+    var py = p.sliding ? p.visualY : p.row * ts;
+    var screenX = px - cameraX;
+    var screenY = py - cameraY;
+
+    // Ground shadow
+    drawCharacterShadow(ctx, screenX + ts / 2, screenY + ts - 2, 13, 5);
+
+    var objTypes = { crate: 0, bench: 1, planter: 2 };
+    if (!SpriteLoader.drawItem(ctx, 'objects', objTypes[p.type] || 0, screenX, screenY)) {
+        var sprite = SPRITES.objects[p.type] || SPRITES.objects.crate;
+        if (sprite) {
+            ctx.drawImage(sprite, screenX, screenY);
+        } else {
+            ctx.fillStyle = CONFIG.CRATE_COLOR;
+            ctx.fillRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
+        }
+    }
+}
+
 function renderPushables(ctx, cameraX, cameraY) {
     const zone = game.currentZone;
     if (!zone || !zone.pushables) return;
-    const ts = CONFIG.TILE_SIZE;
-
     for (let i = 0; i < zone.pushables.length; i++) {
-        const p = zone.pushables[i];
-        // Use visual position when sliding, grid position otherwise
-        const px = p.sliding ? p.visualX : p.col * ts;
-        const py = p.sliding ? p.visualY : p.row * ts;
-        const screenX = px - cameraX;
-        const screenY = py - cameraY;
-
-        // Try image-based object sprite first, then procedural, then flat color
-        var objTypes = { crate: 0, bench: 1, planter: 2 };
-        if (!SpriteLoader.drawItem(ctx, 'objects', objTypes[p.type] || 0, screenX, screenY)) {
-            var sprite = SPRITES.objects[p.type] || SPRITES.objects.crate;
-            if (sprite) {
-                ctx.drawImage(sprite, screenX, screenY);
-            } else {
-                ctx.fillStyle = CONFIG.CRATE_COLOR;
-                ctx.fillRect(screenX + 1, screenY + 1, ts - 2, ts - 2);
-            }
-        }
+        renderSinglePushable(ctx, cameraX, cameraY, zone.pushables[i]);
     }
 }
 
@@ -3026,29 +3191,27 @@ function findNearbyObject() {
     return null;
 }
 
-/** Renders all interactable objects using pre-generated sprites. */
-function renderObjects(ctx, cameraX, cameraY) {
-    var zone = game.currentZone;
-    if (!zone || !zone.objects) return;
+/** Renders a single interactable object. Returns false if object should be skipped. */
+function renderSingleObject(ctx, cameraX, cameraY, obj) {
+    // Skip hidden objects
+    if (obj.id === 'bmx_bike' && getFlag('bmx_completed')) return;
+    if (obj.id === 'nokia_3210' && getFlag('nokia_solved')) return;
+    if (obj.id === 'kitchen_spatula' && hasItem('spatula')) return;
+    if (obj.id === 'kitchen_flour' && hasItem('flour')) return;
+    if (obj.id === 'market_tomato' && hasItem('tomato')) return;
+    if (obj.id === 'market_banana' && hasItem('banana')) return;
+    if (obj.id === 'piazza_tomato' && hasItem('tomato')) return;
+    if (obj.id === 'gym_flour' && hasItem('flour')) return;
+    if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) return;
+
     var ts = CONFIG.TILE_SIZE;
+    var screenX = obj.col * ts - cameraX;
+    var screenY = obj.row * ts - cameraY;
 
-    for (var i = 0; i < zone.objects.length; i++) {
-        var obj = zone.objects[i];
-        // Skip hidden objects
-        if (obj.id === 'bmx_bike' && getFlag('bmx_completed')) continue;
-        if (obj.id === 'nokia_3210' && getFlag('nokia_solved')) continue;
-        if (obj.id === 'kitchen_spatula' && hasItem('spatula')) continue;
-        if (obj.id === 'kitchen_flour' && hasItem('flour')) continue;
-        if (obj.id === 'market_tomato' && hasItem('tomato')) continue;
-        if (obj.id === 'market_banana' && hasItem('banana')) continue;
-        if (obj.id === 'piazza_tomato' && hasItem('tomato')) continue;
-        if (obj.id === 'gym_flour' && hasItem('flour')) continue;
-        if (obj.id === 'wedding_planner_trigger' && weddingBoss.active) continue;
+    // Ground shadow
+    drawCharacterShadow(ctx, screenX + ts / 2, screenY + ts - 2, 10, 4);
 
-        var screenX = obj.col * ts - cameraX;
-        var screenY = obj.row * ts - cameraY;
-
-        // Map object IDs to sprite keys
+    // Map object IDs to sprite keys
         var spriteKey = null;
         if (obj.id === 'bmx_bike') spriteKey = 'bmx';
         else if (obj.id === 'nokia_3210') spriteKey = 'nokia';
@@ -3087,9 +3250,21 @@ function renderObjects(ctx, cameraX, cameraY) {
         }
 
         // Object name label removed for cleaner visuals
-    }
+}
 
-    // Interaction prompt
+/** Renders all interactable objects using pre-generated sprites. */
+function renderObjects(ctx, cameraX, cameraY) {
+    var zone = game.currentZone;
+    if (!zone || !zone.objects) return;
+    for (var i = 0; i < zone.objects.length; i++) {
+        renderSingleObject(ctx, cameraX, cameraY, zone.objects[i]);
+    }
+}
+
+/** Renders interaction prompts for nearby objects and NPCs. */
+function renderInteractionPrompts(ctx, cameraX, cameraY) {
+    var ts = CONFIG.TILE_SIZE;
+    // Object interaction prompt
     if (!dialogue.active) {
         var nearby = findNearbyObject();
         if (nearby && nearby.onInteract) {
@@ -3192,25 +3367,25 @@ function updateWorldItems(dt) {
     }
 }
 
-/** Renders uncollected world items with sprites, glow, and sparkle effects. */
-function renderWorldItems(ctx, cameraX, cameraY) {
-    const ts = CONFIG.TILE_SIZE;
+/** Renders a single world item with bobbing, glow, and sparkles. */
+function renderSingleWorldItem(ctx, cameraX, cameraY, item) {
+    if (item.collected) return;
+    var itemDef = ITEMS[item.itemId];
+    if (!itemDef) return;
+    var ts = CONFIG.TILE_SIZE;
 
-    for (let i = 0; i < worldItems.length; i++) {
-        const item = worldItems[i];
-        if (item.collected) continue;
-        const itemDef = ITEMS[item.itemId];
-        if (!itemDef) continue;
+    var baseX = item.col * ts - cameraX;
+    var baseY = item.row * ts - cameraY;
 
-        const baseX = item.col * ts - cameraX;
-        const baseY = item.row * ts - cameraY;
+    // Ground shadow (static, doesn't bob)
+    drawCharacterShadow(ctx, baseX + ts / 2, baseY + ts - 4, 8, 3);
 
-        // Bobbing effect
-        const bob = Math.sin(item.bobTimer * 3) * 3;
-        const cx = baseX + ts / 2;
-        const cy = baseY + ts / 2 + bob;
+    // Bobbing effect
+    var bob = Math.sin(item.bobTimer * 3) * 3;
+    var cx = baseX + ts / 2;
+    var cy = baseY + ts / 2 + bob;
 
-        // Glow circle (bloom effect)
+    // Glow circle (bloom effect)
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = 'rgba(255, 235, 59, 0.15)';
@@ -3258,5 +3433,10 @@ function renderWorldItems(ctx, cameraX, cameraY) {
             ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.5 + Math.sin(item.bobTimer * 5 + s) * 0.5) + ')';
             ctx.fillRect(sx - 1, sy - 1, 3, 3);
         }
+}
+
+function renderWorldItems(ctx, cameraX, cameraY) {
+    for (var i = 0; i < worldItems.length; i++) {
+        renderSingleWorldItem(ctx, cameraX, cameraY, worldItems[i]);
     }
 }

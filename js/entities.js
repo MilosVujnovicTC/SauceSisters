@@ -804,18 +804,13 @@ function updateNPCs(dt) {
 }
 
 /** Renders all NPCs in the current zone using pixel art sprites. */
-function renderNPCs(ctx, cameraX, cameraY) {
-    const zone = game.currentZone;
-    if (!zone || !zone.npcs) return;
-    const ts = CONFIG.TILE_SIZE;
-
-    for (let i = 0; i < zone.npcs.length; i++) {
-        const npc = zone.npcs[i];
-        // Use pixel position if available, otherwise grid position
-        var npcPxX = npc._x !== undefined ? npc._x : npc.col * ts;
-        var npcPxY = npc._y !== undefined ? npc._y : npc.row * ts;
-        const screenX = npcPxX - cameraX;
-        const screenY = npcPxY - cameraY;
+/** Renders a single NPC with idle animation and visual effects. */
+function renderSingleNPC(ctx, cameraX, cameraY, npc) {
+    var ts = CONFIG.TILE_SIZE;
+    var npcPxX = npc._x !== undefined ? npc._x : npc.col * ts;
+    var npcPxY = npc._y !== undefined ? npc._y : npc.row * ts;
+    var screenX = npcPxX - cameraX;
+    var screenY = npcPxY - cameraY;
 
         // NPC sprite (generated on first access)
         var sprite = getNPCSprite(npc);
@@ -962,21 +957,30 @@ function renderNPCs(ctx, cameraX, cameraY) {
         }
 
         // NPC name label removed for cleaner visuals
-    }
+}
 
-    // Interaction prompt when near an NPC
-    if (!dialogue.active) {
-        const nearby = findNearbyNPC();
-        if (nearby) {
-            var nearPxX = nearby._x !== undefined ? nearby._x : nearby.col * ts;
-            var nearPxY = nearby._y !== undefined ? nearby._y : nearby.row * ts;
-            const sx = nearPxX - cameraX + ts / 2;
-            const sy = nearPxY - cameraY - 18;
-            ctx.fillStyle = '#ffd54f';
-            ctx.font = 'bold 12px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('[Z] Talk', sx, sy);
-        }
+function renderNPCs(ctx, cameraX, cameraY) {
+    var zone = game.currentZone;
+    if (!zone || !zone.npcs) return;
+    for (var i = 0; i < zone.npcs.length; i++) {
+        renderSingleNPC(ctx, cameraX, cameraY, zone.npcs[i]);
+    }
+}
+
+/** Renders NPC interaction prompt when player is nearby. */
+function renderNPCPrompt(ctx, cameraX, cameraY) {
+    if (dialogue.active) return;
+    var ts = CONFIG.TILE_SIZE;
+    var nearby = findNearbyNPC();
+    if (nearby) {
+        var nearPxX = nearby._x !== undefined ? nearby._x : nearby.col * ts;
+        var nearPxY = nearby._y !== undefined ? nearby._y : nearby.row * ts;
+        var sx = nearPxX - cameraX + ts / 2;
+        var sy = nearPxY - cameraY - 18;
+        ctx.fillStyle = '#ffd54f';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('[Z] Talk', sx, sy);
     }
 }
 
@@ -1245,12 +1249,11 @@ function hitEnemy(e, weapon) {
 }
 
 /** Renders all enemies. */
-function renderEnemies(ctx, cameraX, cameraY) {
-    for (var i = 0; i < enemies.length; i++) {
-        var e = enemies[i];
-        if (e.state === 'dead') continue;
-        var sx = e.x - cameraX;
-        var sy = e.y - cameraY;
+/** Renders a single enemy with state-based visuals and HP bar. */
+function renderSingleEnemy(ctx, cameraX, cameraY, e) {
+    if (e.state === 'dead') return;
+    var sx = e.x - cameraX;
+    var sy = e.y - cameraY;
         var t = e.animTimer;
 
         // Flash on hit
@@ -1308,6 +1311,11 @@ function renderEnemies(ctx, cameraX, cameraY) {
         }
 
         // Enemy name label removed for cleaner visuals
+}
+
+function renderEnemies(ctx, cameraX, cameraY) {
+    for (var i = 0; i < enemies.length; i++) {
+        renderSingleEnemy(ctx, cameraX, cameraY, enemies[i]);
     }
 }
 
@@ -3086,16 +3094,15 @@ function updatePowerups(dt) {
 }
 
 /** Renders world power-up pickups with sprites and glow effect. */
-function renderPowerups(ctx, cameraX, cameraY) {
+/** Renders a single power-up pickup with glow and bobbing. */
+function renderSinglePowerup(ctx, cameraX, cameraY, pu) {
+    if (pu.collected) return;
+    var def = POWERUPS[pu.type];
+    if (!def) return;
     var ts = CONFIG.TILE_SIZE;
-    for (var i = 0; i < worldPowerups.length; i++) {
-        var pu = worldPowerups[i];
-        if (pu.collected) continue;
-        var def = POWERUPS[pu.type];
-        if (!def) continue;
 
-        var sx = pu.x - cameraX;
-        var sy = pu.y - cameraY;
+    var sx = pu.x - cameraX;
+    var sy = pu.y - cameraY;
         var bob = Math.sin(pu.bobTimer * 2.5) * 3;
         var cx = sx + ts / 2;
         var cy = sy + ts / 2 + bob;
@@ -3123,6 +3130,11 @@ function renderPowerups(ctx, cameraX, cameraY) {
         }
 
         // Power-up name label removed for cleaner visuals
+}
+
+function renderPowerups(ctx, cameraX, cameraY) {
+    for (var i = 0; i < worldPowerups.length; i++) {
+        renderSinglePowerup(ctx, cameraX, cameraY, worldPowerups[i]);
     }
 }
 

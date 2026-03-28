@@ -1158,6 +1158,158 @@ function generateTileSprites() {
             cx.fillRect(T / 2, T / 2, T / 2, T / 2);
         }));
     }
+
+    // ── Multi-tile overlay sprites ──
+
+    // Connected counter variants: left-end, middle, right-end
+    SPRITES.tiles.counter_left = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914'; cx.fillRect(0, 0, T, T);
+        // Rounded left end
+        cx.fillStyle = '#6b4904'; cx.fillRect(0, 0, 3, T);
+        // Top surface (stone)
+        cx.fillStyle = '#b8a882'; cx.fillRect(3, 0, T - 3, 5);
+        cx.fillStyle = '#a89872'; cx.fillRect(3, 5, T - 3, 1);
+        // Wood grain
+        cx.strokeStyle = '#7a5a0e'; cx.lineWidth = 1;
+        for (var i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(3, 10 + i * 8); cx.lineTo(T, 10 + i * 8); cx.stroke(); }
+        // Bottom shadow
+        cx.fillStyle = '#6b4904'; cx.fillRect(0, T - 2, T, 2);
+        // Continuous right edge (no border)
+    });
+    SPRITES.tiles.counter_mid = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914'; cx.fillRect(0, 0, T, T);
+        // Top surface (stone) — continuous
+        cx.fillStyle = '#b8a882'; cx.fillRect(0, 0, T, 5);
+        cx.fillStyle = '#a89872'; cx.fillRect(0, 5, T, 1);
+        // Wood grain
+        cx.strokeStyle = '#7a5a0e'; cx.lineWidth = 1;
+        for (var i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(0, 10 + i * 8); cx.lineTo(T, 10 + i * 8); cx.stroke(); }
+        // Bottom shadow
+        cx.fillStyle = '#6b4904'; cx.fillRect(0, T - 2, T, 2);
+    });
+    SPRITES.tiles.counter_right = createSprite(T, T, function(cx) {
+        cx.fillStyle = '#8b6914'; cx.fillRect(0, 0, T, T);
+        // Rounded right end
+        cx.fillStyle = '#6b4904'; cx.fillRect(T - 3, 0, 3, T);
+        // Top surface (stone)
+        cx.fillStyle = '#b8a882'; cx.fillRect(0, 0, T - 3, 5);
+        cx.fillStyle = '#a89872'; cx.fillRect(0, 5, T - 3, 1);
+        // Wood grain
+        cx.strokeStyle = '#7a5a0e'; cx.lineWidth = 1;
+        for (var i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(0, 10 + i * 8); cx.lineTo(T - 3, 10 + i * 8); cx.stroke(); }
+        // Bottom shadow
+        cx.fillStyle = '#6b4904'; cx.fillRect(0, T - 2, T, 2);
+    });
+
+    // Stove 2x2 composite (64x64 — rendered as overlay on top-left stove tile)
+    SPRITES.tiles.stove_2x2 = createSprite(T * 2, T * 2, function(cx) {
+        // Base metal surface
+        cx.fillStyle = '#555555'; cx.fillRect(0, 0, T * 2, T * 2);
+        // Top highlight
+        cx.fillStyle = '#666666'; cx.fillRect(0, 0, T * 2, 3);
+        // 4 burner circles (2x2 grid)
+        cx.strokeStyle = '#333333'; cx.lineWidth = 2;
+        var bx = [T / 2, T + T / 2, T / 2, T + T / 2];
+        var by = [T / 2 - 4, T / 2 - 4, T - 4, T - 4];
+        for (var b = 0; b < 4; b++) {
+            cx.beginPath(); cx.arc(bx[b], by[b], 8, 0, Math.PI * 2); cx.stroke();
+            // Burner glow
+            cx.fillStyle = 'rgba(255,120,30,0.15)';
+            cx.beginPath(); cx.arc(bx[b], by[b], 6, 0, Math.PI * 2); cx.fill();
+        }
+        // Oven door (bottom half)
+        cx.fillStyle = '#4a4a4a';
+        cx.fillRect(8, T + 4, T * 2 - 16, T - 10);
+        cx.strokeStyle = '#333333'; cx.lineWidth = 1;
+        cx.strokeRect(8, T + 4, T * 2 - 16, T - 10);
+        // Chrome handle
+        cx.fillStyle = '#aaaaaa';
+        cx.fillRect(T - 8, T + 8, 16, 3);
+        // Oven window
+        cx.fillStyle = 'rgba(255,140,40,0.3)';
+        cx.fillRect(T - 10, T + 14, 20, 12);
+        // Bottom edge
+        cx.fillStyle = '#444444'; cx.fillRect(0, T * 2 - 2, T * 2, 2);
+    });
+
+    // Stall 2x2 overlay (candy-striped awning top + counter bottom)
+    SPRITES.tiles.stall_2x2 = createSprite(T * 2, T * 2, function(cx) {
+        // Counter base (bottom row)
+        cx.fillStyle = '#9b6828'; cx.fillRect(0, T, T * 2, T);
+        // Wood grain on counter
+        cx.strokeStyle = '#8b5818'; cx.lineWidth = 1;
+        for (var i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(0, T + 8 + i * 8); cx.lineTo(T * 2, T + 8 + i * 8); cx.stroke(); }
+        // Goods on counter
+        cx.fillStyle = '#e53935'; // tomatoes
+        cx.beginPath(); cx.arc(12, T + 10, 4, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(22, T + 8, 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#fdd835'; // lemons
+        cx.beginPath(); cx.arc(T + 12, T + 10, 3, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#66bb6a'; // herbs
+        cx.fillRect(T + 24, T + 6, 6, 8);
+        // Awning (top row) — candy stripes
+        for (var s = 0; s < 8; s++) {
+            cx.fillStyle = s % 2 === 0 ? '#e8523a' : '#f5f5dc';
+            cx.fillRect(s * 8, 0, 8, T - 4);
+        }
+        // Awning fringe
+        cx.fillStyle = '#c4422a';
+        for (var f = 0; f < 16; f++) {
+            cx.fillRect(f * 4, T - 4, 2, 4);
+        }
+        // Posts
+        cx.fillStyle = '#5a3a1e'; cx.fillRect(0, 0, 3, T * 2); cx.fillRect(T * 2 - 3, 0, 3, T * 2);
+    });
+
+    // Bookshelf 1x2 (32x64 — tall bookshelf with visible colored spines)
+    SPRITES.tiles.shelf_1x2 = createSprite(T, T * 2, function(cx) {
+        cx.fillStyle = '#6b4226'; cx.fillRect(0, 0, T, T * 2);
+        // Shelf planks
+        cx.fillStyle = '#5a3216';
+        cx.fillRect(0, T / 2, T, 2);
+        cx.fillRect(0, T, T, 2);
+        cx.fillRect(0, T + T / 2, T, 2);
+        cx.fillRect(0, T * 2 - 2, T, 2);
+        // Books on 4 shelves
+        var bookColors = ['#c62828', '#1565c0', '#2e7d32', '#f9a825', '#6a1b9a', '#ff8f00', '#00838f'];
+        for (var shelf = 0; shelf < 4; shelf++) {
+            var shelfY = shelf * (T / 2) + 3;
+            for (var b = 0; b < 5; b++) {
+                cx.fillStyle = bookColors[(b + shelf * 2) % 7];
+                var bw = 3 + (b % 3);
+                cx.fillRect(2 + b * 6, shelfY, bw, T / 2 - 5);
+            }
+        }
+        // Top cap
+        cx.fillStyle = '#5a3216'; cx.fillRect(0, 0, T, 2);
+    });
+
+    // Tree overlay (64x96 — 2-wide canopy + trunk base, rendered as decoration)
+    SPRITES.tiles.tree = createSprite(T * 2, T * 3, function(cx) {
+        // Trunk (bottom center, 1 tile)
+        cx.fillStyle = '#5a3a1e';
+        cx.fillRect(T / 2 + 4, T * 2, T - 8, T);
+        // Trunk bark lines
+        cx.strokeStyle = '#4a2a0e'; cx.lineWidth = 1;
+        cx.beginPath(); cx.moveTo(T / 2 + 8, T * 2); cx.lineTo(T / 2 + 6, T * 3); cx.stroke();
+        cx.beginPath(); cx.moveTo(T - 4, T * 2); cx.lineTo(T - 2, T * 3); cx.stroke();
+        // Canopy (2x2, centered, overlapping top)
+        cx.fillStyle = '#3a7a30';
+        cx.beginPath(); cx.arc(T, T + 4, T - 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = '#4a8c3f';
+        cx.beginPath(); cx.arc(T - 4, T, T - 8, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(T + 4, T + 2, T - 6, 0, Math.PI * 2); cx.fill();
+        // Leaf highlights
+        cx.fillStyle = '#5aa050';
+        cx.beginPath(); cx.arc(T - 8, T - 6, 6, 0, Math.PI * 2); cx.fill();
+        cx.beginPath(); cx.arc(T + 6, T - 2, 5, 0, Math.PI * 2); cx.fill();
+        // Tiny flower accents
+        cx.fillStyle = '#ffd54f';
+        cx.fillRect(T - 12, T - 2, 2, 2);
+        cx.fillRect(T + 8, T + 6, 2, 2);
+        cx.fillStyle = '#ff8a80';
+        cx.fillRect(T - 2, T - 8, 2, 2);
+    });
 }
 
 // ============================================================
